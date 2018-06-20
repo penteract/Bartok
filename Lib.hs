@@ -11,7 +11,7 @@ type CardIndex = Int
 type Name = String
 type PlayerIndex = Name
 data Action = Draw Int | Play CardIndex
-data Event = Action (PlayerIndex,Action,String) | Timeout
+data Event = Action PlayerIndex Action String | Timeout
 
 
 -- I'd call a function playmove or runevent. the problem is that it's used too much
@@ -46,25 +46,34 @@ rank = fst
 
 
 baseAct :: Game
-baseAct (Action (p,Draw n,m)) = broadcast m . draw n p
+baseAct (Action p (Draw n) m) = broadcast m . draw n p
 --baseAct (Action (p,Play i,m)) g = broadcast m .
 
 broadcast :: String -> GameState -> GameState
 broadcast m gs = gs{messages = m:messages gs}
 
 draw :: Int -> PlayerIndex -> GameState -> GameState
-draw n p = foldl id (.) (replicate n draw1 p)
+draw n p = foldl (.) id (replicate n (draw1 p))
 
-withPlayer :: PlayerIndex ->(Hand -> (Hand,GameState))-> GameState -> Maybe (GameState,a)
-withPlayer p f = undefined
+
+getHand :: PlayerIndex -> GameState -> Maybe Hand
+getHand = undefined
+
+
+fromHand :: CardIndex -> Hand -> Maybe Card
+--fromHand i h = if i>=0 and i<length h then Just h!!i else Nothing
+fromHand 0 (x:xs) = Just x
+fromHand n (x:xs) = fromHand (n-1) xs
+
+--does nothing if player is invalid
+withHand :: PlayerIndex ->(Hand -> (Hand,GameState))-> GameState -> GameState
+withHand p f = undefined
 
 draw1 :: PlayerIndex -> GameState -> GameState
-draw1 p gs = case withPlayer (\h ->
+draw1 p gs = withHand p (\h ->
      case getCard gs of
         (Just c,gs') -> (c:h,gs)
-        Nothing -> ([],gs{pile=h++pile gs})) gs of
-    Just (gs')-> gs'
-    Nothing -> gs
+        (Nothing,gs') -> ([],gs'{pile=h++pile gs'})) gs
 
 
 shuffle :: [Card] -> [Card]
@@ -98,7 +107,7 @@ with = undefined
 
 
 penalty :: String -> PlayerIndex -> GameState -> GameState
-penalty s p gs = gbroadcast ("penalty :"++pl++s) . draw
+penalty s p = broadcast ("penalty :"++p++s) . draw1 p .(\gs -> gs{lastMoveLegal = False})
 
 --wasLegal :: Event -> GameState -> GameState
 
@@ -111,11 +120,18 @@ doBefore act1 act2 e = act1 e . act2 e
 doOnly :: Game -> Rule
 doOnly = const
 
+getPlayerCard :: PlayerIndex -> CardIndex -> GameState -> Maybe Card
+getPlayerCard p i gs = do
+    h <- getHand p gs
+    fromHand i h
+
 onPlay :: (Card -> Rule) -> Rule
-onPlay f act e@(Action (p,Play c,m)) gs = f c act e gs
-onPlay f act e g = act e g
+onPlay f act e@(Action p (Play i) m) gs = case getPlayerCard p i gs of
+        (Just c) -> f c act e gs
+        Nothing -> act e gs
+onPlay f act e gs = act e gs
 
 onLegalCard :: (Card -> Game) -> Rule
-onLegalCard f act a@(p, Play i, m) s = let s' = act a s in
-    if LastMoveLegal s' then f i a s' else s'
+onLegalCard f act e@(Action p (Play i) m) s = let s' = act e s in
+    if lastMoveLegal s' then maybe s' (\c -> f c e s') (getPlayerCard p i s) else s'
 onLegalCard f act a s = act a s
