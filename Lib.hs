@@ -20,7 +20,7 @@ type Game = Event -> GameState -> GameState
 type Rule = Game -> Game --this type is named correctlt
 
 data GameState = GS {
-    players :: [(Name,[Card])],
+    players :: [(Name,[Card])], -- first player is head of the list
     deck :: [Card],
     pile :: [Card],
     --nextPlayer :: Player, --required to be smaller than length hands
@@ -91,6 +91,11 @@ nextTurn _ g@GS {players = (p:ps)} = g{players=ps++[p]}
 
 when :: (a -> Bool) -> Game -> a -> Game
 when q act x = if q x then act else const id
+
+
+with :: (GameState -> a) -> (a-> GameState -> GameState) -> b
+with = undefined
+
 
 penalty :: String -> PlayerIndex -> GameState -> GameState
 penalty s p gs = gbroadcast ("penalty :"++pl++s) . draw
