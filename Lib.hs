@@ -61,7 +61,7 @@ type CardIndex = Int
 
 type Name = String
 type PlayerIndex = Name
-data Action = Draw Int | Play CardIndex
+data Action = Draw Int | Play Card
 data Event = Action PlayerIndex Action String | Timeout
 
 
@@ -110,11 +110,12 @@ draw n p = foldl (.) id (replicate n (draw1 p))
 getHand :: PlayerIndex -> GameState -> Maybe Hand
 getHand = undefined
 
-
+{-
 fromHand :: CardIndex -> Hand -> Maybe Card
 --fromHand i h = if i>=0 and i<length h then Just h!!i else Nothing
 fromHand 0 (x:xs) = Just x
 fromHand n (x:xs) = fromHand (n-1) xs
+-}
 
 --does nothing if player is invalid
 withHand :: PlayerIndex ->(Hand -> (Hand,GameState))-> GameState -> GameState
@@ -153,7 +154,7 @@ when :: (a -> Bool) -> Game -> a -> Game
 when q act x = if q x then act else const id
 
 
-with :: (GameState -> Int) -> (Int -> Rule) -> t0
+with :: (GameState -> a) -> (a -> Rule) -> Rule
 with = undefined
 
 
@@ -171,18 +172,17 @@ doBefore act1 act2 e = act1 e . act2 e
 doOnly :: Game -> Rule
 doOnly = const
 
+{-
 getPlayerCard :: PlayerIndex -> CardIndex -> GameState -> Maybe Card
 getPlayerCard p i gs = do
     h <- getHand p gs
-    fromHand i h
+    fromHand i h-}
 
 onPlay :: (Card -> Rule) -> Rule
-onPlay f act e@(Action p (Play i) m) gs = case getPlayerCard p i gs of
-        (Just c) -> f c act e gs
-        Nothing -> act e gs
+onPlay f act e@(Action p (Play c) m) gs = f c act e gs
 onPlay f act e gs = act e gs
 
 onLegalCard :: (Card -> Game) -> Rule
-onLegalCard f act e@(Action p (Play i) m) s = let s' = act e s in
-    if lastMoveLegal s' then maybe s' (\c -> f c e s') (getPlayerCard p i s) else s'
+onLegalCard f act e@(Action p (Play c) m) s = let s' = act e s in
+    if lastMoveLegal s' then f c e s' else s'
 onLegalCard f act a s = act a s
