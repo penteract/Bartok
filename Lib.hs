@@ -1,14 +1,19 @@
-
-
 module Lib where
+
+import Control.Monad.Trans.State
+import Data.List
+import Data.Maybe
+import Data.Char
+
+type Parser = StateT String Maybe
 
 next :: (Enum a, Bounded a, Eq a) => a -> a
 next a = if a == maxBound then minBound else succ a
 prev ::(Enum a, Bounded a, Eq a) =>  a -> a
 prev a = if a == minBound then maxBound else pred a
 
-data Suit = Clubs | Diamonds | Hearts | Spades deriving (Show,Eq,Enum)
-data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King deriving (Show,Eq,Enum)
+data Suit = Spades | Hearts | Diamonds | Clubs deriving (Show,Eq,Enum,Bounded)
+data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King deriving (Show,Eq,Enum,Bounded)
 
 suitChar :: Suit -> Char
 suitChar s = case s of
@@ -17,13 +22,42 @@ suitChar s = case s of
   Hearts -> 'H'
   Spades -> 'S'
 
+
 rankChar :: Rank -> Char
-rankChar r = (['A'] ++ [head $ show i | i <- [2..9]::[Integer] ] ++ ['T','J','Q','K'])!!fromEnum r
+rankChar r = (['A'] ++ [head $ show i | i <- [2..9]::[Int] ] ++ ['T','J','Q','K'])!!fromEnum r
 
 type Card = (Rank,Suit)
 type Hand = [Card]
 
-type CardIndex = Integer
+uniCard :: Card -> Char
+uniCard (r,s) = toEnum (0x1F0A0 + fromEnum s * 16 + fromEnum r + 1)
+
+(<|>) :: Parser a -> Parser a -> Parser a
+(<|>) = undefined
+
+parseRank :: Parser Rank
+parseRank = StateT (\s ->
+  fmap (\(r,c) -> (r,drop (length c) s)) $ listToMaybe $
+    filter (\(_,c) -> isPrefixOf (map toLower c) (map toLower s))
+      (map (\x -> (x,show x)) (enumFrom minBound) ++ zip (enumFrom minBound) (map ((:[]).rankChar) $ enumFrom minBound)))
+
+parseSuit :: Parser Suit
+parseSuit = StateT (\s ->
+  fmap (\(r,c) -> (r,drop (length c) s)) $ listToMaybe $
+    filter (\(_,c) -> isPrefixOf (map toLower c) (map toLower s))
+      (map (\x -> (x,show x)) (enumFrom minBound) ++ zip (enumFrom minBound) (map ((:[]).suitChar) $ enumFrom minBound)))
+
+ignore :: String -> Parser ()
+ignore s = StateT (\s -> undefined )
+
+parseCard :: Parser Card
+parseCard = do
+  r <- parseRank
+  ignore "of"
+  s <- parseSuit
+  return (r,s)
+
+type CardIndex = Int
 
 type Name = String
 type PlayerIndex = Name

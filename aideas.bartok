@@ -1,0 +1,16 @@
+7counter = 0
+
+r7 = onLegalPlay = if ((==Seven).rank) resolveSeven
+	&& onNextMove p a = switch a
+             case Play c = if ((!=Seven).rank) Illegal "Bad card"
+             case Draw n = { mustSay "Thank you " + "very"*(7counter-1) + "much"; if n != 7counter * 2) then Illegal "Not drawing " + 7counter*2 + " cards" else 7counter = 0 }
+ 	where resolveSeven = { mustSay "Have a " + "very "*(7counter) + "nice day"; 7counter += 1; } 
+
+
+Pi = [3,1,4,...]
+i = 0
+rPi = onLegalPlay &= if (i == 0 && (==Three).rank) i = 1
+      && onPlay c &= if (i >= 1) c.rank == Pi[i] ? Legal; i+=1 : Illegal "Not continuing pi"
+      && onDrawMove &= i = 0 
+
+rSnap = OnPlay &= if (c.suit == pile.top.suit && c.rank = pile.top.rank) Legal; mustSay "Snap"
