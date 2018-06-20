@@ -1,12 +1,29 @@
+
+
 module Lib where
 
-data Suit = Clubs | Hearts | Spades | Diamonds deriving (Show,Eq)
-data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King deriving (Show,Eq)
+next :: (Enum a, Bounded a, Eq a) => a -> a
+next a = if a == maxBound then minBound else succ a
+prev ::(Enum a, Bounded a, Eq a) =>  a -> a
+prev a = if a == minBound then maxBound else pred a
+
+data Suit = Clubs | Diamonds | Hearts | Spades deriving (Show,Eq,Enum)
+data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King deriving (Show,Eq,Enum)
+
+suitChar :: Suit -> Char
+suitChar s = case s of
+  Clubs -> 'C'
+  Diamonds -> 'D'
+  Hearts -> 'H'
+  Spades -> 'S'
+
+rankChar :: Rank -> Char
+rankChar r = (['A'] ++ [head $ show i | i <- [2..9]::[Integer] ] ++ ['T','J','Q','K'])!!fromEnum r
 
 type Card = (Rank,Suit)
 type Hand = [Card]
 
-type CardIndex = Int
+type CardIndex = Integer
 
 type Name = String
 type PlayerIndex = Name
@@ -26,7 +43,7 @@ data GameState = GS {
     --nextPlayer :: Player, --required to be smaller than length hands
     messages :: [String],
     lastMoveLegal :: Bool,
-    prev :: Maybe (GameState,Action)
+    prevGS :: Maybe (GameState,Action)
 }
 
 hands :: GameState -> [Hand]
