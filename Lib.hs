@@ -119,7 +119,7 @@ when :: (a -> Bool) -> Game -> a -> Game
 when q act x = if q x then act else const id
 
 
-with :: (GameState -> a) -> (a-> GameState -> GameState) -> b
+with :: (GameState -> Int) -> (Int -> Rule) -> t0
 with = undefined
 
 
