@@ -1,0 +1,5 @@
+r7 = do
+    onPlay (\c ->
+        n <- count7s
+        stopIf (n==0)
+        
