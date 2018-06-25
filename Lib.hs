@@ -1,9 +1,16 @@
+{-# LANGUAGE TemplateHaskell, GADTs #-}
+
 module Lib where
 
+import Control.Arrow (first,second)
+import Control.Lens
+import Control.Monad (join,liftM,liftM2)
+import Control.Monad.Random
 import Control.Monad.Trans.State
 import Data.List
 import Data.Maybe
 import Data.Char
+import System.Random.Shuffle (shuffle')
 
 type Parser = StateT String Maybe
 
@@ -39,16 +46,18 @@ parseRank :: Parser Rank
 parseRank = StateT (\s ->
   fmap (\(r,c) -> (r,drop (length c) s)) $ listToMaybe $
     filter (\(_,c) -> isPrefixOf (map toLower c) (map toLower s))
-      (map (\x -> (x,show x)) (enumFrom minBound) ++ zip (enumFrom minBound) (map ((:[]).rankChar) $ enumFrom minBound)))
+      (map (\x -> (x,show x)) (enumFrom minBound) ++ map (\x -> (x,((:[]).rankChar) x)) (enumFrom minBound)))
 
 parseSuit :: Parser Suit
 parseSuit = StateT (\s ->
   fmap (\(r,c) -> (r,drop (length c) s)) $ listToMaybe $
     filter (\(_,c) -> isPrefixOf (map toLower c) (map toLower s))
-      (map (\x -> (x,show x)) (enumFrom minBound) ++ zip (enumFrom minBound) (map ((:[]).suitChar) $ enumFrom minBound)))
+      (map (\x -> (x,show x)) (enumFrom minBound) ++ map (\x -> (x,((:[]).suitChar) x)) (enumFrom minBound)))
 
 ignore :: String -> Parser ()
-ignore s = StateT (\s -> undefined )
+ignore s = StateT (\s' -> let s'' = dropWhile isSpace s' in
+                            let s''' = stripPrefix s s'' in
+                              fmap ((,) () . dropWhile isSpace) s''')
 
 parseCard :: Parser Card
 parseCard = do
@@ -68,20 +77,23 @@ data Event = Action PlayerIndex Action String | Timeout
 -- I'd call a function playmove or runevent. the problem is that it's used too much
 --the type could almost be called Game
 type Game = Event -> GameState -> GameState
-type Rule = Game -> Game --this type is named correctlt
+type Rule = Game -> Game --this type is named correctly
 
-data GameState = GS {
-    players :: [(Name,[Card])], -- first player is head of the list
-    deck :: [Card],
-    pile :: [Card],
+data GameState = GS { _players :: [(Name,Hand)], -- current player is head of list
+       _deck :: [Card],
+       _pile :: [Card],
     --nextPlayer :: Player, --required to be smaller than length hands
-    messages :: [String],
-    lastMoveLegal :: Bool,
-    prevGS :: Maybe (GameState,Action)
-}
+       _messages :: [String],
+       _lastMoveLegal :: Bool,
+       _prevGS :: Maybe (GameState,Action),
+
+       _randg :: StdGen
+     }
+makeLenses ''GameState
 
 hands :: GameState -> [Hand]
-hands gs = map snd (players gs)
+hands gs = map snd $ gs^.players
+-- map snd (gs^.players)
 
 
 suit :: Card -> Suit
@@ -97,18 +109,24 @@ rank = fst
 
 
 baseAct :: Game
-baseAct (Action p (Draw n) m) = broadcast m . draw n p
+baseAct e gs
+    | (Action p (Draw n) m)<-e , p == fst (head $ gs ^. players) = broadcast (p++" draws "++show n++" cards.") . broadcast (p++": "++m) . draw n p $ nextTurn undefined gs
+    | (Action p (Draw n) m)<-e = broadcast (p++" draws "++show n++" cards.") . broadcast (p++": "++m) $ draw n p gs
+    -- | (Action p (Play c) m)<-e , p == fst (head $ gs ^. players) , suit c == suit (head $ gs ^. pile) || rank c == rank $ gs ^. pile = broadcast (p++" plays "++show c) $ undefined -- need to play the card
+    | (Action p (Play c) m)<-e , p == fst (head $ gs ^. players) = broadcast (p++" tries to play bad card "++show c++", draws 1 card as penalty.") $ draw 1 p gs -- also use m
+    -- | (Action p (Play c) m)<-e , suit c == suit $ gs ^. pile || rank c == rank = broadcast (p++" tries to play "++show c++" out of turn, receives 1 card penalty.") $ draw 1 p gs
+    | (Action p (Play c) m)<-e = broadcast (p++" tries to play bad card "++show c++ "out of turn, receives 2 penalty cards.") $ draw 2 p gs -- also use m
 --baseAct (Action (p,Play i,m)) g = broadcast m .
 
 broadcast :: String -> GameState -> GameState
-broadcast m gs = gs{messages = m:messages gs}
+broadcast = join . ((messages .~) .) . (. (^. messages)) . (:)
 
 draw :: Int -> PlayerIndex -> GameState -> GameState
 draw n p = foldl (.) id (replicate n (draw1 p))
 
 
 getHand :: PlayerIndex -> GameState -> Maybe Hand
-getHand = undefined
+getHand p gs = lookup p (gs^.players)
 
 {-
 fromHand :: CardIndex -> Hand -> Maybe Card
@@ -118,25 +136,28 @@ fromHand n (x:xs) = fromHand (n-1) xs
 -}
 
 --does nothing if player is invalid
-withHand :: PlayerIndex ->(Hand -> (Hand,GameState))-> GameState -> GameState
-withHand p f = undefined
+-- Angus: not quite sure what it's supposed to do but I think this does it!
+-- not as efficient as can be, should "break" once the player is found
+withHand :: PlayerIndex -> (Hand -> (Hand,GameState)) -> GameState -> GameState
+withHand p f gs = uncurry (players .~) $ foldr (\(n,h) (l,gs') -> if p == n then let (h',gs'') = f h in ((n,h'):l,gs'') else ((n,h):l,gs')) ([],gs) (gs^.players)
 
 draw1 :: PlayerIndex -> GameState -> GameState
 draw1 p gs = withHand p (\h ->
      case getCard gs of
-        (Just c,gs') -> (c:h,gs)
-        (Nothing,gs') -> ([],gs'{pile=h++pile gs'})) gs
+        (Just c,gs') -> (c:h,gs')
+        (Nothing,gs') -> ([],(pile .~ h ++ gs ^. pile) gs')) gs
 
 
-shuffle :: [Card] -> [Card]
-shuffle = id
+-- shuffle :: [Card] -> [Card]
+shuffle :: (RandomGen g) => g -> [Card] -> [Card]
+shuffle g cs = shuffle' cs (length cs) g -- use shuffleM but everything has to be a monad then? can StateT it?
 
 getCard :: GameState -> (Maybe Card,GameState)
-getCard gs = case deck gs of
-    (c:cs) -> (Just c,gs{deck = cs})
-    [] -> (\(c,gs') -> (c,broadcast "shuffling" gs')) (case pile gs of
-        (c:cs) -> case shuffle cs of-- should pile always have one card in?
-            (d:ds) -> (Just d,gs{deck = ds})
+getCard gs = case gs ^. deck of
+    (c:cs) -> (Just c,(deck .~ cs) gs)
+    [] -> Control.Arrow.second (broadcast "Shuffling pile to deck") (case gs ^. pile of
+        (c:cs) -> case shuffle (gs ^. randg) cs of -- should pile always have one card in? , c not shuffled as remains top card of the pile
+            (d:ds) -> (Just d,(deck .~ ds) gs)
             [] -> (Nothing,gs))
 
 
@@ -146,8 +167,10 @@ getCard gs = case deck gs of
 --mkR f act a g = f (act a g) -- f.(act a) -- (.) f (act a) -- (f.).act -- ((f.).) -- (.)((.)f) -- (.).(.)
 --mkR = (.).(.)
 
+-- precond: requires at least one player
 nextTurn :: Game
-nextTurn _ g@GS {players = (p:ps)} = g{players=ps++[p]}
+nextTurn = const ((players .~) =<< liftM2 (++) tail (return . head) . (^. players))
+-- nextTurn _ g@GS {players = (p:ps)} = g{players=ps++[p]}
     -- g{nextPlayer = ((nextPlayer g+1) `mod` length (hands g))}
 
 when :: (a -> Bool) -> Game -> a -> Game
@@ -159,7 +182,7 @@ with = undefined
 
 
 penalty :: String -> PlayerIndex -> GameState -> GameState
-penalty s p = broadcast ("penalty :"++p++s) . draw1 p .(\gs -> gs{lastMoveLegal = False})
+penalty s p = broadcast ("Penalty :"++p++s) . draw1 p . (lastMoveLegal .~ False)
 
 --wasLegal :: Event -> GameState -> GameState
 
@@ -184,5 +207,5 @@ onPlay f act e gs = act e gs
 
 onLegalCard :: (Card -> Game) -> Rule
 onLegalCard f act e@(Action p (Play c) m) s = let s' = act e s in
-    if lastMoveLegal s' then f c e s' else s'
+    if s' ^. lastMoveLegal then f c e s' else s'
 onLegalCard f act a s = act a s
