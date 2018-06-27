@@ -1,16 +1,18 @@
 module Sample where
 import Lib
-
+import Control.Lens
 --main = return ()
 
 r8 :: Rule
 r8 = onLegalCard$ when ((==Eight).rank) nextTurn
 --r8 = onLegalCard$ when ((==Eight).rank) nextTurn
 
-reverseDirection = undefined
 
-rq :: Rule
-rq = onLegalCard$ when ((==Queen).rank) reverseDirection
+reverseDirection :: GameState -> GameState
+reverseDirection = players %~ reverse
+
+rq :: Rule --reverse direction on 7, may have problems if reversing direction makes a move become illegal
+rq act e gs = (onLegalCard$ when ((==Queen).rank) (\e' gs' -> act e (reverseDirection gs))) act e gs
 
 
 
