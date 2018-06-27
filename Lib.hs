@@ -4,8 +4,8 @@ module Lib where
 
 import Control.Arrow (first,second)
 import Control.Lens
-import Control.Monad (join,liftM,liftM2)
-import Control.Monad.Random
+import Control.Monad --(join,liftM,liftM2)
+--import Control.Monad.Random
 import Control.Monad.Trans.State
 import Data.Char
 import Data.List
@@ -13,6 +13,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.Monoid
 import System.Random.Shuffle (shuffle')
+import System.Random
 
 type Parser = StateT String Maybe
 
