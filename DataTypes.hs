@@ -37,7 +37,7 @@ type Hand = [Card]
 
 instance (Enum a, Enum b, Bounded a, Bounded b, Eq a, Eq b) => Enum (a,b) where
   toEnum i = (\(a,b) -> (toEnum b,toEnum a)) $ i `divMod` (1+(fromEnum (maxBound::a) - fromEnum (minBound::a))) -- i `divMod` (fromEnum $ maxBound :: b)
-  fromEnum (r,s) = (fromEnum s)*(1+fromEnum (maxBound::a)-fromEnum (minBound::a)) + (fromEnum r)
+  fromEnum (r,s) = fromEnum s * (1+fromEnum (maxBound::a)-fromEnum (minBound::a)) + fromEnum r
   enumFrom c = c:(if c==maxBound then [] else enumFrom (succ c))
 
 uniCard :: Card -> Char
@@ -100,15 +100,15 @@ data GameState = GS {
 
        _randg :: StdGen,
 
-       _varMap :: Map.Map String Integer
+       _varMap :: Map.Map String Int
      } deriving Show
 makeLenses ''GameState
 
-readVar :: String -> GameState -> Integer
+readVar :: String -> GameState -> Int
 readVar s gs = Map.findWithDefault 0 s (gs^.varMap)
-setVar :: String -> Integer -> GameState -> GameState
+setVar :: String -> Int -> GameState -> GameState
 setVar s i = varMap %~ Map.insert s i
-modifyVar :: String -> (Integer -> Integer) -> GameState -> GameState
+modifyVar :: String -> (Int -> Int) -> GameState -> GameState
 modifyVar s f gs = setVar s (f $ readVar s gs) gs
 
 suit :: Card -> Suit

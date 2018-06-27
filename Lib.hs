@@ -60,7 +60,7 @@ baseAct Timeout gs = let activePlayer = gs^.players._head in
     . draw 1 activePlayer ) gs
 
 beginGame :: GameState -> GameState
-beginGame = undefined . shuffleDeck -- ap (foldr (draw 5 . fst)) (^. players) . shuffleDeck
+beginGame = ap (foldr (draw 5)) (^. players) . shuffleDeck -- ap (foldr (draw 5 . fst)) (^. players) . shuffleDeck
 
 --     -- | (Action p (Play c) m)<-e , p == fst (head $ gs ^. players) , suit c == suit (head $ gs ^. pile) || rank c == rank $ gs ^. pile = broadcast (p++" plays "++show c) $ undefined -- need to play the card
 --     | (Action p (Play c) m)<-e , p == fst (head $ gs ^. players) = broadcast (p++" tries to play bad card "++show c++", draws 1 card as penalty.") $ draw 1 p gs -- also use m
@@ -158,7 +158,7 @@ cardToPile c = pile %~ (c:)
 
 --doesn't tell you whether any card was removed
 cardFromHand' :: PlayerIndex -> Card -> GameState -> GameState
-cardFromHand' p c = hands %~ (Map.adjust (delete c) p)
+cardFromHand' p c = hands %~ Map.adjust (delete c) p
   -- (((players . each) %~) .) . (. (second . delete)) . if2' . (. fst) . (==)
 -- cardFromHand' p c = players.each %~ (if2' ((p==).fst) (second (delete c)))
 -- cardFromHand' p c = players.each %~ ((ap .) . liftM2 if') ((p==).fst) (second (delete c)) id
