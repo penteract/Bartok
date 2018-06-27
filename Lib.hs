@@ -4,8 +4,8 @@ module Lib where
 
 import Control.Arrow (first,second,(***))
 import Control.Lens
-import Control.Monad (ap,liftM2,liftM3)
-import Control.Monad.Random (StdGen,split,mkStdGen)
+import Control.Monad --(join,liftM,liftM2)
+--import Control.Monad.Random
 import Control.Monad.Trans.State
 import Data.Char (toLower,isSpace)
 import Data.List (isPrefixOf,stripPrefix,delete)
@@ -13,6 +13,7 @@ import qualified Data.Map as Map (Map,insert,findWithDefault,empty)
 import Data.Maybe (listToMaybe)
 -- import Data.Monoid
 import System.Random.Shuffle (shuffle')
+import System.Random
 
 type Parser = StateT String Maybe
 
@@ -45,8 +46,13 @@ instance (Enum a, Enum b, Bounded a) => Enum (a,b) where
 uniCard :: Card -> Char
 uniCard (r,s) = toEnum (0x1F0A0 + (fromEnum (maxBound::Suit) + fromEnum (minBound::Suit) - fromEnum s) * 16 + fromEnum r + 1)
 
+
+-- | Given 2 parsers, tries the first, if it fails, try the second
 (<|>) :: Parser a -> Parser a -> Parser a
-(<|>) = undefined
+a <|> b = StateT (\s -> case runStateT a s of
+    Just (x,s') -> Just (x,s')
+    Nothing -> runStateT b s)--note that state is saved - Parsec does not do this for efficiency
+
 
 parseRank :: Parser Rank
 parseRank = StateT (\s ->
@@ -286,6 +292,11 @@ getPlayerCard :: PlayerIndex -> CardIndex -> GameState -> Maybe Card
 getPlayerCard p i gs = do
     h <- getHand p gs
     fromHand i h-}
+
+-- | player's next action must be the given one
+-- how do I make require actions for something other than a single
+require :: (PlayerIndex, Action, String) -> Rule
+require (p, a, m) = undefined
 
 onPlay :: (Card -> Rule) -> Rule
 onPlay f act e@(Action p (Play c) m) gs = f c act e gs
