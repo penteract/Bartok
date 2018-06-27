@@ -1,6 +1,7 @@
 module Lib where
 
 import Control.Monad.Trans.State
+--import Control.Monad.Trans.Class
 import Data.List
 import Data.Maybe
 import Data.Char
@@ -32,8 +33,13 @@ type Hand = [Card]
 uniCard :: Card -> Char
 uniCard (r,s) = toEnum (0x1F0A0 + fromEnum s * 16 + fromEnum r + 1)
 
+
+-- | Given 2 parsers, tries the first, if it fails, try the second
 (<|>) :: Parser a -> Parser a -> Parser a
-(<|>) = undefined
+a <|> b = StateT (\s -> case runStateT a s of
+    Just (x,s') -> Just (x,s')
+    Nothing -> runStateT b s)--note that state is saved - Parsec does not do this for efficiency
+
 
 parseRank :: Parser Rank
 parseRank = StateT (\s ->
@@ -177,6 +183,11 @@ getPlayerCard :: PlayerIndex -> CardIndex -> GameState -> Maybe Card
 getPlayerCard p i gs = do
     h <- getHand p gs
     fromHand i h-}
+
+-- | player's next action must be the given one
+-- how do I make require actions for something other than a single
+require :: (PlayerIndex, Action, String) -> Rule
+require (p, a, m) = undefined
 
 onPlay :: (Card -> Rule) -> Rule
 onPlay f act e@(Action p (Play c) m) gs = f c act e gs
