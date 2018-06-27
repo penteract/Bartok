@@ -39,9 +39,10 @@ rankChar r = (['A'] ++ [head $ show i | i <- [2..9]::[Int] ] ++ ['T','J','Q','K'
 type Card = (Rank,Suit)
 type Hand = [Card]
 
-instance (Enum a, Enum b, Bounded a) => Enum (a,b) where
+instance (Enum a, Enum b, Bounded a, Bounded b, Eq a, Eq b) => Enum (a,b) where
   toEnum i = (\(a,b) -> (toEnum b,toEnum a)) $ i `divMod` (1+(fromEnum (maxBound::a) - fromEnum (minBound::a))) -- i `divMod` (fromEnum $ maxBound :: b)
   fromEnum (r,s) = (fromEnum s)*(1+fromEnum (maxBound::a)-fromEnum (minBound::a)) + (fromEnum r)
+  enumFrom c = c:(if c==maxBound then [] else enumFrom (succ c))
 
 uniCard :: Card -> Char
 uniCard (r,s) = toEnum (0x1F0A0 + (fromEnum (maxBound::Suit) + fromEnum (minBound::Suit) - fromEnum s) * 16 + fromEnum r + 1)
@@ -306,3 +307,14 @@ onLegalCard :: (Card -> Game) -> Rule
 onLegalCard f act e@(Action p (Play c) m) s = let s' = act e s in
     if s' ^. lastMoveLegal then f c e s' else s'
 onLegalCard f act a s = act a s
+
+newGame :: [String] -> GameState
+newGame pls = GS { _deck = [x | x <- enumFrom minBound ]
+              , _pile = []
+              , _messages = []
+              , _lastMoveLegal = True
+              , _randg = mkStdGen 0
+              , _varMap = Map.empty
+              , _players = map (flip (,) []) pls  --[("Angus",[]),("Toby",[]),("Anne",[])]
+              , _prevGS = Nothing
+              }
