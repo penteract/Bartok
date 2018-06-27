@@ -1,5 +1,7 @@
 module Sample where
+
 import Lib
+import DataTypes
 import Control.Lens
 --main = return ()
 
@@ -11,10 +13,12 @@ r8 = onLegalCard$ when ((==Eight).rank) nextTurn
 reverseDirection :: GameState -> GameState
 reverseDirection = players %~ reverse
 
-rq :: Rule --reverse direction on 7, may have problems if reversing direction makes a move become illegal
+rq :: Rule --reverse direction on q, may have problems if reversing direction makes a move become illegal
 rq act e gs = (onLegalCard$ when ((==Queen).rank) (\e' gs' -> act e (reverseDirection gs))) act e gs
 
-
+-- r7 :: Rule -- draw 2* unresolved 7s
+-- r7 = (onPlay$ when ((readVar "unresolved7s" > 0 &&) . (Seven /=) . rank) require (Draw 2*readVar "unresolved7s"))
+--    . (onLegalPlay$ when ((==Seven).rank) (modifyVar "unresolved7s" (+1)))
 
 mustdo7 :: (Int->(Action,String))
 mustdo7 n = ((Draw (2*n)), "thank you"++ (if n>1 then " "++ concat (replicate (n-1) "very ") ++ "much" else ""))

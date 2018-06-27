@@ -216,3 +216,8 @@ onLegalCard :: (Card -> Game) -> Rule
 onLegalCard f act e@(Action p (Play c) m) s = let s' = act e s in
     if s' ^. lastMoveLegal then f c e s' else s'
 onLegalCard f act a s = act a s
+
+onLegalDraw :: (Int -> Game) -> Rule
+onLegalDraw f act e@(Action p (Draw n) m) s = let s' = act e s in
+    if s' ^. lastMoveLegal then f n e s' else s'
+onLegalDraw f act a s = act a s
