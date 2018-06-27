@@ -1,8 +1,9 @@
 --module Tests where
 
 import Lib
+import DataTypes
 import Sample
-import qualified Data.Map
+import qualified Data.Map as Map
 import System.IO
 import Data.List
 testGame = newGame $ map fst [("Angus",[]),("Toby",[]),("Anne",[])]
@@ -18,9 +19,10 @@ prGS GS {
        _lastMoveLegal = lastMoveLegal ,
        _prevGS = prevGS ,
        _randg = randg ,
+       _hands = hands,
        _varMap = varMap
      } = unlines [
-       unlines$ map (\(name,cards) -> name ++ ":" ++ see cards) players,
+       unlines$ map (\name -> name ++ ":" ++ see (maybe [] id (Map.lookup name hands))) players,
        see pile,
        unlines$ reverse messages,
        show lastMoveLegal,

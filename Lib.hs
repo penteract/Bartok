@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Lib where
 
@@ -9,120 +9,12 @@ import Control.Monad --(join,liftM,liftM2)
 import Control.Monad.Trans.State
 import Data.Char (toLower,isSpace)
 import Data.List (isPrefixOf,stripPrefix,delete)
-import qualified Data.Map as Map (Map,insert,findWithDefault,empty)
+import qualified Data.Map as Map (Map,insert,findWithDefault,empty,fromList,map,adjust)
 import Data.Maybe (listToMaybe)
--- import Data.Monoid
 import System.Random.Shuffle (shuffle')
 import System.Random
 
-type Parser = StateT String Maybe
-
-next :: (Enum a, Bounded a, Eq a) => a -> a
-next a = if a == maxBound then minBound else succ a
-prev ::(Enum a, Bounded a, Eq a) =>  a -> a
-prev a = if a == minBound then maxBound else pred a
-
-data Suit = Clubs | Diamonds | Hearts | Spades deriving (Show,Eq,Enum,Bounded)
-data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King deriving (Show,Eq,Enum,Bounded)
-
-suitChar :: Suit -> Char
-suitChar s = case s of
-  Clubs -> 'C'
-  Diamonds -> 'D'
-  Hearts -> 'H'
-  Spades -> 'S'
-
-
-rankChar :: Rank -> Char
-rankChar r = (['A'] ++ [head $ show i | i <- [2..9]::[Int] ] ++ ['T','J','Q','K'])!!fromEnum r
-
-type Card = (Rank,Suit)
-type Hand = [Card]
-
-instance (Enum a, Enum b, Bounded a, Bounded b, Eq a, Eq b) => Enum (a,b) where
-  toEnum i = (\(a,b) -> (toEnum b,toEnum a)) $ i `divMod` (1+(fromEnum (maxBound::a) - fromEnum (minBound::a))) -- i `divMod` (fromEnum $ maxBound :: b)
-  fromEnum (r,s) = (fromEnum s)*(1+fromEnum (maxBound::a)-fromEnum (minBound::a)) + (fromEnum r)
-  enumFrom c = c:(if c==maxBound then [] else enumFrom (succ c))
-
-uniCard :: Card -> Char
-uniCard (r,s) = toEnum (0x1F0A0 + (fromEnum (maxBound::Suit) + fromEnum (minBound::Suit) - fromEnum s) * 16 + fromEnum r + 1)
-
-
--- | Given 2 parsers, tries the first, if it fails, try the second
-(<|>) :: Parser a -> Parser a -> Parser a
-a <|> b = StateT (\s -> case runStateT a s of
-    Just (x,s') -> Just (x,s')
-    Nothing -> runStateT b s)--note that state is saved - Parsec does not do this for efficiency
-
-
-parseRank :: Parser Rank
-parseRank = StateT (\s ->
-  fmap (\(r,c) -> (r,drop (length c) s)) $ listToMaybe $
-    filter (\(_,c) -> isPrefixOf (map toLower c) (map toLower s))
-      (map (\x -> (x,show x)) (enumFrom minBound) ++ map (\x -> (x,((:[]).rankChar) x)) (enumFrom minBound)))
-
-parseSuit :: Parser Suit
-parseSuit = StateT (\s ->
-  fmap (\(r,c) -> (r,drop (length c) s)) $ listToMaybe $
-    filter (\(_,c) -> isPrefixOf (map toLower c) (map toLower s))
-      (map (\x -> (x,show x)) (enumFrom minBound) ++ map (\x -> (x,((:[]).suitChar) x)) (enumFrom minBound)))
-
-ignore :: String -> Parser ()
-ignore s = StateT (\s' -> let s'' = dropWhile isSpace s' in
-                            let s''' = stripPrefix s s'' in
-                              fmap ((,) () . dropWhile isSpace) s''')
-
-parseCard :: Parser Card
-parseCard = do
-  r <- parseRank
-  ignore "of" -- and possibly spaces either side
-  s <- parseSuit
-  return (r,s)
-
-type CardIndex = Int
-
-type Name = String
-type PlayerIndex = Name
-data Action = Draw Int | Play Card deriving Show
-data Event = Action PlayerIndex Action String | Timeout
-
-
--- I'd call a function playmove or runevent. the problem is that it's used too much
---the type could almost be called Game
-type Game = Event -> GameState -> GameState
-type Rule = Game -> Game --this type is named correctly
-
-data GameState = GS { _players :: [(Name,Hand)], -- current player is head of list
-       _deck :: [Card],
-       _pile :: [Card],
-    --nextPlayer :: Player, --required to be smaller than length hands
-       _messages :: [String],
-       _lastMoveLegal :: Bool,
-       _prevGS :: Maybe (GameState,Action),
-
-       _randg :: StdGen,
-
-       _varMap :: Map.Map String Integer
-     } deriving Show
-makeLenses ''GameState
-
-readVar :: String -> GameState -> Integer
-readVar s gs = Map.findWithDefault 0 s (gs^.varMap)
-setVar :: String -> Integer -> GameState -> GameState
-setVar s i = varMap %~ Map.insert s i
-modifyVar :: String -> (Integer -> Integer) -> GameState -> GameState
-modifyVar s f gs = setVar s (f $ readVar s gs) gs
-
-hands :: GameState -> [Hand]
-hands gs = map snd $ gs^.players
--- map snd $ (gs^.players)
-
-
-suit :: Card -> Suit
-suit = snd
-
-rank :: Card -> Rank
-rank = fst
+import DataTypes
 
 
 
@@ -156,7 +48,7 @@ if2' = flip flip id . if2 -- if2' b a = if2 b a id
 penalty ::Int -> String -> Game
 penalty n reason e@(Action p (Play c) m) =
     sayAct e .
-    broadcast (p++"tries to play {}"%%c) .
+    broadcast (p++" tries to play {}"%%c) .
     broadcast ("{} recieves penalty {}: {}"%p%show n%reason) .
     (lastMoveLegal .~ False) .
     draw n p
@@ -189,13 +81,13 @@ baseAct e@(Action p a m) gs
                                           then penalty 1 "Bad card" e
                                           else play)
                      gs
-    where inTurn = p == (fst.head$ gs ^. players)
-baseAct Timeout gs = let activePlayer = gs^.players._head._1 in
+    where inTurn = p == (head$ gs ^. players)
+baseAct Timeout gs = let activePlayer = gs^.players._head in
     ( broadcast ("Penalize "++activePlayer++" 1 card for failure to play within a reasonable amount of time")
     . draw 1 activePlayer ) gs
 
 beginGame :: GameState -> GameState
-beginGame = ap (foldr (draw 5 . fst)) (^. players) . shuffleDeck
+beginGame = ap (foldr (draw 5)) (^. players) . shuffleDeck -- ap (foldr (draw 5 . fst)) (^. players) . shuffleDeck
 
 --     -- | (Action p (Play c) m)<-e , p == fst (head $ gs ^. players) , suit c == suit (head $ gs ^. pile) || rank c == rank $ gs ^. pile = broadcast (p++" plays "++show c) $ undefined -- need to play the card
 --     | (Action p (Play c) m)<-e , p == fst (head $ gs ^. players) = broadcast (p++" tries to play bad card "++show c++", draws 1 card as penalty.") $ draw 1 p gs -- also use m
@@ -211,7 +103,7 @@ draw n p = foldl (.) id (replicate n (draw1 p))
 
 
 getHand :: PlayerIndex -> GameState -> Maybe Hand
-getHand p gs = lookup p (gs^.players)
+getHand p gs = gs^.hands.at p
 
 {-
 fromHand :: CardIndex -> Hand -> Maybe Card
@@ -223,34 +115,50 @@ fromHand n (x:xs) = fromHand (n-1) xs
 --does nothing if player is invalid
 -- Angus: not quite sure what it's supposed to do but I think this does it!
 -- not as efficient as can be, should "break" once the player is found
-withHand :: PlayerIndex -> (Hand -> (Hand,GameState)) -> GameState -> GameState
-withHand p f gs = uncurry (players .~) $
-    foldr (\(n,h) (l,gs') ->
-        if p == n then let (h',gs'') = f h in ((n,h'):l,gs'')
-            else ((n,h):l,gs')
-          ) ([],gs) (gs^.players)
+-- withHand :: PlayerIndex -> (Hand -> (Hand,GameState)) -> GameState -> GameState
+-- withHand p f gs = uncurry (players .~) $
+--     foldr (\(n,h) (l,gs') ->
+--         if p == n then let (h',gs'') = f h in ((n,h'):l,gs'')
+--             else ((n,h):l,gs')
+--           ) ([],gs) (gs^.players)
 
+-- a card will "disappear" if the player isn't valid
 draw1 :: PlayerIndex -> GameState -> GameState
-draw1 p gs = withHand p (\h -> first (:h) $ cardFromPile gs) gs
+draw1 p = uncurry (((hands . at p) %~) . fmap . (:)) . cardFromDeck
+  -- uncurry ((ix p %~) . (:)) . cardFromDeck  -- withHand p (\h -> first (:h) $ cardFromDeck gs) gs
 
 shuffleDeck :: GameState -> GameState
 shuffleDeck gs = let (gen1,gen2) = split (gs^.randg) in
     (deck %~ (\x-> shuffle' x (length x) gen1) ) . (randg .~ gen2) $ gs
 
 taxes :: GameState -> GameState
-taxes gs = uncurry (players .~) $
-    foldr (\(p,h) (ps,gs') ->
-            let (x,y) = splitAt (cardCount `div` playerCount) h
-            in ((p,x):ps, gs' & deck <>~ y))
-          ([],gs)
-          (gs^.players)
-    where playerCount = length (gs^.players)
-          -- cardCount = length (gs^.deck) + length (gs^.pile) + (sum $ map (length.snd) (gs^.players))
-          -- cardCount = length (gs^.deck) + length (gs^.pile) + length (gs^.players.folded._2) -- v. nice to read
-          cardCount = length (gs^.deck) + length (gs^.pile) + sumOf (players . folded . _2 . to length) gs -- faster but less readable?
+-- taxes gs = (hands %~ Map.map (take handSizeThreshhold))
+--            $ (deck <>~ foldMap (drop handSizeThreshhold) (gs^.hands)) gs
+taxes gs = (hands %~ Map.map (take handSizeThreshhold))
+         . ((deck <>~) =<< foldMap (drop handSizeThreshhold) . (^. hands))
+         $ gs
+  where handSizeThreshhold = cardCount `div` (playerCount+1)
+        playerCount = length (gs^.players)
+        cardCount = length (gs^.deck) + length (gs^.pile) + (foldr ((+).length) 0 (gs^.hands))
+        -- cardCount = length (gs^.deck) + length (gs^.pile) + (sum $ map (length.snd) (gs^.players))
+        -- cardCount = length (gs^.deck) + length (gs^.pile) + length (gs^.players.folded._2) -- v. nice to read
+        -- cardCount = length (gs^.deck) + length (gs^.pile) + sumOf (hands . folded . _2 . to length) gs
 
-cardFromPile :: GameState -> (Card,GameState)
-cardFromPile gs = case gs ^. deck of
+
+
+  -- uncurry (players .~) $
+  --   foldr (\(p,h) (ps,gs') ->
+  --           let (x,y) = splitAt (cardCount `div` playerCount+1) h
+  --           in ((p,x):ps, gs' & deck <>~ y))
+  --         ([],gs)
+  --         (gs^.players)
+  --   where playerCount = length (gs^.players)
+  --         -- cardCount = length (gs^.deck) + length (gs^.pile) + (sum $ map (length.snd) (gs^.players))
+  --         -- cardCount = length (gs^.deck) + length (gs^.pile) + length (gs^.players.folded._2) -- v. nice to read
+  --         cardCount = length (gs^.deck) + length (gs^.pile) + sumOf (players . folded . _2 . to length) gs -- faster but less readable?
+
+cardFromDeck :: GameState -> (Card,GameState)
+cardFromDeck gs = case gs ^. deck of
     (c:cs) -> (c, gs & deck .~ cs)
     [] -> let (p1,p2) = splitAt 1 (gs^.pile) in
         case ( ( broadcast "Shuffling pile into deck, applying taxes..."
@@ -264,20 +172,21 @@ cardToPile :: Card -> GameState -> GameState
 cardToPile c = pile %~ (c:)
 
 -- also checks whether any such card was removed from hand
-cardFromHand :: PlayerIndex -> Card -> GameState -> (Bool,GameState)
-cardFromHand p c gs = second (flip (set players) gs) $
-    foldr (ap (ap ((.) . first . (||)) . ((second . (:)) .) . ap ((.) . (,) . fst) (flip (`if''` delete c) . snd)) ((p ==) . fst))
-    -- foldr (\x y -> let b = ((p==).fst $ x) in (first (b||) . second ((fst x,if'' b (delete c) (snd x)):)) y)
-    -- (\x@(p',h) (b,l) ->
-    --       if (p==p'&&c`elem`h) then (True,(p,delete c h):l) else (b,x:l) )
-          (False,[])
-          (gs^.players)
+-- cardFromHand :: PlayerIndex -> Card -> GameState -> (Bool,GameState)
+-- cardFromHand p c gs = second (flip (set players) gs) $
+--     foldr (ap (ap ((.) . first . (||)) . ((second . (:)) .) . ap ((.) . (,) . fst) (flip (`if''` delete c) . snd)) ((p ==) . fst))
+--     -- foldr (\x y -> let b = ((p==).fst $ x) in (first (b||) . second ((fst x,if'' b (delete c) (snd x)):)) y)
+--     -- (\x@(p',h) (b,l) ->
+--     --       if (p==p'&&c`elem`h) then (True,(p,delete c h):l) else (b,x:l) )
+--           (False,[])
+--           (gs^.players)
   -- let gs' = (gs & players.each %~ (((ap .) . liftM2 if') ((p==).fst) (second (delete c)) id)) in undefined
   -- (\(p',h) -> if (p==p') then (p',delete c h) else (p',h))) in undefined
 
 --doesn't tell you whether any card was removed
 cardFromHand' :: PlayerIndex -> Card -> GameState -> GameState
-cardFromHand' = (((players . each) %~) .) . (. (second . delete)) . if2' . (. fst) . (==)
+cardFromHand' p c = hands %~ Map.adjust (delete c) p
+  -- (((players . each) %~) .) . (. (second . delete)) . if2' . (. fst) . (==)
 -- cardFromHand' p c = players.each %~ (if2' ((p==).fst) (second (delete c)))
 -- cardFromHand' p c = players.each %~ ((ap .) . liftM2 if') ((p==).fst) (second (delete c)) id
 
@@ -335,13 +244,7 @@ onLegalCard f act e@(Action p (Play c) m) s = let s' = act e s in
     if s' ^. lastMoveLegal then f c e s' else s'
 onLegalCard f act a s = act a s
 
-newGame :: [String] -> GameState
-newGame pls = GS { _deck = [x | x <- enumFrom minBound ]
-              , _pile = []
-              , _messages = []
-              , _lastMoveLegal = True
-              , _randg = mkStdGen 0
-              , _varMap = Map.empty
-              , _players = map (flip (,) []) pls  --[("Angus",[]),("Toby",[]),("Anne",[])]
-              , _prevGS = Nothing
-              }
+onLegalDraw :: (Int -> Game) -> Rule
+onLegalDraw f act e@(Action p (Draw n) m) s = let s' = act e s in
+    if s' ^. lastMoveLegal then f n e s' else s'
+onLegalDraw f act a s = act a s
