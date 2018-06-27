@@ -1,7 +1,7 @@
---module Sample where
+module Sample where
 import Lib
 
-main = return ()
+--main = return ()
 
 r8 :: Rule
 r8 = onLegalCard$ when ((==Eight).rank) nextTurn
@@ -23,13 +23,13 @@ count7s = undefined
 
 
 
-r7 :: Rule
+--r7 :: Rule
 --r7 = undefined --good luck
 --r7 = (prev7 (count7s (\n -> mustdraw (2*n)))) . on7 mustsay "have a nice day"
-r7 = onPlay (\c -> with count7s
-    (if rank c == Seven then run7
-        else (\n -> when (>0) (require (mustdo7 n))
-        )))
+-- r7 = onPlay (\c -> with count7s
+--     (if rank c == Seven then run7
+--         else (\n -> when (>0) (require (mustdo7 n))
+--         )))
 
 
 run7 :: Int -> Rule

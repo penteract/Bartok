@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, TypeSynonymInstances, FlexibleInstances, ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell, ScopedTypeVariables #-}
 
 module Lib where
 
@@ -306,14 +306,3 @@ onLegalCard :: (Card -> Game) -> Rule
 onLegalCard f act e@(Action p (Play c) m) s = let s' = act e s in
     if s' ^. lastMoveLegal then f c e s' else s'
 onLegalCard f act a s = act a s
-
-
-testGame = GS { _deck = [(x,y) | x <- enumFrom minBound, y <- enumFrom minBound ]
-              , _pile = []
-              , _messages = []
-              , _lastMoveLegal = True
-              , _randg = mkStdGen 0
-              , _varMap = Map.empty
-              , _players = [("Angus",[]),("Toby",[]),("Anne",[])]
-              , _prevGS = Nothing
-              }
