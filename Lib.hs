@@ -140,29 +140,56 @@ if2 = liftM3 if' -- if2 b a a' x = if (b x) then (a x) else (a' x)
 if2' :: (a->Bool) -> (a->a) -> a -> a
 if2' = flip flip id . if2 -- if2' b a = if2 b a id
 
+
+(%) :: String -> String -> String
+(%) ('{':'}':s) x = x++s
+(%) ('\\':c:s) x = c:(s%x)
+(%) (c:s) xs = c:(s%xs)
+(%) "" _ = error "not enough '{}' in string"
+
+(%%) s = (s%) . (:[]). uniCard
+
+-- broadcast (p++" tries to play "++(if goodCard then "" else "bad card ")
+--     ++[uniCard c]++(if inTurn then "" else " out of turn")
+--     ++", draws "++show pens++" penalty card"++(if pens > 1 then "s" else ""))
+
+penalty ::Int -> String -> Game
+penalty n reason e@(Action p (Play c) m) =
+    sayAct e .
+    broadcast (p++"tries to play {}"%%c) .
+    broadcast ("{} recieves penalty {}: {}"%p%show n%reason) .
+    (lastMoveLegal .~ False) .
+    draw n p
+
+broadcastp :: PlayerIndex -> String -> GameState -> GameState
+broadcastp p m = if'' (not $ null m) (broadcast (p++": "++m))
+sayAct :: Game
+sayAct e@(Action p a m) = broadcastp p m
+sayAct _ = id
+
 baseAct :: Game
 baseAct e@(Action p a m) gs
     | (Draw n)<-a
         = ( broadcast (p++" draws "++show n++" cards.")
-          . if'' (not $ null m) (broadcast (p++": "++m))
+          . sayAct e
           . draw n p
-          . if'' inTurn (nextTurn undefined . (lastMoveLegal .~ True))
+          . if'' inTurn (nextTurn . (lastMoveLegal .~ True))
           ) gs
     | (Play c)<-a, Just True /= fmap (c`elem`) (getHand p gs) =
           error (p++" attempted invalid play of "++show c)
           -- note: combines two sources of errors (invalid player // card not in valid player's hand)
-    | (Play c)<-a
-        = let goodCard = null (gs^.pile) || suit c == suit (head (gs^.pile)) || rank c == rank (head (gs^.pile))
-              pens = (fromEnum inTurn) + (fromEnum goodCard) in
-          ( if' (inTurn && goodCard) ( broadcast (p++" plays "++[uniCard c]) . (lastMoveLegal .~ True) . nextTurn undefined . (cardFromHand' p c) . (cardToPile c) ) (
-                broadcast (p++" tries to play "++(if goodCard then "" else "bad card ")
-                    ++[uniCard c]++(if inTurn then "" else " out of turn")
-                    ++", draws "++show pens++" penalty card"++(if pens > 1 then "s" else ""))
-                . (lastMoveLegal .~ False)
-                . draw pens p )
-            . if'' (not $ null m) (broadcast (p++": "++m))
-          ) gs
-    where inTurn = (p == gs ^. players . _head . _1)
+    | (Play c)<-a = let play::GameState -> GameState
+                        play = sayAct e . broadcast ("{} plays {}"%p%%c)
+                                      . (lastMoveLegal .~ True). nextTurn . (cardFromHand' p c) . (cardToPile c) in
+         (if not inTurn
+              then (penalty 1 "Playing out of turn" e)
+              else case gs^.pile of
+                      [] ->  play
+                      (d:ds) -> if not (suit c == suit (head (gs^.pile)) || rank c == rank (head (gs^.pile)))
+                                          then penalty 1 "Bad card" e
+                                          else play)
+                     gs
+    where inTurn = p == (fst.head$ gs ^. players)
 baseAct Timeout gs = let activePlayer = gs^.players._head._1 in
     ( broadcast ("Penalize "++activePlayer++" 1 card for failure to play within a reasonable amount of time")
     . draw 1 activePlayer ) gs
@@ -260,9 +287,9 @@ cardFromHand' = (((players . each) %~) .) . (. (second . delete)) . if2' . (. fs
 --mkR = (.).(.)
 --liftM2 (++) tail ((:[]) . head)
 -- precond: requires at least one player
-nextTurn :: Game -- perhaps nextTurn should also set lastMoveLegal .~ True
+nextTurn :: GameState -> GameState -- perhaps nextTurn should also set lastMoveLegal .~ True
 -- nextTurn = const ((players .~) =<< (\(x:xs)->xs++[x]) . (^. players))
-nextTurn = const $ players %~ (\(x:xs)->xs++[x])
+nextTurn = players %~ (\(x:xs)->xs++[x])
 -- nextTurn _ g@GS {players = (p:ps)} = g{players=ps++[p]}
     -- g{nextPlayer = ((nextPlayer g+1) `mod` length (hands g))}
 
@@ -274,8 +301,8 @@ with :: (GameState -> a) -> (a -> Rule) -> Rule
 with = undefined
 
 
-penalty :: String -> PlayerIndex -> GameState -> GameState
-penalty s p = broadcast ("Penalty :"++p++s) . draw1 p . (lastMoveLegal .~ False)
+--penalty :: String -> PlayerIndex -> GameState -> GameState
+--penalty s p = broadcast ("Penalty :"++p++s) . draw1 p . (lastMoveLegal .~ False)
 
 --wasLegal :: Event -> GameState -> GameState
 

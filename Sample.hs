@@ -4,7 +4,7 @@ import Control.Lens
 --main = return ()
 
 r8 :: Rule
-r8 = onLegalCard$ when ((==Eight).rank) nextTurn
+r8 = onLegalCard$ when ((==Eight).rank) (const nextTurn)
 --r8 = onLegalCard$ when ((==Eight).rank) nextTurn
 
 

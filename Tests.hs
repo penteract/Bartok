@@ -22,21 +22,15 @@ prGS GS {
      } = unlines [
        unlines$ map (\(name,cards) -> name ++ ":" ++ see cards) players,
        see pile,
-       unlines messages,
+       unlines$ reverse messages,
        show lastMoveLegal,
        ""]
 
 main :: IO ()
 main = do
     --let g = beginGame testGame
-    _ <- uncurry (flip (testSequence baseAct)) test2
+    _ <- testSequence  test2
     return ()
-    --putStr$ prGS g
-    --let g' = baseAct (Action "Toby" (Draw 2) "") g
-    --putStr$ prGS g'
-    --hPutStr stderr "hello world asdfsdafsdafsdfasdfkljkljkljskajdflkj asdjfklsdajflkjsdafkljskldajfklsdafjkl jaslkfj "
-    --putStrLn (show (_deck g))
-    --return ()
 
 mkc :: Suit ->  Int -> Action
 mkc s n = Play (toEnum (n-1),s)
@@ -53,13 +47,13 @@ toby = mka "Toby"
 angus = mka "Angus"
 anne = mka "Anne"
 
-test1 = (beginGame testGame,  [Action "Toby" (Draw 2) "", Action "Angus" (Play (Eight,Spades)) ""])
-test2 = (beginGame testGame,  [Action "Toby" (Draw 2) "", angus (he 3)])
+test1 = (beginGame testGame,  [Action "Toby" (Draw 2) "", Action "Angus" (Play (Eight,Spades)) ""])-- playing cards not in hand causes error
+test2 = (baseAct, beginGame testGame,  [Action "Toby" (Draw 2) "", angus (he 3), angus (sp 8),anne (he 1)])
 
 
-testSequence :: Game -> [Event] -> GameState -> IO GameState
-testSequence g (e: es) state = do
+testSequence :: (Game,GameState, [Event]) -> IO GameState
+testSequence (g,state,(e: es)) = do
     let state' = g e state
     putStr$ prGS state'
-    testSequence g es state'
-testSequence _ _ s = return s
+    testSequence (g,state',es)
+testSequence (_,s,_) = return s
