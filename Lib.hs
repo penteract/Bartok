@@ -1,17 +1,17 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, TypeSynonymInstances, FlexibleInstances, ScopedTypeVariables #-}
 
 module Lib where
 
-import Control.Arrow (first,second)
+import Control.Arrow (first,second,(***))
 import Control.Lens
-import Control.Monad (join,liftM,liftM2)
-import Control.Monad.Random
+import Control.Monad (ap,liftM2,liftM3)
+import Control.Monad.Random (StdGen,split,mkStdGen)
 import Control.Monad.Trans.State
-import Data.Char
-import Data.List
-import qualified Data.Map as Map
-import Data.Maybe
-import Data.Monoid
+import Data.Char (toLower,isSpace)
+import Data.List (isPrefixOf,stripPrefix,delete)
+import qualified Data.Map as Map (Map,insert,findWithDefault,empty)
+import Data.Maybe (listToMaybe)
+-- import Data.Monoid
 import System.Random.Shuffle (shuffle')
 
 type Parser = StateT String Maybe
@@ -21,7 +21,7 @@ next a = if a == maxBound then minBound else succ a
 prev ::(Enum a, Bounded a, Eq a) =>  a -> a
 prev a = if a == minBound then maxBound else pred a
 
-data Suit = Spades | Hearts | Diamonds | Clubs deriving (Show,Eq,Enum,Bounded)
+data Suit = Clubs | Diamonds | Hearts | Spades deriving (Show,Eq,Enum,Bounded)
 data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King deriving (Show,Eq,Enum,Bounded)
 
 suitChar :: Suit -> Char
@@ -38,8 +38,12 @@ rankChar r = (['A'] ++ [head $ show i | i <- [2..9]::[Int] ] ++ ['T','J','Q','K'
 type Card = (Rank,Suit)
 type Hand = [Card]
 
+instance (Enum a, Enum b, Bounded a) => Enum (a,b) where
+  toEnum i = (\(a,b) -> (toEnum b,toEnum a)) $ i `divMod` (1+(fromEnum (maxBound::a) - fromEnum (minBound::a))) -- i `divMod` (fromEnum $ maxBound :: b)
+  fromEnum (r,s) = (fromEnum s)*(1+fromEnum (maxBound::a)-fromEnum (minBound::a)) + (fromEnum r)
+
 uniCard :: Card -> Char
-uniCard (r,s) = toEnum (0x1F0A0 + fromEnum s * 16 + fromEnum r + 1)
+uniCard (r,s) = toEnum (0x1F0A0 + (fromEnum (maxBound::Suit) + fromEnum (minBound::Suit) - fromEnum s) * 16 + fromEnum r + 1)
 
 (<|>) :: Parser a -> Parser a -> Parser a
 (<|>) = undefined
@@ -72,7 +76,7 @@ type CardIndex = Int
 
 type Name = String
 type PlayerIndex = Name
-data Action = Draw Int | Play Card
+data Action = Draw Int | Play Card deriving Show
 data Event = Action PlayerIndex Action String | Timeout
 
 
@@ -92,7 +96,7 @@ data GameState = GS { _players :: [(Name,Hand)], -- current player is head of li
        _randg :: StdGen,
 
        _varMap :: Map.Map String Integer
-     }
+     } deriving Show
 makeLenses ''GameState
 
 readVar :: String -> GameState -> Integer
@@ -123,13 +127,19 @@ if' b a a' = if b then a else a'
 if'' :: Bool -> (a->a) -> (a->a)
 if'' b a = if' b a id
 
+if2 :: (a->Bool) -> (a->b) -> (a->b) -> a -> b
+if2 = liftM3 if' -- if2 b a a' x = if (b x) then (a x) else (a' x)
+
+if2' :: (a->Bool) -> (a->a) -> a -> a
+if2' = flip flip id . if2 -- if2' b a = if2 b a id
+
 baseAct :: Game
 baseAct e@(Action p a m) gs
     | (Draw n)<-a
         = ( broadcast (p++" draws "++show n++" cards.")
-          . broadcast (p++": "++m)
+          . if'' (not $ null m) (broadcast (p++": "++m))
           . draw n p
-          . if'' inTurn (nextTurn undefined)
+          . if'' inTurn (nextTurn undefined . (lastMoveLegal .~ True))
           ) gs
     | (Play c)<-a, Just True /= fmap (c`elem`) (getHand p gs) =
           error (p++" attempted invalid play of "++show c)
@@ -137,15 +147,21 @@ baseAct e@(Action p a m) gs
     | (Play c)<-a
         = let goodCard = null (gs^.pile) || suit c == suit (head (gs^.pile)) || rank c == rank (head (gs^.pile))
               pens = (fromEnum inTurn) + (fromEnum goodCard) in
-          ( if' (inTurn && goodCard) ( broadcast (p++" plays "++[uniCard c]) . nextTurn undefined . (cardFromHand' p c) . (cardToPile c) ) (
+          ( if' (inTurn && goodCard) ( broadcast (p++" plays "++[uniCard c]) . (lastMoveLegal .~ True) . nextTurn undefined . (cardFromHand' p c) . (cardToPile c) ) (
                 broadcast (p++" tries to play "++(if goodCard then "" else "bad card ")
                     ++[uniCard c]++(if inTurn then "" else " out of turn")
                     ++", draws "++show pens++" penalty card"++(if pens > 1 then "s" else ""))
+                . (lastMoveLegal .~ False)
                 . draw pens p )
-            . broadcast (p++": "++m)
+            . if'' (not $ null m) (broadcast (p++": "++m))
           ) gs
     where inTurn = (p == gs ^. players . _head . _1)
-baseAct Timeout gs = undefined
+baseAct Timeout gs = let activePlayer = gs^.players._head._1 in
+    ( broadcast ("Penalize "++activePlayer++" 1 card for failure to play within a reasonable amount of time")
+    . draw 1 activePlayer ) gs
+
+beginGame :: GameState -> GameState
+beginGame = ap (foldr (draw 5 . fst)) (^. players) . shuffleDeck
 
 --     -- | (Action p (Play c) m)<-e , p == fst (head $ gs ^. players) , suit c == suit (head $ gs ^. pile) || rank c == rank $ gs ^. pile = broadcast (p++" plays "++show c) $ undefined -- need to play the card
 --     | (Action p (Play c) m)<-e , p == fst (head $ gs ^. players) = broadcast (p++" tries to play bad card "++show c++", draws 1 card as penalty.") $ draw 1 p gs -- also use m
@@ -154,7 +170,7 @@ baseAct Timeout gs = undefined
 -- --baseAct (Action (p,Play i,m)) g = broadcast m .
 
 broadcast :: String -> GameState -> GameState
-broadcast = join . ((messages .~) .) . (. (^. messages)) . (:)
+broadcast = (messages %~).(:)
 
 draw :: Int -> PlayerIndex -> GameState -> GameState
 draw n p = foldl (.) id (replicate n (draw1 p))
@@ -195,9 +211,9 @@ taxes gs = uncurry (players .~) $
           ([],gs)
           (gs^.players)
     where playerCount = length (gs^.players)
-          cardCount = length (gs^.deck) + length (gs^.pile) + (sum $ map (length.snd) (gs^.players))
+          -- cardCount = length (gs^.deck) + length (gs^.pile) + (sum $ map (length.snd) (gs^.players))
           -- cardCount = length (gs^.deck) + length (gs^.pile) + length (gs^.players.folded._2) -- v. nice to read
-          -- cardCount = length (gs^.deck) + length (gs^.pile) + sumOf (players . folded . _2 . to length) gs -- faster but less readable?
+          cardCount = length (gs^.deck) + length (gs^.pile) + sumOf (players . folded . _2 . to length) gs -- faster but less readable?
 
 cardFromPile :: GameState -> (Card,GameState)
 cardFromPile gs = case gs ^. deck of
@@ -225,8 +241,11 @@ cardFromHand p c gs = second (flip (set players) gs) $
   -- let gs' = (gs & players.each %~ (((ap .) . liftM2 if') ((p==).fst) (second (delete c)) id)) in undefined
   -- (\(p',h) -> if (p==p') then (p',delete c h) else (p',h))) in undefined
 
+--doesn't tell you whether any card was removed
 cardFromHand' :: PlayerIndex -> Card -> GameState -> GameState
-cardFromHand' p c = players.each %~ ((ap .) . liftM2 if') ((p==).fst) (second (delete c)) id
+cardFromHand' = (((players . each) %~) .) . (. (second . delete)) . if2' . (. fst) . (==)
+-- cardFromHand' p c = players.each %~ (if2' ((p==).fst) (second (delete c)))
+-- cardFromHand' p c = players.each %~ ((ap .) . liftM2 if') ((p==).fst) (second (delete c)) id
 
 --only one of the posssible interpretations
 --mkR :: (GameState -> GameState) -> Rule
@@ -234,7 +253,7 @@ cardFromHand' p c = players.each %~ ((ap .) . liftM2 if') ((p==).fst) (second (d
 --mkR = (.).(.)
 --liftM2 (++) tail ((:[]) . head)
 -- precond: requires at least one player
-nextTurn :: Game
+nextTurn :: Game -- perhaps nextTurn should also set lastMoveLegal .~ True
 -- nextTurn = const ((players .~) =<< (\(x:xs)->xs++[x]) . (^. players))
 nextTurn = const $ players %~ (\(x:xs)->xs++[x])
 -- nextTurn _ g@GS {players = (p:ps)} = g{players=ps++[p]}
@@ -276,3 +295,14 @@ onLegalCard :: (Card -> Game) -> Rule
 onLegalCard f act e@(Action p (Play c) m) s = let s' = act e s in
     if s' ^. lastMoveLegal then f c e s' else s'
 onLegalCard f act a s = act a s
+
+
+testGame = GS { _deck = [(x,y) | x <- enumFrom minBound, y <- enumFrom minBound ]
+              , _pile = []
+              , _messages = []
+              , _lastMoveLegal = True
+              , _randg = mkStdGen 0
+              , _varMap = Map.empty
+              , _players = [("Angus",[]),("Toby",[]),("Anne",[])]
+              , _prevGS = Nothing
+              }
