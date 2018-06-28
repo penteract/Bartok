@@ -16,11 +16,6 @@ import System.Random.Shuffle (shuffle')
 
 type Parser = StateT String Maybe
 
-next :: (Enum a, Bounded a, Eq a) => a -> a
-next a = if a == maxBound then minBound else succ a
-prev ::(Enum a, Bounded a, Eq a) =>  a -> a
-prev a = if a == minBound then maxBound else pred a
-
 data Suit = Clubs | Diamonds | Hearts | Spades deriving (Show,Eq,Enum,Bounded,Ord)
 data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Knight | Queen | King deriving (Show,Eq,Bounded,Ord)
 
@@ -59,14 +54,9 @@ data GameState = GS {
 makeLenses ''GameState
 
 
-
 -- | Card processing functions
 
-suit :: Card -> Suit
-suit = snd
-
-rank :: Card -> Rank
-rank = fst
+-- | Enum instances
 
 instance Enum Rank where
   toEnum i = case i of
@@ -101,6 +91,17 @@ instance Enum Rank where
     King -> 14
   enumFrom n = map toEnum [fromEnum n..fromEnum (maxBound::Rank)]
 
+next :: (Enum a, Bounded a, Eq a) => a -> a
+next a = if a == maxBound then minBound else succ a
+prev ::(Enum a, Bounded a, Eq a) =>  a -> a
+prev a = if a == minBound then maxBound else pred a
+
+
+instance (Enum a, Enum b, Bounded a, Bounded b, Eq a, Eq b) => Enum (a,b) where
+  toEnum i = (\(x,y) -> (toEnum (x + fromEnum (minBound::a)),toEnum (y + fromEnum (minBound::b)))) $ i `divMod` (1+(fromEnum (maxBound::b) - fromEnum (minBound::b))) -- i `divMod` (fromEnum $ maxBound :: b)
+  fromEnum (r,s) = (fromEnum r - fromEnum (minBound::a)) * (1+fromEnum (maxBound::b)-fromEnum (minBound::b)) + (fromEnum s - fromEnum (minBound::b))
+  enumFrom c = c:(if c==maxBound then [] else enumFrom (succ c))
+
 suitChar :: Suit -> Char
 suitChar s = case s of
   Clubs -> 'C'
@@ -108,14 +109,15 @@ suitChar s = case s of
   Hearts -> 'H'
   Spades -> 'S'
 
+suit :: Card -> Suit
+suit = snd
+
+rank :: Card -> Rank
+rank = fst
 
 rankChar :: Rank -> Char
 rankChar r = (['A'] ++ [head $ show i | i <- [2..9]::[Int] ] ++ ['T','J','C','Q','K'])!!(fromEnum r - 1) -- UNSAFE
 
-instance (Enum a, Enum b, Bounded a, Bounded b, Eq a, Eq b) => Enum (a,b) where
-  toEnum i = (\(x,y) -> (toEnum (x + fromEnum (minBound::a)),toEnum (y + fromEnum (minBound::b)))) $ i `divMod` (1+(fromEnum (maxBound::b) - fromEnum (minBound::b))) -- i `divMod` (fromEnum $ maxBound :: b)
-  fromEnum (r,s) = (fromEnum r - fromEnum (minBound::a)) * (1+fromEnum (maxBound::b)-fromEnum (minBound::b)) + (fromEnum s - fromEnum (minBound::b))
-  enumFrom c = c:(if c==maxBound then [] else enumFrom (succ c))
 
 uniCard :: Card -> Char
 uniCard (r,s) = toEnum (0x1F0A0 + (fromEnum (maxBound::Suit) + fromEnum (minBound::Suit) - fromEnum s) * 16 + fromEnum r)
