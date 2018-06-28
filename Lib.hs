@@ -231,11 +231,12 @@ when' q act x = if q x then act else const id
 
 --wasLegal :: Event -> GameState -> GameState
 
+-- given an incomplete game, returns a rule which does the action described by the game after doing (i.e. as late as possible)
 doAfter :: Game -> Rule
-doAfter act1 act2 e = act2 e . act1 e
+doAfter act1 act2 e = act1 e . act2 e
 
 doBefore :: Game -> Rule
-doBefore act1 act2 e = act1 e . act2 e
+doBefore act1 act2 e = act2 e . act1 e
 
 doOnly :: Game -> Rule
 doOnly = const
@@ -267,9 +268,9 @@ removeIn msg target = undefined
 
 
 require :: (PlayerIndex, Action, String) -> (Bool -> Game) -> Rule
-require (p, a, m) b = onAction (\(p',a',m') -> if p==p'
-    then if a == a' && (m `findIn` m') then id
-      else doOnly$ penalty 1 ("failure to {}{}"%show a%(if null m then "" else " and say '{}'"%m))
+require (p, a, m) f = onAction (\(p',a',m') -> if p==p'
+    then if a == a' && (m `findIn` m') then (doAfter (f True))
+      else doAfter (f False) . (doOnly$ penalty 1 ("failure to {}{}"%show a%(if null m then "" else " and say '{}'"%m)))
     else id )
 
 onPlay :: (Card -> Rule) -> Rule
@@ -285,6 +286,10 @@ onAction :: ((PlayerIndex,Action,String) -> Rule) -> Rule
 onAction f act e@(Action p a m) = f (p,a,m) act e
 onAction f act e = act e
 
+onDraw :: ((PlayerIndex,Int) -> Rule)-> Rule
+onDraw f = onAction (\e -> case e of
+    (p,Draw n,m) -> f (p,n)
+    _ -> id)
 -- onLegalDraw :: (Int -> Game) -> Rule
 -- onLegalDraw f act e@(Action p (Draw n) m) s = let s' = act e s in
 --     if s' ^. lastMoveLegal then f n e s' else s'
