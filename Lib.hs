@@ -11,6 +11,7 @@ import Data.Char (toLower,isSpace)
 import Data.List (isPrefixOf,stripPrefix,delete)
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
+import Data.List.Split (endBy)
 import qualified Data.Map as Map (Map,insert,findWithDefault,empty,fromList,map,adjust)
 import Data.Maybe (listToMaybe)
 import System.Random.Shuffle (shuffle')
@@ -251,9 +252,9 @@ getPlayerCard p i gs = do
 -- | player's next action must be the given one
 -- how do I make require actions for something other than a single
 
--- splits a message into comma separated parts with whitespace stripped
+-- splits a message into semi-colon separated parts with whitespace stripped
 splitm :: String -> [String]
-splitm = undefined
+splitm = endBy ";"
 
 
 -- | tells if a string is part of another
@@ -267,8 +268,8 @@ removeIn msg target = undefined
 
 require :: (PlayerIndex, Action, String) -> (Bool -> Game) -> Rule
 require (p, a, m) b = onAction (\(p',a',m') -> if p==p'
-    then if a == a' && (m `findin` m') then id
-        else penalty 1 "failure to {}{}"%show a%(if null m then "" else " and say '{}'"%m)
+    then if a == a' && (m `findIn` m') then id
+        else undefined -- penalty 1 "failure to {}{}"%show a%(if null m then "" else " and say '{}'"%m)
     else id )
 
 onPlay :: (Card -> Rule) -> Rule
