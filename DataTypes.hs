@@ -22,7 +22,40 @@ prev ::(Enum a, Bounded a, Eq a) =>  a -> a
 prev a = if a == minBound then maxBound else pred a
 
 data Suit = Clubs | Diamonds | Hearts | Spades deriving (Show,Eq,Enum,Bounded)
-data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King deriving (Show,Eq,Enum,Bounded)
+data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Knight | Queen | King deriving (Show,Eq,Bounded)
+
+instance Enum Rank where
+  toEnum i = case i of
+    1 -> Ace
+    2 -> Two
+    3 -> Three
+    4 -> Four
+    5 -> Five
+    6 -> Six
+    7 -> Seven
+    8 -> Eight
+    9 -> Nine
+    10 -> Ten
+    11 -> Jack
+    12 -> Knight
+    13 -> Queen
+    14 -> King
+  fromEnum r = case r of
+    Ace -> 1
+    Two -> 2
+    Three -> 3
+    Four -> 4
+    Five -> 5
+    Six -> 6
+    Seven -> 7
+    Eight -> 8
+    Nine -> 9
+    Ten -> 10
+    Jack -> 11
+    Knight -> 12
+    Queen -> 13
+    King -> 14
+  enumFrom n = map toEnum [fromEnum n..fromEnum (maxBound::Rank)]
 
 suitChar :: Suit -> Char
 suitChar s = case s of
@@ -33,7 +66,7 @@ suitChar s = case s of
 
 
 rankChar :: Rank -> Char
-rankChar r = (['A'] ++ [head $ show i | i <- [2..9]::[Int] ] ++ ['T','J','Q','K'])!!fromEnum r
+rankChar r = (['A'] ++ [head $ show i | i <- [2..9]::[Int] ] ++ ['T','J','C','Q','K'])!!fromEnum r -- UNSAFE
 
 type Card = (Rank,Suit)
 type Hand = [Card]

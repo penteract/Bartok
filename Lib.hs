@@ -61,6 +61,9 @@ sayAct :: Game
 sayAct e@(Action p a m) = broadcastp p m
 sayAct _ = id
 
+addPlayer :: Name -> GameState -> GameState
+addPlayer n = draw 5 n . ((players /\ hands) %~ ((n NE.<|) *** Map.insert n []))
+
 baseAct :: Game
 baseAct e@(Action p a m) gs
     | (Draw n)<-a
