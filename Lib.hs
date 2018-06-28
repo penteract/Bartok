@@ -200,7 +200,7 @@ cardFromHand' p c = hands %~ Map.adjust (delete c) p
 -- precond: requires at least one player
 nextTurn :: GameState -> GameState -- perhaps nextTurn should also set lastMoveLegal .~ True
 -- nextTurn = const ((players .~) =<< (\(x:xs)->xs++[x]) . (^. players))
-nextTurn = players %~ (\(p:|ps) -> NE.reverse $ p :| (reverse ps) ) --quite inefficient!
+nextTurn = players %~ (\(p:|ps) -> NE.reverse $ p :| reverse ps ) --quite inefficient!
 -- players %~ (\(x:xs)->xs++[x])
 
 
@@ -211,7 +211,9 @@ when q r x = if q x then r else id
 --Rule = Game -> Event -> GS -> GS
 with :: (Event -> GameState -> a) -> (a -> Rule) -> Rule
 with get f g e gs = f (get e gs) g e gs
+--with = flip(flip.((liftM2 (=<<).flip).).flip)
 --with = (((.)(curry.join.(uncurry.)).flip).) . flip(.) . uncurry
+--with = ((((curry.(uncurry =<<)).).flip).).flip(.).uncurry
 
 with' :: (Event -> GameState -> a) -> (a -> Game) -> Game
 with' get f e gs = f (get e gs) e gs
