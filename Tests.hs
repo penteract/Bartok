@@ -6,7 +6,10 @@ import Sample
 import qualified Data.Map as Map
 import System.IO
 import Data.List
-testGame = newGame $ map fst [("Angus",[]),("Toby",[]),("Anne",[])]
+import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty(NonEmpty((:|)) )
+
+testGame = newGame $ "Angus" :| ["Toby","Anne"]
 
 see :: [Card] -> String
 see = intersperse ' ' . map uniCard
@@ -22,17 +25,22 @@ prGS GS {
        _hands = hands,
        _varMap = varMap
      } = unlines [
-       unlines$ map (\name -> name ++ ":" ++ see (maybe [] id (Map.lookup name hands))) players,
-       see pile,
        unlines$ reverse messages,
+       unlines$ map (\name -> name ++ ":" ++ see (maybe [] id (Map.lookup name hands))) (NE.toList players),
+       see$ NE.toList pile,
        show lastMoveLegal,
        ""]
 
 main :: IO ()
 main = do
     --let g = beginGame testGame
-    _ <- testSequence  test2
+    pst test1
+    pst test2
+    --gs <- testSequence test1 True
+    --putStrLn "asdfasdf asdf  sdaf asdf a sdf"
     return ()
+
+pst =  (>>= putStr.prGS) . flip testSequence False
 
 mkc :: Suit ->  Int -> Action
 mkc s n = Play (toEnum (n-1),s)
@@ -49,13 +57,14 @@ toby = mka "Toby"
 angus = mka "Angus"
 anne = mka "Anne"
 
-test1 = (beginGame testGame,  [Action "Toby" (Draw 2) "", Action "Angus" (Play (Eight,Spades)) ""])-- playing cards not in hand causes error
-test2 = (baseAct, beginGame testGame,  [Action "Toby" (Draw 2) "", angus (he 3), angus (sp 8),anne (he 1)])
+test1 = (baseAct, beginGame testGame,  [Action "Toby" (Draw 2) "", Action "Angus" (Play (Eight,Spades)) ""])
+test2 = (baseAct, beginGame testGame,  [Action "Toby" (Draw 2) "", angus (he 11), angus (sp 11),anne (di 11),
+                                       toby$ he 1, angus (Draw 1)])
 
 
-testSequence :: (Game,GameState, [Event]) -> IO GameState
-testSequence (g,state,(e: es)) = do
+testSequence :: (Game,GameState, [Event]) -> Bool -> IO GameState
+testSequence (g,state,(e: es)) sh = do
     let state' = g e state
-    putStr$ prGS state'
-    testSequence (g,state',es)
-testSequence (_,s,_) = return s
+    if sh then putStr$ prGS state' else return ()
+    testSequence (g,state',es) sh
+testSequence (_,s,_) _ = return s

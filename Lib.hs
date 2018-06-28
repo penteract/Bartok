@@ -73,8 +73,7 @@ baseAct e@(Action p a m) gs
           . if'' inTurn (nextTurn . (lastMoveLegal .~ True))
           ) gs
     | (Play c)<-a, Just True /= fmap (c`elem`) (getHand p gs) =
-          error (p++" attempted invalid play of "++show c)
-          -- note: combines two sources of errors (invalid player // card not in valid player's hand)
+          penalty 1 (p++" attempted invalid play of "++show c) e gs
     | (Play c)<-a = let play::GameState -> GameState
                         play = sayAct e . broadcast ("{} plays {}"%p%%c)
                                       . (lastMoveLegal .~ True). nextTurn . (cardFromHand' p c) . (cardToPile c) in
