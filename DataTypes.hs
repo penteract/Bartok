@@ -24,6 +24,50 @@ prev a = if a == minBound then maxBound else pred a
 data Suit = Clubs | Diamonds | Hearts | Spades deriving (Show,Eq,Enum,Bounded,Ord)
 data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Knight | Queen | King deriving (Show,Eq,Bounded,Ord)
 
+
+type Card = (Rank,Suit)
+type Hand = [Card]
+
+
+type CardIndex = Int
+
+type Name = String
+type PlayerIndex = Name
+data Action = Draw Int | Play Card deriving (Show,Eq)
+data Event = Action PlayerIndex Action String | Timeout deriving (Show,Eq)
+
+
+-- I'd call a function playmove or runevent. the problem is that it's used too much
+--the type could almost be called Game
+type Game = Event -> GameState -> GameState
+type Rule = Game -> Game --this type is named correctly
+
+data GameState = GS {
+       _players :: NonEmpty Name, -- current player is head of list
+       _hands :: Map.Map Name Hand,
+       _deck :: [Card],
+       _pile :: NonEmpty Card,
+    --nextPlayer :: Player, --required to be smaller than length hands
+       _messages :: [String],
+       _lastMoveLegal :: Bool,
+       _prevGS :: Maybe (GameState,Action),
+
+       _randg :: StdGen,
+
+       _varMap :: Map.Map String Int
+     } deriving Show
+makeLenses ''GameState
+
+
+
+-- | Card processing functions
+
+suit :: Card -> Suit
+suit = snd
+
+rank :: Card -> Rank
+rank = fst
+
 instance Enum Rank where
   toEnum i = case i of
     1 -> Ace
@@ -68,9 +112,6 @@ suitChar s = case s of
 rankChar :: Rank -> Char
 rankChar r = (['A'] ++ [head $ show i | i <- [2..9]::[Int] ] ++ ['T','J','C','Q','K'])!!(fromEnum r - 1) -- UNSAFE
 
-type Card = (Rank,Suit)
-type Hand = [Card]
-
 instance (Enum a, Enum b, Bounded a, Bounded b, Eq a, Eq b) => Enum (a,b) where
   toEnum i = (\(x,y) -> (toEnum (x + fromEnum (minBound::a)),toEnum (y + fromEnum (minBound::b)))) $ i `divMod` (1+(fromEnum (maxBound::b) - fromEnum (minBound::b))) -- i `divMod` (fromEnum $ maxBound :: b)
   fromEnum (r,s) = (fromEnum r - fromEnum (minBound::a)) * (1+fromEnum (maxBound::b)-fromEnum (minBound::b)) + (fromEnum s - fromEnum (minBound::b))
@@ -111,34 +152,8 @@ parseCard = do
   s <- parseSuit
   return (r,s)
 
-type CardIndex = Int
 
-type Name = String
-type PlayerIndex = Name
-data Action = Draw Int | Play Card deriving Show
-data Event = Action PlayerIndex Action String | Timeout
-
-
--- I'd call a function playmove or runevent. the problem is that it's used too much
---the type could almost be called Game
-type Game = Event -> GameState -> GameState
-type Rule = Game -> Game --this type is named correctly
-
-data GameState = GS {
-       _players :: NonEmpty Name, -- current player is head of list
-       _hands :: Map.Map Name Hand,
-       _deck :: [Card],
-       _pile :: NonEmpty Card,
-    --nextPlayer :: Player, --required to be smaller than length hands
-       _messages :: [String],
-       _lastMoveLegal :: Bool,
-       _prevGS :: Maybe (GameState,Action),
-
-       _randg :: StdGen,
-
-       _varMap :: Map.Map String Int
-     } deriving Show
-makeLenses ''GameState
+-- | variable processing
 
 readVar :: String -> GameState -> Int
 readVar s gs = Map.findWithDefault 0 s (gs^.varMap)
@@ -146,12 +161,6 @@ setVar :: String -> Int -> GameState -> GameState
 setVar s i = varMap %~ Map.insert s i
 modifyVar :: String -> (Int -> Int) -> GameState -> GameState
 modifyVar s f gs = setVar s (f $ readVar s gs) gs
-
-suit :: Card -> Suit
-suit = snd
-
-rank :: Card -> Rank
-rank = fst
 
 shuffleDeck :: GameState -> GameState
 shuffleDeck = (deck /\ randg) %~ ap ((`ap` snd) . ((,) .) . (. fst) . liftM2 shuffle' fst (length . fst)) (split . snd)

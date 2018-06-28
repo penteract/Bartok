@@ -267,8 +267,8 @@ removeIn msg target = undefined
 
 require :: (PlayerIndex, Action, String) -> (Bool -> Game) -> Rule
 require (p, a, m) b = onAction (\(p',a',m') -> if p==p'
-    then if a == a' && (m `findin` m') then id
-        else penalty 1 "failure to {}{}"%show a%(if null m then "" else " and say '{}'"%m)
+    then if a == a' && (m `findIn` m') then id
+        else doOnly$ penalty 1 ("failure to {}{}"%show a%(if null m then "" else " and say '{}'"%m))
     else id )
 
 onPlay :: (Card -> Rule) -> Rule
