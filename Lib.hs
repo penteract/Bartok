@@ -63,7 +63,7 @@ sayAct e@(Action p a m) = broadcastp p m
 sayAct _ = id
 
 addPlayer :: Name -> GameState -> GameState
-addPlayer n = draw 5 n . ((players /\ hands) %~ ((n NE.<|) *** Map.insert n []))
+addPlayer n = draw 5 n . ((players /\ hands) %~ ((n:) *** Map.insert n []))
 
 baseAct :: Game
 baseAct e@(Action p a m) gs
@@ -84,8 +84,8 @@ baseAct e@(Action p a m) gs
                                           then penalty 1 "Bad card" e
                                           else play)
                      gs
-    where inTurn = p == (NE.head $ gs ^. players)
-baseAct Timeout gs = let activePlayer = NE.head $ gs^.players in
+    where inTurn = p == (head $ gs ^. players)
+baseAct Timeout gs = let activePlayer = head $ gs^.players in
     ( broadcast ("Penalize "++activePlayer++" 1 card for failure to play within a reasonable amount of time")
     . draw 1 activePlayer ) gs
 
@@ -201,8 +201,8 @@ cardFromHand' p c = hands %~ Map.adjust (delete c) p
 -- precond: requires at least one player
 nextTurn :: GameState -> GameState -- perhaps nextTurn should also set lastMoveLegal .~ True
 -- nextTurn = const ((players .~) =<< (\(x:xs)->xs++[x]) . (^. players))
-nextTurn = players %~ (\(p:|ps) -> NE.reverse $ p :| reverse ps ) --quite inefficient!
--- players %~ (\(x:xs)->xs++[x])
+--nextTurn = players %~ (\(p:|ps) -> NE.reverse $ p :| reverse ps ) --quite inefficient!
+nextTurn = players %~ (\(x:xs)->xs++[x])
 
 
 when :: (a -> Bool) -> Rule -> a -> Rule
@@ -267,6 +267,7 @@ removeIn :: String -> String -> String
 removeIn msg target = undefined
 
 
+-- possibly a mustSay component could be extracted
 require :: (PlayerIndex, Action, String) -> (Bool -> Game) -> Rule
 require (p, a, m) f = onAction (\(p',a',m') -> if p==p'
     then if a == a' && (m `findIn` m') then (doAfter (f True))

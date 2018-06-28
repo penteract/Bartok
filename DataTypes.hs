@@ -38,7 +38,7 @@ type Game = Event -> GameState -> GameState
 type Rule = Game -> Game --this type is named correctly
 
 data GameState = GS {
-       _players :: NonEmpty Name, -- current player is head of list
+       _players :: [Name], -- current player is head of list
        _hands :: Map.Map Name Hand,
        _deck :: [Card],
        _pile :: NonEmpty Card,
@@ -168,7 +168,7 @@ shuffleDeck :: GameState -> GameState
 shuffleDeck = (deck /\ randg) %~ ap ((`ap` snd) . ((,) .) . (. fst) . liftM2 shuffle' fst (length . fst)) (split . snd)
 -- shuffleDeck = (deck /\ randg) %~ (\(d,r) -> let (r1,r2) = split r in (shuffle' d (length d) r1,r2))
 
-newGame :: NonEmpty String -> GameState
+newGame :: [String] -> GameState
 newGame pls =  ((pile /\ deck) %~ (\(_,y:ys) -> (y:|[],ys))) . shuffleDeck $ -- UNSAFE
            GS { _deck = [ minBound.. ]
               , _pile = undefined -- put a card so it's happy for now
@@ -177,7 +177,7 @@ newGame pls =  ((pile /\ deck) %~ (\(_,y:ys) -> (y:|[],ys))) . shuffleDeck $ -- 
               , _randg = mkStdGen 0
               , _varMap = Map.empty
               , _players = pls  --[("Angus",[]),("Toby",[]),("Anne",[])]
-              , _hands = Map.fromList $ map (flip (,) []) (NE.toList pls)
+              , _hands = Map.fromList $ map (flip (,) []) (pls)
               , _prevGS = Nothing
               }
 

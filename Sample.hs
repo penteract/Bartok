@@ -12,7 +12,7 @@ r8 = onLegalCard$ when' ((==Eight).rank) (const nextTurn)
 
 
 reverseDirection :: GameState -> GameState
-reverseDirection = players %~ NE.reverse
+reverseDirection = players %~ reverse
 
 rq :: Rule --reverse direction on q, may have problems if reversing direction makes a move become illegal
 rq act e gs = (onLegalCard$ when' ((==Queen).rank) (\e' gs' -> act e (reverseDirection gs))) act e gs
@@ -25,7 +25,7 @@ rq act e gs = (onLegalCard$ when' ((==Queen).rank) (\e' gs' -> act e (reverseDir
 --mustdo7 n = ((Draw (2*n)), "thank you"++ (if n>1 then " "++ concat (replicate (n-1) "very ") ++ "much" else ""))
 
 mustdo7 :: (Int->(Bool->Game)-> Rule)
-mustdo7 n f = with (const$ NE.head .(^.players)) (\p ->
+mustdo7 n f = with (const$ head .(^.players)) (\p ->
               require (p,(Draw (2*n)), "thank you"++ (if n>1 then " "++ concat (replicate (n-1) "very ") ++ "much" else "")) f)
 
 --counts the unresolved 7s
