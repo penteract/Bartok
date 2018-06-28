@@ -38,6 +38,7 @@ main = do
     --let g = beginGame testGame
     pst test1
     pst test2
+    pst test7s
     --gs <- testSequence test1 True
     --putStrLn "asdfasdf asdf  sdaf asdf a sdf"
     return ()
@@ -52,6 +53,8 @@ sp = mkc Spades
 he = mkc Hearts
 di = mkc Diamonds
 cl = mkc Clubs
+
+unPlay (Play c) = c
 
 mka p c = Action p c ""
 
@@ -78,7 +81,12 @@ newTestGame hands = ((pile /\ deck) %~ (\(_,y:ys) -> (y:|[],ys)))
               }
 
 
---test7s = (r7 baseAct,
+test7s = (r7 baseAct,newTestGame [("Toby",[(Seven,Clubs),(Three,Hearts)]),
+                                  ("Angus",map unPlay [cl 3, sp 7, he 9]),
+                                  ("Anne",map unPlay [di 6, sp 9, cl 2])
+                                  ],
+            [toby$ cl 7, angus$ cl 3, anne$ sp 9, angus$ sp 7, Action "Anne" (Draw 4) "thank you vry much", Action "Anne" (Draw 4) "thank you very much",
+            toby$ Draw 1, angus$ Draw 1, anne$ Draw 1005 ])
 
 testSequence :: (Game,GameState, [Event]) -> Bool -> IO GameState
 testSequence (g,state,(e: es)) sh = do
