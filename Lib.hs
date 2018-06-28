@@ -8,14 +8,16 @@ import Control.Monad --(join,liftM,liftM2)
 --import Control.Monad.Random
 import Control.Monad.Trans.State
 import Data.Char (toLower,isSpace)
-import Data.List (isPrefixOf,stripPrefix,delete)
+import Data.List (isPrefixOf,stripPrefix,delete,intercalate)
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.List.Split (endBy)
 import qualified Data.Map as Map (Map,insert,findWithDefault,empty,fromList,map,adjust)
 import Data.Maybe (listToMaybe)
+import Data.Text.Lazy(dropAround,pack,unpack,strip)
 import System.Random.Shuffle (shuffle')
 import System.Random
+import qualified Data.CaseInsensitive as CI
 
 import DataTypes
 
@@ -254,16 +256,20 @@ getPlayerCard p i gs = do
 
 -- splits a message into semi-colon separated parts with whitespace stripped
 splitm :: String -> [String]
-splitm = endBy ";"
+splitm = map (unpack . strip . pack) . endBy ";"
 
-
--- | tells if a string is part of another
+-- tells if a string is one semi-colon delimited segment of another
+-- ignore (segment-)leading/ending whitespace, case-insensitive
 findIn :: String -> String -> Bool
-findIn msg target = target `elem` splitm msg
+findIn = liftM2 flip (((.).elem).) ((.endBy ";").map) (CI.mk.strip.pack)
+-- findIn target msg = (CI.mk . strip . pack) target `elem` map (CI.mk . dropAround isSpace . pack) (endBy ";" msg)
 
--- | remove up to one instance of target from msg (case insensitive, ignore initial/terminal whitespace)
+-- remove up to one semi-colon delimited segment equal to target string
+-- ignore (segment-)leading/ending whitespace, case-insensitive
+-- note: returned string will lack (segment-)leading/ending whitespace
 removeIn :: String -> String -> String
-removeIn msg target = undefined
+removeIn = ((intercalate ";".map(unpack.CI.original)).).liftM2 flip (((.).delete).) ((.endBy ";").map) (CI.mk.strip.pack)
+-- removeIn target msg = intercalate ";" $ map (unpack.CI.original) $ delete ((CI.mk . strip . pack) target) (map (CI.mk . strip . pack) (endBy ";" msg))
 
 
 require :: (PlayerIndex, Action, String) -> (Bool -> Game) -> Rule
