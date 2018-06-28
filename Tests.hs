@@ -43,7 +43,7 @@ main = do
 pst =  (>>= putStr.prGS) . flip testSequence False
 
 mkc :: Suit ->  Int -> Action
-mkc s n = Play (toEnum (n-1),s)
+mkc s n = Play (toEnum n,s)
 
 sp :: Int -> Action
 sp = mkc Spades
