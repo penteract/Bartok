@@ -7,9 +7,12 @@ import Control.Monad --(join,liftM,liftM2)
 import Control.Monad.Trans.State
 import Data.Char (toLower,isSpace)
 import Data.List (isPrefixOf,stripPrefix,delete)
+import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty(NonEmpty(..))
 import qualified Data.Map as Map (Map,insert,findWithDefault,empty,fromList)
 import Data.Maybe (listToMaybe)
 import System.Random
+import System.Random.Shuffle (shuffle')
 
 type Parser = StateT String Maybe
 
@@ -89,10 +92,10 @@ type Game = Event -> GameState -> GameState
 type Rule = Game -> Game --this type is named correctly
 
 data GameState = GS {
-       _players :: [Name], -- current player is head of list
+       _players :: NonEmpty Name, -- current player is head of list
        _hands :: Map.Map Name Hand,
        _deck :: [Card],
-       _pile :: [Card],
+       _pile :: NonEmpty Card,
     --nextPlayer :: Player, --required to be smaller than length hands
        _messages :: [String],
        _lastMoveLegal :: Bool,
@@ -117,14 +120,39 @@ suit = snd
 rank :: Card -> Rank
 rank = fst
 
-newGame :: [String] -> GameState
-newGame pls = GS { _deck = [ minBound.. ]
-              , _pile = []
+shuffleDeck :: GameState -> GameState
+shuffleDeck = (deck /\ randg) %~ ap ((`ap` snd) . ((,) .) . (. fst) . liftM2 shuffle' fst (length . fst)) (split . snd)
+-- shuffleDeck = (deck /\ randg) %~ (\(d,r) -> let (r1,r2) = split r in (shuffle' d (length d) r1,r2))
+
+newGame :: NonEmpty String -> GameState
+newGame pls =  ((pile /\ deck) %~ (\(_,y:ys) -> (y:|[],ys))) . shuffleDeck $ -- UNSAFE
+           GS { _deck = [ minBound.. ]
+              , _pile = undefined -- put a card so it's happy for now
               , _messages = []
               , _lastMoveLegal = True
               , _randg = mkStdGen 0
               , _varMap = Map.empty
               , _players = pls  --[("Angus",[]),("Toby",[]),("Anne",[])]
-              , _hands = Map.fromList $ map (flip (,) []) pls
+              , _hands = Map.fromList $ map (flip (,) []) (NE.toList pls)
               , _prevGS = Nothing
               }
+
+(/\)
+    :: (Functor f)
+    => ((a -> (a, a)) -> (c -> (a, c)))
+    -- ^ Lens' c a
+    -> ((b -> (b, b)) -> (c -> (b, c)))
+    -- ^ Lens' c b
+    -> (((a, b) -> f (a, b)) -> (c -> f c))
+    -- ^ Lens' c (a, b)
+(lens1 /\ lens2) f c0 =
+    let (a, _) = lens1 (\a_ -> (a_, a_)) c0
+        (b, _) = lens2 (\b_ -> (b_, b_)) c0
+        fab = f (a, b)
+    in fmap (\(a, b) ->
+            let (_, c1) = lens1 (\a_ -> (a_, a)) c0
+                (_, c2) = lens2 (\b_ -> (b_, b)) c1
+            in c2
+            ) fab
+
+infixl 7 /\

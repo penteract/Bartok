@@ -9,6 +9,8 @@ import Control.Monad --(join,liftM,liftM2)
 import Control.Monad.Trans.State
 import Data.Char (toLower,isSpace)
 import Data.List (isPrefixOf,stripPrefix,delete)
+import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map (Map,insert,findWithDefault,empty,fromList,map,adjust)
 import Data.Maybe (listToMaybe)
 import System.Random.Shuffle (shuffle')
@@ -75,14 +77,12 @@ baseAct e@(Action p a m) gs
                                       . (lastMoveLegal .~ True). nextTurn . (cardFromHand' p c) . (cardToPile c) in
          (if not inTurn
               then (penalty 1 "Playing out of turn" e)
-              else case gs^.pile of
-                      [] ->  play
-                      (d:ds) -> if not (suit c == suit (head (gs^.pile)) || rank c == rank (head (gs^.pile)))
+              else if not (suit c == suit (NE.head (gs^.pile)) || rank c == rank (NE.head (gs^.pile)))
                                           then penalty 1 "Bad card" e
                                           else play)
                      gs
-    where inTurn = p == (head$ gs ^. players)
-baseAct Timeout gs = let activePlayer = gs^.players._head in
+    where inTurn = p == (NE.head $ gs ^. players)
+baseAct Timeout gs = let activePlayer = NE.head $ gs^.players in
     ( broadcast ("Penalize "++activePlayer++" 1 card for failure to play within a reasonable amount of time")
     . draw 1 activePlayer ) gs
 
@@ -127,9 +127,9 @@ draw1 :: PlayerIndex -> GameState -> GameState
 draw1 p = uncurry (((hands . at p) %~) . fmap . (:)) . cardFromDeck
   -- uncurry ((ix p %~) . (:)) . cardFromDeck  -- withHand p (\h -> first (:h) $ cardFromDeck gs) gs
 
-shuffleDeck :: GameState -> GameState
-shuffleDeck gs = let (gen1,gen2) = split (gs^.randg) in
-    (deck %~ (\x-> shuffle' x (length x) gen1) ) . (randg .~ gen2) $ gs
+-- shuffleDeck :: GameState -> GameState
+-- shuffleDeck gs = let (gen1,gen2) = split (gs^.randg) in
+--     (deck %~ (\x-> shuffle' x (length x) gen1) ) . (randg .~ gen2) $ gs
 
 taxes :: GameState -> GameState
 -- taxes gs = (hands %~ Map.map (take handSizeThreshhold))
@@ -160,7 +160,7 @@ taxes gs = (hands %~ Map.map (take handSizeThreshhold))
 cardFromDeck :: GameState -> (Card,GameState)
 cardFromDeck gs = case gs ^. deck of
     (c:cs) -> (c, gs & deck .~ cs)
-    [] -> let (p1,p2) = splitAt 1 (gs^.pile) in
+    [] -> let (p1,p2) = (\(x:|xs) -> (x:|[],xs)) (gs^.pile) in -- first (:|[]) . second (maybe [] NE.toList) $ NE.uncons (gs^.pile) in
         case ( ( broadcast "Shuffling pile into deck, applying taxes..."
                  . shuffleDeck
                  . (deck <>~ p2) . (pile .~ p1)
@@ -169,7 +169,7 @@ cardFromDeck gs = case gs ^. deck of
             _ -> error "No cards in deck after taxes & shuffling pile into deck (where've they gone??)"
 
 cardToPile :: Card -> GameState -> GameState
-cardToPile c = pile %~ (c:)
+cardToPile c = pile %~ (c NE.<|)
 
 -- also checks whether any such card was removed from hand
 -- cardFromHand :: PlayerIndex -> Card -> GameState -> (Bool,GameState)
@@ -198,9 +198,9 @@ cardFromHand' p c = hands %~ Map.adjust (delete c) p
 -- precond: requires at least one player
 nextTurn :: GameState -> GameState -- perhaps nextTurn should also set lastMoveLegal .~ True
 -- nextTurn = const ((players .~) =<< (\(x:xs)->xs++[x]) . (^. players))
-nextTurn = players %~ (\(x:xs)->xs++[x])
--- nextTurn _ g@GS {players = (p:ps)} = g{players=ps++[p]}
-    -- g{nextPlayer = ((nextPlayer g+1) `mod` length (hands g))}
+nextTurn = players %~ (\(p:|ps) -> NE.reverse $ p :| (reverse ps) ) --quite inefficient!
+-- players %~ (\(x:xs)->xs++[x])
+
 
 when :: (a -> Bool) -> Game -> a -> Game
 when q act x = if q x then act else const id
@@ -223,6 +223,9 @@ doBefore act1 act2 e = act1 e . act2 e
 
 doOnly :: Game -> Rule
 doOnly = const
+
+win :: PlayerIndex -> (GameState -> GameState)
+win p = broadcast $ p++" wins the game!"
 
 {-
 getPlayerCard :: PlayerIndex -> CardIndex -> GameState -> Maybe Card

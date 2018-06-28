@@ -3,6 +3,7 @@ module Sample where
 import Lib
 import DataTypes
 import Control.Lens
+import qualified Data.List.NonEmpty as NE
 --main = return ()
 
 r8 :: Rule
@@ -11,7 +12,7 @@ r8 = onLegalCard$ when ((==Eight).rank) (const nextTurn)
 
 
 reverseDirection :: GameState -> GameState
-reverseDirection = players %~ reverse
+reverseDirection = players %~ NE.reverse
 
 rq :: Rule --reverse direction on q, may have problems if reversing direction makes a move become illegal
 rq act e gs = (onLegalCard$ when ((==Queen).rank) (\e' gs' -> act e (reverseDirection gs))) act e gs
