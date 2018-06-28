@@ -248,8 +248,26 @@ getPlayerCard p i gs = do
 
 -- | player's next action must be the given one
 -- how do I make require actions for something other than a single
-require :: (PlayerIndex, Action, String) -> Rule
-require (p, a, m) = undefined
+
+-- splits a message into comma separated parts with whitespace stripped
+splitm :: String -> [String]
+splitm = undefined
+
+
+-- | tells if a string is part of another
+findIn :: String -> String -> Bool
+findIn msg target = target `elem` splitm msg
+
+-- | remove up to one instance of target from msg (case insensitive, ignore initial/terminal whitespace)
+removeIn :: String -> String -> String
+removeIn msg target = undefined
+
+
+require :: (PlayerIndex, Action, String) -> (Bool -> Game) -> Rule
+require (p, a, m) b = onAction (\(p',a',m') -> if p==p'
+    then if a == a' && (m `findin` m') then id
+        else penalty 1 "failure to {}{}"%show a%(if null m then "" else " and say '{}'"%m)
+    else id )
 
 onPlay :: (Card -> Rule) -> Rule
 onPlay f act e@(Action p (Play c) m) gs = f c act e gs
@@ -259,6 +277,10 @@ onLegalCard :: (Card -> Game) -> Rule
 onLegalCard f act e@(Action p (Play c) m) s = let s' = act e s in
     if s' ^. lastMoveLegal then f c e s' else s'
 onLegalCard f act a s = act a s
+
+onAction :: ((PlayerIndex,Action,String) -> Rule) -> Rule
+onAction f act e@(Action p a m) = f (p,a,m) act e
+onAction f act e = act e
 
 -- onLegalDraw :: (Int -> Game) -> Rule
 -- onLegalDraw f act e@(Action p (Draw n) m) s = let s' = act e s in
