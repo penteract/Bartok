@@ -65,7 +65,7 @@ sayAct e@(Action p a m) = broadcastp p m
 sayAct _ = id
 
 addPlayer :: Name -> GameState -> GameState
-addPlayer n = draw 5 n . ((players /\ hands) %~ ((n NE.<|) *** Map.insert n []))
+addPlayer n = draw 5 n . ((players /\ hands) %~ ((n:) *** Map.insert n []))
 
 baseAct :: Game
 baseAct e@(Action p a m) gs
@@ -86,8 +86,8 @@ baseAct e@(Action p a m) gs
                                           then penalty 1 "Bad card" e
                                           else play)
                      gs
-    where inTurn = p == (NE.head $ gs ^. players)
-baseAct Timeout gs = let activePlayer = NE.head $ gs^.players in
+    where inTurn = p == (head $ gs ^. players)
+baseAct Timeout gs = let activePlayer = head $ gs^.players in
     ( broadcast ("Penalize "++activePlayer++" 1 card for failure to play within a reasonable amount of time")
     . draw 1 activePlayer ) gs
 
@@ -203,8 +203,8 @@ cardFromHand' p c = hands %~ Map.adjust (delete c) p
 -- precond: requires at least one player
 nextTurn :: GameState -> GameState -- perhaps nextTurn should also set lastMoveLegal .~ True
 -- nextTurn = const ((players .~) =<< (\(x:xs)->xs++[x]) . (^. players))
-nextTurn = players %~ (\(p:|ps) -> NE.reverse $ p :| reverse ps ) --quite inefficient!
--- players %~ (\(x:xs)->xs++[x])
+--nextTurn = players %~ (\(p:|ps) -> NE.reverse $ p :| reverse ps ) --quite inefficient!
+nextTurn = players %~ (\(x:xs)->xs++[x])
 
 
 when :: (a -> Bool) -> Rule -> a -> Rule
@@ -233,11 +233,12 @@ when' q act x = if q x then act else const id
 
 --wasLegal :: Event -> GameState -> GameState
 
+-- given an incomplete game, returns a rule which does the action described by the game after doing (i.e. as late as possible)
 doAfter :: Game -> Rule
-doAfter act1 act2 e = act2 e . act1 e
+doAfter act1 act2 e = act1 e . act2 e
 
 doBefore :: Game -> Rule
-doBefore act1 act2 e = act1 e . act2 e
+doBefore act1 act2 e = act2 e . act1 e
 
 doOnly :: Game -> Rule
 doOnly = const
@@ -272,10 +273,11 @@ removeIn = ((intercalate ";".map(unpack.CI.original)).).liftM2 flip (((.).delete
 -- removeIn target msg = intercalate ";" $ map (unpack.CI.original) $ delete ((CI.mk . strip . pack) target) (map (CI.mk . strip . pack) (endBy ";" msg))
 
 
+-- possibly a mustSay component could be extracted
 require :: (PlayerIndex, Action, String) -> (Bool -> Game) -> Rule
-require (p, a, m) b = onAction (\(p',a',m') -> if p==p'
-    then if a == a' && (m `findIn` m') then id
-      else doOnly$ penalty 1 ("failure to {}{}"%show a%(if null m then "" else " and say '{}'"%m))
+require (p, a, m) f = onAction (\(p',a',m') -> if p==p'
+    then if a == a' && (m `findIn` m') then (doAfter (f True))
+      else doAfter (f False) . (doOnly$ penalty 1 ("failure to {}{}"%show a%(if null m then "" else " and say '{}'"%m)))
     else id )
 
 onPlay :: (Card -> Rule) -> Rule
@@ -291,6 +293,10 @@ onAction :: ((PlayerIndex,Action,String) -> Rule) -> Rule
 onAction f act e@(Action p a m) = f (p,a,m) act e
 onAction f act e = act e
 
+onDraw :: ((PlayerIndex,Int) -> Rule)-> Rule
+onDraw f = onAction (\e -> case e of
+    (p,Draw n,m) -> f (p,n)
+    _ -> id)
 -- onLegalDraw :: (Int -> Game) -> Rule
 -- onLegalDraw f act e@(Action p (Draw n) m) s = let s' = act e s in
 --     if s' ^. lastMoveLegal then f n e s' else s'

@@ -12,7 +12,7 @@ r8 = onLegalCard$ when' ((==Eight).rank) (const nextTurn)
 
 
 reverseDirection :: GameState -> GameState
-reverseDirection = players %~ NE.reverse
+reverseDirection = players %~ reverse
 
 rq :: Rule --reverse direction on q, may have problems if reversing direction makes a move become illegal
 rq act e gs = (onLegalCard$ when' ((==Queen).rank) (\e' gs' -> act e (reverseDirection gs))) act e gs
@@ -24,8 +24,8 @@ rq act e gs = (onLegalCard$ when' ((==Queen).rank) (\e' gs' -> act e (reverseDir
 --mustdo7 :: (Int->(Action,String))
 --mustdo7 n = ((Draw (2*n)), "thank you"++ (if n>1 then " "++ concat (replicate (n-1) "very ") ++ "much" else ""))
 
---mustdo7 :: (Int->(Action,String))
-mustdo7 n f = with (const$ NE.head ._players) (\p ->
+mustdo7 :: (Int->(Bool->Game)-> Rule)
+mustdo7 n f = with (const$ head .(^.players)) (\p ->
               require (p,(Draw (2*n)), "thank you"++ (if n>1 then " "++ concat (replicate (n-1) "very ") ++ "much" else "")) f)
 
 --counts the unresolved 7s
@@ -34,10 +34,11 @@ count7s = readVar "sevens"
 
 r7 :: Rule
 r7 = with (const count7s) (\n -> if  n > 0
-    then onPlay (\c -> if rank c == Seven
-        then onLegalCard$ const.const$ modifyVar "sevens" (+1)
-        else (mustdo7 n)  (when' id (const$ broadcast "r7 unexpected")))
-    else (mustdo7 n) (when' id (const$setVar "sevens" 0)))
+    then onDraw (\_->(mustdo7 n) (when' id (const$setVar "sevens" 0)))
+       . onPlay (\c -> if rank c == Seven
+        then onLegalCard$ const.const$ modifyVar "sevens" (+1) --ignore card and event
+        else (mustdo7 n) (when' id (const$ broadcast "r7 unexpected")))
+    else onLegalCard$ when' ((==Seven).rank) (const$ modifyVar "sevens" (+1)) )
 
 --r7 :: Rule
 --r7 = undefined --good luck
