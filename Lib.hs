@@ -204,12 +204,23 @@ nextTurn = players %~ (\(p:|ps) -> NE.reverse $ p :| (reverse ps) ) --quite inef
 -- players %~ (\(x:xs)->xs++[x])
 
 
-when :: (a -> Bool) -> Game -> a -> Game
-when q act x = if q x then act else const id
+when :: (a -> Bool) -> Rule -> a -> Rule
+when q r x = if q x then r else id
 
 
-with :: (GameState -> a) -> (a -> Rule) -> Rule
-with = undefined
+--Rule = Game -> Event -> GS -> GS
+with :: (Event -> GameState -> a) -> (a -> Rule) -> Rule
+with get f g e gs = f (get e gs) g e gs
+--with = (((.)(curry.join.(uncurry.)).flip).) . flip(.) . uncurry
+
+with' :: (Event -> GameState -> a) -> (a -> Game) -> Game
+with' get f e gs = f (get e gs) e gs
+
+when' :: (a -> Bool) -> Game -> a -> Game
+when' q act x = if q x then act else const id
+
+
+--
 
 
 --penalty :: String -> PlayerIndex -> GameState -> GameState
@@ -249,7 +260,7 @@ onLegalCard f act e@(Action p (Play c) m) s = let s' = act e s in
     if s' ^. lastMoveLegal then f c e s' else s'
 onLegalCard f act a s = act a s
 
-onLegalDraw :: (Int -> Game) -> Rule
-onLegalDraw f act e@(Action p (Draw n) m) s = let s' = act e s in
-    if s' ^. lastMoveLegal then f n e s' else s'
-onLegalDraw f act a s = act a s
+-- onLegalDraw :: (Int -> Game) -> Rule
+-- onLegalDraw f act e@(Action p (Draw n) m) s = let s' = act e s in
+--     if s' ^. lastMoveLegal then f n e s' else s'
+-- onLegalDraw f act a s = act a s
