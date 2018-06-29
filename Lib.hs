@@ -17,7 +17,7 @@ import Data.Maybe (listToMaybe)
 import Data.Text.Lazy(dropAround,pack,unpack,strip)
 import System.Random.Shuffle (shuffle')
 import System.Random
-import qualified Data.CaseInsensitive as CI
+import qualified Data.CaseInsensitive as CI (mk,original)
 
 import DataTypes
 
