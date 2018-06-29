@@ -18,14 +18,12 @@ import Serialize
 
 type GMap = CMap.Map Text (GameState,Game)
 
-fix f = f (fix f)
-
 makeNewGame = return$ newGame ["Toby","Angus"]
 
 --TODO(angus) write this function in a separate module
 --serialise :: GameView -> L.ByteString
-serialize :: GameState -> L.ByteString -- TODO(toby): change when Views is a thing
-serialize gs = ""
+serialise :: GameState -> L.ByteString -- TODO(toby): change when Views is a thing
+serialise gs = "{}"
 
 app :: GMap -> Application
 app games req resp = do
@@ -51,16 +49,10 @@ onPost :: GMap -> Application
 onPost games req resp = do
     let gameName = intercalate "/" (pathInfo req)
     putStrLn$ show$ gameName
-    (gs,g) <- fix (\x -> do
-        mx <- CMap.lookup gameName games
-        case mx of
-            Nothing -> do
-                gs <- makeNewGame
-                b <- CMap.insertIfAbsent gameName (gs,baseAct) games
-                x
-            Just a -> return a)
-
-    resp$ responseLBS ok200 [] (serialise gs)
+    mx <- CMap.lookup gameName games
+    case mx of
+        Nothing -> resp$ responseLBS badRequest400 [] ""
+        Just (gs,g) -> resp$ responseLBS ok200 [(hContentType,"application/json")] (serialise gs)
 
 main :: IO ()
 main = do
