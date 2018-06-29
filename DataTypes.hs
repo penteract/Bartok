@@ -164,6 +164,12 @@ parseCard = do
   return (r,s)
 
 
+
+getName :: Event -> Maybe Name
+getName (Action p _ _) = Just p
+getName (PlayerJoin p) = Just p
+getName Timeout = Nothing
+
 -- | variable processing
 
 readVar :: String -> GameState -> Int

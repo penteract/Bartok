@@ -13,17 +13,13 @@ import Control.Concurrent.MVar
 
 import DataTypes
 import Lib
+import Views
 
 import Serialize
 
-type GMap = CMap.Map Text (GameState,Game)
+type GMap = CMap.Map Text (GameState,Game,GameViewer)
 
 makeNewGame = return$ newGame ["Toby","Angus"]
-
---TODO(angus) write this function in a separate module
---serialise :: GameView -> L.ByteString
-serialise :: GameState -> L.ByteString -- TODO(toby): change when Views is a thing
-serialise gs = "{}"
 
 app :: GMap -> Application
 app games req resp = do
@@ -41,7 +37,7 @@ onGet games req resp = do
     case mx of
         Nothing -> do
                 gs <- makeNewGame
-                CMap.insertIfAbsent gameName (gs,baseAct) games
+                CMap.insertIfAbsent gameName (gs,baseAct,defaultView) games
         Just a -> return ()
     resp$ responseFile ok200 [] "index.html" Nothing
 
@@ -52,7 +48,19 @@ onPost games req resp = do
     mx <- CMap.lookup gameName games
     case mx of
         Nothing -> resp$ responseLBS badRequest400 [] ""
-        Just (gs,g) -> resp$ responseLBS ok200 [(hContentType,"application/json")] (serialise gs)
+        Just (gs,g,v) -> do
+            putStrLn "here"
+            ev <- lazyRequestBody req
+            print$ ev
+            case unserialize ev >>= (\e ->(,) e <$> getName e) of
+                Just (e,n) -> do
+                    let gs' = g e gs
+                    CMap.insert gameName (gs',g,v) games
+                    resp$ responseLBS ok200 [(hContentType,"application/json")] (serialize (v n gs'))
+                _ -> resp$ responseLBS badRequest400 [] ""
+
+
+
 
 main :: IO ()
 main = do

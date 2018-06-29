@@ -21,7 +21,9 @@ data GameView = GV {
 }
 makeLenses ''GameView
 
-defaultView :: PlayerIndex -> GameState -> GameView
+type GameViewer = PlayerIndex -> GameState -> GameView
+
+defaultView :: GameViewer
 defaultView p gs = GV {
     _handsV = uncurry (++) -- turn the tuple back into a list
               . (map (second (map CardFace)) *** (map (second (map (const CardBack))) . takeWhile ((/=p).fst)))

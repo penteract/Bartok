@@ -10,7 +10,7 @@
 
 
 <script>
-$.post("",{request:'observe',name:'Toby'}, data => console.log(data))
+$.post("",JSON.stringify({tag:'PlayerJoin',contents:'Toby'}), (data => console.log(data)), "json")
 </script>
 </body>
 </html>

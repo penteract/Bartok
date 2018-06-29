@@ -76,12 +76,15 @@ sayAct e@(Action p a m) = broadcastp p m
 sayAct _ = id
 
 addPlayer :: Name -> Step
-addPlayer n = draw 5 n
-            . (players /\ seats %~
-                  (\(p,s)-> (p++[n],
-                      (\(a,b:bs)->a++b:n:bs)
-                      (span (liftM2 (||) (/=head p) (/=last p)) s))))
-            . (hands %~ Map.insert n [])
+addPlayer n = draw 5 n . (hands %~ Map.insert n [])
+            . (players /\ seats %~ addToSeat n)
+
+addToSeat n (ps,ss) = if length ss>1 then
+    (ps++[n],
+        (\(a,b:bs)->a++b:n:bs)
+        (span (liftM2 (||) (/=head ps) (/=last ps)) ss)) --TODO(angus): fix this
+        else (ps ++ [n],ss ++ [n])
+
 
 baseAct :: Game
 baseAct e@(Action p a m) gs
