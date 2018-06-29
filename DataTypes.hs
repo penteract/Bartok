@@ -10,6 +10,7 @@ import Data.List (isPrefixOf,stripPrefix,delete)
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty(NonEmpty(..))
 import qualified Data.Map as Map (Map,insert,findWithDefault,empty,fromList)
+import Data.Map (Map)
 import Data.Maybe (listToMaybe)
 import System.Random
 import System.Random.Shuffle (shuffle')
@@ -18,8 +19,14 @@ type Parser = StateT String Maybe
 
 data Suit = Clubs | Diamonds | Hearts | Spades deriving (Show,Eq,Enum,Bounded,Ord)
 data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Knight | Queen | King deriving (Show,Eq,Bounded,Ord)
-
-
+-- data Rank' = Fool | Individual | Childhood | Youth | Maturity | OldAge | Morning | Afternoon
+--            | Evening | Night | EarthAir | WaterFire | Dance | Shopping | OpenAir | VisualArts
+--            | Spring | Summer | Autumn | Winter | TheGame | Collective deriving (Show,Eq,Enum,Bounded)
+-- data JColour = Red | Black | White deriving (Show,Eq,Enum,Bounded)
+--
+-- data Suit = Clubs | .. | Trumps | Black | Red | White
+-- data Rank = Ace .. King | Joker | Fool ... Collective
+-- data Card = SCard Rank Suit | Trump Rank' | Joker JColour deriving (Show,Eq)
 type Card = (Rank,Suit)
 type Hand = [Card]
 
@@ -40,7 +47,8 @@ type Rule = Game -> Game --this type is named correctly
 
 data GameState = GS {
        _players :: [Name], -- current player is head of list
-       _hands :: Map.Map Name Hand,
+       _seats :: [Name],
+       _hands :: Map Name Hand,
        _deck :: [Card],
        _pile :: NonEmpty Card,
     --nextPlayer :: Player, --required to be smaller than length hands
@@ -178,10 +186,13 @@ newGame pls =  ((pile /\ deck) %~ (\(_,y:ys) -> (y:|[],ys))) . shuffleDeck $ -- 
               , _randg = mkStdGen 0
               , _varMap = Map.empty
               , _players = pls  --[("Angus",[]),("Toby",[]),("Anne",[])]
+              , _seats = pls
               , _hands = Map.fromList $ map (flip (,) []) (pls)
               , _prevGS = Nothing
               }
 
+
+-- Thanks stack overflow
 (/\)
     :: (Functor f)
     => ((a -> (a, a)) -> (c -> (a, c)))

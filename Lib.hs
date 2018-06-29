@@ -14,7 +14,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Data.List.Split (endBy)
 import qualified Data.Map as Map (Map,insert,findWithDefault,empty,fromList,map,adjust,mapAccum)
 import Data.Maybe (listToMaybe)
-import Data.Text.Lazy(dropAround,pack,unpack,strip)
+import Data.Text (dropAround,pack,unpack,strip)
 import System.Random.Shuffle (shuffle')
 import System.Random
 import qualified Data.CaseInsensitive as CI (mk,original)
@@ -76,7 +76,12 @@ sayAct e@(Action p a m) = broadcastp p m
 sayAct _ = id
 
 addPlayer :: Name -> Step
-addPlayer n = draw 5 n . ((players /\ hands) %~ ((n:) *** Map.insert n []))
+addPlayer n = draw 5 n
+            . (players /\ seats %~
+                  (\(p,s)-> (p++[n],
+                      (\(a,b:bs)->a++b:n:bs) 
+                      (span (liftM2 (||) (/=head p) (/=last p)) s))))
+            . (hands %~ Map.insert n [])
 
 baseAct :: Game
 baseAct e@(Action p a m) gs
