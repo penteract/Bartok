@@ -43,7 +43,8 @@ main = do
     --putStrLn "asdfasdf asdf  sdaf asdf a sdf"
     return ()
 
-pst =  (>>= putStr.prGS) . flip testSequence False
+--pst =  (>>= putStr.prGS) . flip testSequence False
+pst t = testSequence t False >>= putStr.prGS
 
 mkc :: Suit ->  Int -> Action
 mkc s n = Play (toEnum n,s)

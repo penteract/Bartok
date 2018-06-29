@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-
+--TODO(angus): make view module
 module Lib where
 
 import Control.Arrow (first,second,(***))
@@ -50,6 +50,7 @@ if'' b a = if' b a id
 
 (%%) s = (s%) . (:[]). uniCard
 
+--TODO(angus): rename these
 
 penalty ::Int -> String -> Game
 penalty n reason e@(Action p a m) =
@@ -60,6 +61,13 @@ penalty n reason e@(Action p a m) =
         Play c -> broadcast (p++" tries to play {}"%%c)
         Draw n -> broadcast (p++" tries to draw {}"%show n)).
     (lastMoveLegal .~ False)
+
+
+--a penalty which does not end the turn
+legalPenalty ::Int -> String -> PlayerIndex -> Step
+legalPenalty n reason p =
+    draw n p .
+    broadcast ("{} recieves penalty {}: {}"%p%show n%reason)
 
 broadcastp :: PlayerIndex -> String -> Step
 broadcastp p m = if'' (not $ null m) (broadcast (p++": "++m))
@@ -227,6 +235,11 @@ removeIn :: String -> String -> String
 --removeIn = ((intercalate ";".map(unpack.CI.original)).).liftM2 flip (((.).delete).) ((.endBy ";").map) (CI.mk.strip.pack)
 removeIn target msg = intercalate ";" . map (unpack . CI.original) $
                           delete (process target) (map process (endBy ";" msg))
+
+--happens on legal move; not penalised afterwards
+mustSay :: String -> Game
+mustSay s (Action p a m) = if s `findIn` m then doNothing else legalPenalty 1 ("failure to say: '{}'"%s) p
+mustSay s Timeout = doNothing
 
 
 -- possibly a mustSay component could be extracted

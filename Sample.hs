@@ -4,6 +4,7 @@ import Lib
 import DataTypes
 import Control.Lens
 import qualified Data.List.NonEmpty as NE
+import Control.Monad
 
 
 --all definitions work*
@@ -41,9 +42,11 @@ r7 :: Rule
 r7 = with (const count7s) (\n -> if  n > 0
     then onDraw (\_->(mustdo7 n) (when' id (const$setVar "sevens" 0)))
        . onPlay (\c -> if rank c == Seven
-        then onLegalCard$ const.const$ modifyVar "sevens" (+1) --ignore card and event
+        then onLegalCard$ (\c event ->
+             (modifyVar "sevens" (+1)) . mustSay ("have a "++join(replicate n "very ")++"nice day") event)
         else (mustdo7 n) (when' id (const$ broadcast "r7 unexpected")))
-    else onLegalCard$ when' ((==Seven).rank) (const$ modifyVar "sevens" (+1)) )
+    else onLegalCard$ when' ((==Seven).rank)
+             (\ e -> (modifyVar "sevens" (+1)). (mustSay "have a nice day") e))
 
 run7 :: Int -> Rule
 run7 = undefined
