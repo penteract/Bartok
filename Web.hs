@@ -14,6 +14,8 @@ import Control.Concurrent.MVar
 import DataTypes
 import Lib
 
+import Serialize
+
 type GMap = CMap.Map Text (GameState,Game)
 
 fix f = f (fix f)
@@ -22,8 +24,8 @@ makeNewGame = return$ newGame ["Toby","Angus"]
 
 --TODO(angus) write this function in a separate module
 --serialise :: GameView -> L.ByteString
-serialise :: GameState -> L.ByteString -- TODO(toby): change when Views is a thing
-serialise gs = ""
+serialize :: GameState -> L.ByteString -- TODO(toby): change when Views is a thing
+serialize gs = ""
 
 app :: GMap -> Application
 app games req resp = do
