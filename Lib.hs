@@ -12,7 +12,7 @@ import Data.List (isPrefixOf,stripPrefix,delete,intercalate)
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.List.Split (endBy)
-import qualified Data.Map as Map (Map,insert,findWithDefault,empty,fromList,map,adjust)
+import qualified Data.Map as Map (Map,insert,findWithDefault,empty,fromList,map,adjust,mapAccum)
 import Data.Maybe (listToMaybe)
 import Data.Text.Lazy(dropAround,pack,unpack,strip)
 import System.Random.Shuffle (shuffle')
@@ -117,31 +117,27 @@ draw1 p = (\(c,gs) -> ((hands . at p) %~ fmap (c:)) gs) . cardFromDeck
 --     (deck %~ (\x-> shuffle' x (length x) gen1) ) . (randg .~ gen2) $ gs
 
 
--- TODO (Angus): take cards from the same end of hand to which they are added
 taxes :: GameState -> GameState
--- taxes gs = (hands %~ Map.map (take handSizeThreshhold))
---            $ (deck <>~ foldMap (drop handSizeThreshhold) (gs^.hands)) gs
-taxes gs = (hands %~ Map.map (take handSizeThreshhold))
-         . ((deck <>~) =<< foldMap (drop handSizeThreshhold) . (^. hands))
-         $ gs
+taxes gs = gs & deck /\ hands %~
+               uncurry ((. Map.mapAccum ((. (splitAt =<< (-) handSizeThreshhold . length)) . first . (++)) [])
+                   . first . (++))
+-- taxes gs = gs & (deck /\ hands) %~ (\(d,h)-> first (d++)
+               -- (Map.mapAccum (\l h''->first (l++) (splitAt (length h''-handSizeThreshhold) h'')) [] h) )
   where handSizeThreshhold = cardCount `div` (playerCount+1)
         playerCount = length (gs^.players)
         cardCount = length (gs^.deck) + length (gs^.pile) + (foldr ((+).length) 0 (gs^.hands))
 
-
-
 cardFromDeck :: GameState -> (Card,GameState)
 cardFromDeck gs = case gs ^. deck of
-    (c:cs) -> (c, gs & deck .~ cs)
-    [] -> let (newPile,restofpile) = (\(x:|xs) -> (x:|[],xs)) (gs^.pile) in -- first (:|[]) . second (maybe [] NE.toList) $ NE.uncons (gs^.pile) in
-        --case (
-        cardFromDeck$ ( broadcast "Shuffling pile into deck, applying taxes..."
-                 . shuffleDeck
-                 . (deck <>~ restofpile) . (pile .~ newPile)
-                 . taxes ) gs --may infinite loop if everything is empty
-            --     deck of
-            --(c:cs) -> (c, gs & deck .~ cs)
-            --_ -> error "No cards in deck after taxes & shuffling pile into deck (where've they gone??)"
+                    (c:cs) -> (c, gs & deck .~ cs)
+                    [] -> let (newPile,restofpile) = (\(x:|xs) -> (x:|[],xs)) (gs^.pile) in
+                          let gs' = ( broadcast "Shuffling pile into deck, applying taxes..."
+                                    . shuffleDeck
+                                    . (deck <>~ restofpile) . (pile .~ newPile)
+                                    . taxes ) gs in
+                          case gs' ^. deck of
+                              (c:cs) -> (c, gs' & deck .~ cs)
+                              _ -> error "No cards in deck after taxes & shuffling pile into deck"
 
 cardToPile :: Card -> GameState -> GameState
 cardToPile c = pile %~ (c NE.<|)
@@ -168,10 +164,8 @@ cardFromHand' p c = hands %~ Map.adjust (delete c) p
 nextTurn :: GameState -> GameState -- perhaps nextTurn should also set lastMoveLegal .~ True
 nextTurn = players %~ (\(x:xs)->xs++[x])
 
-
 when :: (a -> Bool) -> Rule -> a -> Rule
 when q r x = if q x then r else id
-
 
 with :: (Event -> GameState -> a) -> (a -> Rule) -> Rule
 with get f g e gs = f (get e gs) g e gs
