@@ -16,8 +16,12 @@ r8 = onLegalCard (\card event -> if (rank card == Eight) then nextTurn else doNo
 
 --r8 = onLegalCard$ when ((==Eight).rank) nextTurn
 
+rbase = const baseAct
 
-reverseDirection :: GameState -> GameState
+ruleset = r8 (rq (baseAct))
+
+
+reverseDirection :: Step
 reverseDirection = players %~ reverse
 
 rq :: Rule --reverse direction on q, may have problems if reversing direction makes a move become illegal
@@ -29,6 +33,14 @@ rq act e gs = onLegalCard (\ card event gs'->
                     else gs'
                 ) act e gs
 
+
+rq act e@(Action p (Play c) m) gs = if (rank c == Queen) then
+    if _lastMoveLegal (act e gs) then act e (reverseDirection gs)
+        else act e gs
+        else act e gs
+rq act e gs = act e gs
+
+--r8 = onLegalCard (\card event -> if (rank card == Queen) then reverseDirection else doNothing)
 
 mustdo7 :: (Int->(Bool->Game)-> Rule)
 mustdo7 n f = with (const$ head .(^.players)) (\p ->
