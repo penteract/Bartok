@@ -118,11 +118,11 @@ draw1 p = (\(c,gs) -> ((hands . at p) %~ fmap (c:)) gs) . cardFromDeck
 
 
 taxes :: GameState -> GameState
-taxes gs = gs & deck /\ hands %~
-               uncurry ((. Map.mapAccum ((. (splitAt =<< (-) handSizeThreshhold . length)) . first . (++)) [])
-                   . first . (++))
--- taxes gs = gs & (deck /\ hands) %~ (\(d,h)-> first (d++)
-               -- (Map.mapAccum (\l h''->first (l++) (splitAt (length h''-handSizeThreshhold) h'')) [] h) )
+-- taxes gs = gs & deck /\ hands %~
+--                uncurry ((. Map.mapAccum ((. (splitAt =<< (-) handSizeThreshhold . length)) . first . (++)) [])
+--                    . first . (++))
+taxes gs = gs & (deck /\ hands) %~ (\(d,h)-> first (d++) --first (d++) does nothing if the deck is empty
+                (Map.mapAccum (\l h'->first (++l) (splitAt (length h'-handSizeThreshhold) h')) [] h) )
   where handSizeThreshhold = cardCount `div` (playerCount+1)
         playerCount = length (gs^.players)
         cardCount = length (gs^.deck) + length (gs^.pile) + (foldr ((+).length) 0 (gs^.hands))
