@@ -34,6 +34,7 @@ executable server
                          warp, wai, http-types, ctrie,
                          lens,random-shuffle, transformers,
                          containers, random, split, text, case-insensitive
+    other-modules:       Serialize
     default-language:    Haskell2010
 
 test-suite tests

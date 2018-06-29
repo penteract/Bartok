@@ -21,8 +21,6 @@ data GameView = GV {
 }
 makeLenses ''GameView
 
-
-
 defaultView :: PlayerIndex -> GameState -> GameView
 defaultView p gs = GV {
     _handsV = uncurry (++) -- turn the tuple back into a list

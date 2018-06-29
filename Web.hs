@@ -14,6 +14,8 @@ import Control.Concurrent.MVar
 import DataTypes
 import Lib
 
+import Serialize
+
 type GMap = CMap.Map Text (GameState,Game)
 
 makeNewGame = return$ newGame ["Toby","Angus"]

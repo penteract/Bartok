@@ -79,7 +79,7 @@ addPlayer :: Name -> Step
 addPlayer n = draw 5 n
             . (players /\ seats %~
                   (\(p,s)-> (p++[n],
-                      (\(a,b:bs)->a++b:n:bs) 
+                      (\(a,b:bs)->a++b:n:bs)
                       (span (liftM2 (||) (/=head p) (/=last p)) s))))
             . (hands %~ Map.insert n [])
 
@@ -106,6 +106,7 @@ baseAct e@(Action p a m) gs
 baseAct Timeout gs = let activePlayer = head $ gs^.players in
     ( broadcast ("Penalize "++activePlayer++" 1 card for failure to play within a reasonable amount of time")
     . draw 1 activePlayer ) gs
+baseAct (PlayerJoin n) gs = addPlayer n gs
 
 beginGame :: Step
 beginGame = ap (foldr (draw 5)) (^. players) . shuffleDeck -- ap (foldr (draw 5 . fst)) (^. players) . shuffleDeck

@@ -36,7 +36,7 @@ type Hand = [Card]
 type Name = String
 type PlayerIndex = Name
 data Action = Draw Int | Play Card deriving (Show,Eq)
-data Event = Action PlayerIndex Action String | Timeout deriving (Show,Eq)
+data Event = Action PlayerIndex Action String | Timeout | PlayerJoin Name deriving (Show,Eq)
 
 type Step = GameState -> GameState
 
