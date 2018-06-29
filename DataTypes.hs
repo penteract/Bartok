@@ -24,17 +24,18 @@ type Card = (Rank,Suit)
 type Hand = [Card]
 
 
-type CardIndex = Int
+--type CardIndex = Int
 
 type Name = String
 type PlayerIndex = Name
 data Action = Draw Int | Play Card deriving (Show,Eq)
 data Event = Action PlayerIndex Action String | Timeout deriving (Show,Eq)
 
+type Step = GameState -> GameState
 
 -- I'd call a function playmove or runevent. the problem is that it's used too much
 --the type could almost be called Game
-type Game = Event -> GameState -> GameState
+type Game = Event -> Step
 type Rule = Game -> Game --this type is named correctly
 
 data GameState = GS {
@@ -159,12 +160,12 @@ parseCard = do
 
 readVar :: String -> GameState -> Int
 readVar s gs = Map.findWithDefault 0 s (gs^.varMap)
-setVar :: String -> Int -> GameState -> GameState
+setVar :: String -> Int -> Step
 setVar s i = varMap %~ Map.insert s i
-modifyVar :: String -> (Int -> Int) -> GameState -> GameState
+modifyVar :: String -> (Int -> Int) -> Step
 modifyVar s f gs = setVar s (f $ readVar s gs) gs
 
-shuffleDeck :: GameState -> GameState
+shuffleDeck :: Step
 shuffleDeck = (deck /\ randg) %~ ap ((`ap` snd) . ((,) .) . (. fst) . liftM2 shuffle' fst (length . fst)) (split . snd)
 -- shuffleDeck = (deck /\ randg) %~ (\(d,r) -> let (r1,r2) = split r in (shuffle' d (length d) r1,r2))
 

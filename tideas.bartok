@@ -1,5 +1,63 @@
-r7 = do
-    onPlay (\c ->
-        n <- count7s
-        stopIf (n==0)
-        
+r8 = onLegalCard$ when' ((==Eight).rank) (const nextTurn)
+
+r8 = onLegalCard (when' (λ c:Card.(equals Eight).rank) (λx:. nextTurn))
+
+r8 act e gs = (onLegalCardConditional (rank == 8) nextTurn) act e gs
+
+r8 act e gs = (onLegalCardConditional (rank == 8) nextTurn) act e gs
+
+
+r8 = onLegalCardConditional p c gs -> if (rank c == 8) then nextTurn gs else gs
+r8 = onLegalCard (\c e gs -> if (rank c == 8) then nextTurn gs else gs)
+
+
+
+NAMES
+-------
+
+--these are easy
+data Suit =
+data Rank =
+type Card = (Rank,Suit)
+type Hand = [Card]
+
+
+-- these aren't too bad
+type Name = String
+type PlayerIndex = Name
+data Action = Draw Int | Play Card
+data Event = Action PlayerIndex Action String | Timeout
+
+type Transformation a = a -> a
+
+Step = GameState -> GameState
+Change?
+Transformation GameState
+
+transformer :: Transformation
+changer :: Change
+
+type Progress a = a -> GameState -> GameState
+
+fromStep :: Step -> Game
+fromStep = const
+
+
+-- I'd call a function playmove or runevent. the problem is that it's used too much
+--the type could almost be called Game
+
+
+type Game = Progress Event
+
+--variables with this type tend to be called 'act' at the moment, meaning the verb
+ rather than the noun action which is also used but tends to be named a
+type Game = Event -> Change
+
+--Game as in 'the game of monopoly' rather than 'a game of monopoly'
+
+type RuleSet = Event -> GameState -> GameState
+
+
+--is named right - this is the type of what people
+--other options: NewRule
+type Rule = Game -> Game --this type is named correctly

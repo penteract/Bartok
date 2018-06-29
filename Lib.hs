@@ -21,7 +21,11 @@ import qualified Data.CaseInsensitive as CI
 
 import DataTypes
 
+doNothing :: Step
+doNothing = id
 
+fromStep :: Step -> Game
+fromStep = const
 
 --type TState = GameState -> GameState (better to just write GameState->GameState everywhere)
 
@@ -57,13 +61,13 @@ penalty n reason e@(Action p a m) =
         Draw n -> broadcast (p++" tries to draw {}"%show n)).
     (lastMoveLegal .~ False)
 
-broadcastp :: PlayerIndex -> String -> GameState -> GameState
+broadcastp :: PlayerIndex -> String -> Step
 broadcastp p m = if'' (not $ null m) (broadcast (p++": "++m))
 sayAct :: Game
 sayAct e@(Action p a m) = broadcastp p m
 sayAct _ = id
 
-addPlayer :: Name -> GameState -> GameState
+addPlayer :: Name -> Step
 addPlayer n = draw 5 n . ((players /\ hands) %~ ((n:) *** Map.insert n []))
 
 baseAct :: Game
@@ -76,7 +80,7 @@ baseAct e@(Action p a m) gs
           ) gs
     | (Play c)<-a, Just True /= fmap (c`elem`) (getHand p gs) =
           penalty 1 (p++" attempted invalid play of "++show c) e gs
-    | (Play c)<-a = let play::GameState -> GameState
+    | (Play c)<-a = let play::Step
                         play = sayAct e . broadcast ("{} plays {}"%p%%c)
                                       . (lastMoveLegal .~ True). nextTurn . (cardFromHand' p c) . (cardToPile c) in
          (if not inTurn
@@ -90,15 +94,15 @@ baseAct Timeout gs = let activePlayer = head $ gs^.players in
     ( broadcast ("Penalize "++activePlayer++" 1 card for failure to play within a reasonable amount of time")
     . draw 1 activePlayer ) gs
 
-beginGame :: GameState -> GameState
+beginGame :: Step
 beginGame = ap (foldr (draw 5)) (^. players) . shuffleDeck -- ap (foldr (draw 5 . fst)) (^. players) . shuffleDeck
 
 
 
-broadcast :: String -> GameState -> GameState
+broadcast :: String -> Step
 broadcast = (messages %~).(:)
 
-draw :: Int -> PlayerIndex -> GameState -> GameState
+draw :: Int -> PlayerIndex -> Step
 draw n p = foldl (.) id (replicate n (draw1 p))
 
 
@@ -107,7 +111,7 @@ getHand p gs = gs^.hands.at p
 
 
 -- a card will "disappear" if the player isn't valid
-draw1 :: PlayerIndex -> GameState -> GameState
+draw1 :: PlayerIndex -> Step
 --draw1 p = uncurry (((hands . at p) %~) . fmap . (:)) . cardFromDeck
 draw1 p = (\(c,gs) -> ((hands . at p) %~ fmap (c:)) gs) . cardFromDeck
   -- uncurry ((ix p %~) . (:)) . cardFromDeck  -- withHand p (\h -> first (:h) $ cardFromDeck gs) gs
@@ -117,7 +121,7 @@ draw1 p = (\(c,gs) -> ((hands . at p) %~ fmap (c:)) gs) . cardFromDeck
 --     (deck %~ (\x-> shuffle' x (length x) gen1) ) . (randg .~ gen2) $ gs
 
 
-taxes :: GameState -> GameState
+taxes :: Step
 -- taxes gs = gs & deck /\ hands %~
 --                uncurry ((. Map.mapAccum ((. (splitAt =<< (-) handSizeThreshhold . length)) . first . (++)) [])
 --                    . first . (++))
@@ -139,7 +143,7 @@ cardFromDeck gs = case gs ^. deck of
                               (c:cs) -> (c, gs' & deck .~ cs)
                               _ -> error "No cards in deck after taxes & shuffling pile into deck"
 
-cardToPile :: Card -> GameState -> GameState
+cardToPile :: Card -> Step
 cardToPile c = pile %~ (c NE.<|)
 
 -- also checks whether any such card was removed from hand
@@ -155,13 +159,13 @@ cardToPile c = pile %~ (c NE.<|)
   -- (\(p',h) -> if (p==p') then (p',delete c h) else (p',h))) in undefined
 
 --doesn't tell you whether any card was removed
-cardFromHand' :: PlayerIndex -> Card -> GameState -> GameState
+cardFromHand' :: PlayerIndex -> Card -> Step
 cardFromHand' p c = hands %~ Map.adjust (delete c) p
 
 
 
 -- precond: requires at least one player
-nextTurn :: GameState -> GameState -- perhaps nextTurn should also set lastMoveLegal .~ True
+nextTurn :: Step -- perhaps nextTurn should also set lastMoveLegal .~ True
 nextTurn = players %~ (\(x:xs)->xs++[x])
 
 when :: (a -> Bool) -> Rule -> a -> Rule
@@ -198,7 +202,7 @@ doOnly :: Game -> Rule
 doOnly = const
 
 -- | incomplete
-win :: PlayerIndex -> (GameState -> GameState)
+win :: PlayerIndex -> (Step)
 win p = broadcast $ p++" wins the game!"
 
 -- | player's next action must be the given one
