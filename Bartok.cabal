@@ -29,7 +29,7 @@ library
 
 executable server
     main-is:             Web.hs
-    build-depends:       base, Bartok,
+    build-depends:       aeson, base, Bartok,
                          bytestring,
                          warp, wai, http-types, ctrie,
                          lens,random-shuffle, transformers,
