@@ -79,10 +79,17 @@ addPlayer :: Name -> Step
 addPlayer n = draw 5 n . (hands %~ Map.insert n [])
             . (players /\ seats %~ addToSeat n)
 
+-- addToSeat n (ps,ss) = if length ss>1 then
+--     (ps++[n],
+--         (\(a,b:bs)->a++b:n:bs)
+--         (span (liftM2 (||) (/=head ps) (/=last ps)) ss)) --TODO(angus): fix this
+--         else (ps ++ [n],ss ++ [n])
+
+
 addToSeat n (ps,ss) = if length ss>1 then
     (ps++[n],
         (\(a,b:bs)->a++b:n:bs)
-        (span (liftM2 (||) (/=head ps) (/=last ps)) ss)) --TODO(angus): fix this
+        (span (\c -> (c/=head ps) && (c/=last ps)) ss)) --TODO(angus): fix this
         else (ps ++ [n],ss ++ [n])
 
 
