@@ -91,7 +91,6 @@ addToSeat n (ps,ss) = if length ss>1 then
 --         (span (\c -> (c/=head ps) && (c/=last ps)) ss))
 --         else (ps ++ [n],ss ++ [n])
 
-
 baseAct :: Game
 baseAct e@(Action p a m) gs
     | (Draw n)<-a
@@ -103,8 +102,9 @@ baseAct e@(Action p a m) gs
     | (Play c)<-a, Just True /= fmap (c`elem`) (getHand p gs) =
           penalty 1 (p++" attempted invalid play of "++show c) e gs
     | (Play c)<-a = let play::Step
-                        play = sayAct e . broadcast ("{} plays {}"%p%%c)
-                                      . (lastMoveLegal .~ True). nextTurn . (cardFromHand' p c) . (cardToPile c) in
+                        play = liftM2 ap ((if' =<<) . ((Just [] ==) .) . getHand) win p -- check for winning
+                                   . sayAct e . broadcast ("{} plays {}"%p%%c)
+                                   . (lastMoveLegal .~ True). nextTurn . (cardFromHand' p c) . (cardToPile c) in
          (if not inTurn
               then (penalty 1 "Playing out of turn" e)
               else if not (suit c == suit (NE.head (gs^.pile)) || rank c == rank (NE.head (gs^.pile)))
@@ -223,8 +223,8 @@ doOnly :: Game -> Rule
 doOnly = const
 
 -- | incomplete
-win :: PlayerIndex -> (Step)
-win p = broadcast $ p++" wins the game!"
+win :: PlayerIndex -> Step
+win p = broadcast (p++" wins the game!") . (winner .~ Just p)
 
 -- | player's next action must be the given one
 -- how do I make require actions for something other than a single
