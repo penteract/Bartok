@@ -1,5 +1,4 @@
 {-# LANGUAGE ScopedTypeVariables #-}
---TODO(angus): make view module
 module Lib where
 
 import Control.Arrow (first,second,(***))
@@ -35,8 +34,8 @@ if' b a a' = if b then a else a'
 if'' :: Bool -> (a->a) -> (a->a)
 if'' b a = if' b a id
 
--- if2 :: (a->Bool) -> (a->b) -> (a->b) -> a -> b
--- if2 = liftM3 if' -- if2 b a a' x = if (b x) then (a x) else (a' x)
+if2 :: (a->Bool) -> (a->b) -> (a->b) -> a -> b
+if2 = liftM3 if' -- if2 b a a' x = if (b x) then (a x) else (a' x)
 --
 -- if2' :: (a->Bool) -> (a->a) -> a -> a
 -- if2' = flip flip id . if2 -- if2' b a = if2 b a id
@@ -79,18 +78,18 @@ addPlayer :: Name -> Step
 addPlayer n = draw 5 n . (hands %~ Map.insert n [])
             . (players /\ seats %~ addToSeat n)
 
--- addToSeat n (ps,ss) = if length ss>1 then
---     (ps++[n],
---         (\(a,b:bs)->a++b:n:bs)
---         (span (liftM2 (||) (/=head ps) (/=last ps)) ss)) --TODO(angus): fix this
---         else (ps ++ [n],ss ++ [n])
-
-
 addToSeat n (ps,ss) = if length ss>1 then
     (ps++[n],
         (\(a,b:bs)->a++b:n:bs)
-        (span (\c -> (c/=head ps) && (c/=last ps)) ss)) --TODO(angus): fix this
+        (break (liftM2 (||) (==head ps) (==last ps)) ss))
         else (ps ++ [n],ss ++ [n])
+
+
+-- addToSeat n (ps,ss) = if length ss>1 then
+--     (ps++[n],
+--         (\(a,b:bs)->a++b:n:bs)
+--         (span (\c -> (c/=head ps) && (c/=last ps)) ss))
+--         else (ps ++ [n],ss ++ [n])
 
 
 baseAct :: Game
@@ -119,9 +118,7 @@ baseAct Timeout gs = let activePlayer = head $ gs^.players in
 baseAct (PlayerJoin n) gs = addPlayer n gs
 
 beginGame :: Step
-beginGame = ap (foldr (draw 5)) (^. players) . shuffleDeck -- ap (foldr (draw 5 . fst)) (^. players) . shuffleDeck
-
-
+beginGame = undefined -- ap (foldr (draw 5)) (^. players) . shuffleDeck -- ap (foldr (draw 5 . fst)) (^. players) . shuffleDeck
 
 broadcast :: String -> Step
 broadcast = (messages %~).(:)

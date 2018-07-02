@@ -45,6 +45,8 @@ type Step = GameState -> GameState
 type Game = Event -> Step
 type Rule = Game -> Game --this type is named correctly
 
+
+
 data GameState = GS {
        _players :: [Name], -- current player is head of list
        _seats :: [Name],
@@ -58,9 +60,26 @@ data GameState = GS {
 
        _randg :: StdGen,
 
+       _winner :: Maybe Name,
+
        _varMap :: Map.Map String Int
      } deriving Show
 makeLenses ''GameState
+
+data CardView = CardFace Card | CardBack
+
+data GameView = GV {
+    _handsV :: [(Name,[CardView])] , -- list is in seating order, beginning with the recipient
+    _pileV :: [CardView] ,
+    _deckV :: [CardView] ,
+    _messagesV :: [String]
+}
+makeLenses ''GameView
+
+type Viewer = PlayerIndex -> GameState -> GameView
+
+type ViewRule = Viewer -> Viewer
+type Rule' = (Rule,ViewRule)
 
 
 -- | Card processing functions
@@ -195,6 +214,7 @@ newGame pls =  ((pile /\ deck) %~ (\(_,y:ys) -> (y:|[],ys))) . shuffleDeck $ -- 
               , _seats = pls
               , _hands = Map.fromList $ map (flip (,) []) (pls)
               , _prevGS = Nothing
+              , _winner = Nothing
               }
 
 

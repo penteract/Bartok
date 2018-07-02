@@ -5,7 +5,7 @@ import DataTypes
 import Control.Lens
 import qualified Data.List.NonEmpty as NE
 import Control.Monad
-
+import Control.Arrow (second)
 
 --all definitions work*
 r8 :: Rule
