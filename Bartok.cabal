@@ -30,11 +30,11 @@ library
 executable server
     main-is:             Web.hs
     build-depends:       aeson, base, Bartok,
-                         bytestring,
+                         bytestring, mtl,
                          warp, wai, http-types, ctrie,
                          lens,random-shuffle, transformers,
                          containers, random, split, text, case-insensitive
-    other-modules:       Serialize, DataTypes, Lib, Views
+    other-modules:       Serialize, DataTypes, Lib, Views, ServerInterface
     default-language:    Haskell2010
 
 test-suite tests
