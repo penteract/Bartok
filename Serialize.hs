@@ -3,10 +3,17 @@
 
 module Serialize where
 
-import GHC.Generics
+import GHC.Generics (Generic)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
+import qualified Data.Text as T (unpack)
 import Data.Aeson (ToJSON,toEncoding,genericToEncoding,defaultOptions,toJSON,encode,fromJSON,FromJSON,decode)
+import Data.Maybe (fromMaybe)
+import Data.Text.Internal (showText)
+import Data.Text.Lazy (fromStrict)
+import Data.Text.Lazy.Encoding (encodeUtf8)
+import Text.Read (readMaybe)
+import Control.Monad (join)
 
 import DataTypes
 import Views
@@ -33,7 +40,6 @@ instance ToJSON Action where
 instance ToJSON Event where
   toEncoding = genericToEncoding defaultOptions
 
-  
 instance FromJSON Suit
 instance FromJSON Rank
 instance FromJSON Action
@@ -44,3 +50,14 @@ serialize = encode . toJSON
 
 unserialize :: L.ByteString -> Maybe Event
 unserialize = decode
+-- unserialize s = do
+--   name <- s ^? key "name" . _String . to T.unpack
+--   action <- s ^? key "action" . _String
+--   let messages = fromMaybe "" (s ^? key "messages" . _String . to T.unpack)
+--   case action of
+--     "draw" -> s ^? key "number" . _Integral >>= (\n -> return $ Action name (Draw n) messages)
+--     "join" -> return $ PlayerJoin name
+--     "play" -> do suit <- join $ s ^? key "card" . key "suit" . _String . to (readMaybe . showText)
+--                  rank <- join $ s ^? key "card" . key "rank" . _String . to (readMaybe . showText)
+--                  return $ Action name (Play (rank,suit)) messages
+--     _ -> Nothing

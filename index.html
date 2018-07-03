@@ -53,10 +53,15 @@ function tagCard(c){
 
 function sendC(dat){
     $.post("",JSON.stringify({
-        action:"play",
-        name:name,
-        card:dat,
-        message:""
+        tag:"Action",
+        contents:[name,{tag:"Play",contents:[dat.rank,dat.suit]},""]
+    }))
+}
+
+function draw(num){}{
+    $.post("",JSON.stringify({
+        tag:"Action",
+        contents:[name,{tag:"Draw",contents:num},""]
     }))
 }
 
