@@ -36,7 +36,7 @@ makeLenses ''OngoingGame
 --TODO(angus): add comments
 
 initialGame :: IO OngoingGame
-initialGame = return$ OG (newGame ["Toby"]) [] []
+initialGame = return$ OG (newGame []) [] []
 
 readError :: MError a -> Either String (a, Maybe OngoingGame)
 readError s = runStateT s Nothing

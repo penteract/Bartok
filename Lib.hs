@@ -91,6 +91,18 @@ addToSeat n (ps,ss) = if length ss>1 then
 --         (span (\c -> (c/=head ps) && (c/=last ps)) ss))
 --         else (ps ++ [n],ss ++ [n])
 
+
+play::PlayerIndex -> Event -> Card -> Step
+play p e c = (\ gs -> if getHand p gs == Just [] then win p gs else gs ) -- check for winning
+    . sayAct e
+    . broadcast ("{} plays {}"%p%%c)
+    . (lastMoveLegal .~ True)
+    . nextTurn
+    . (cardToPile c)
+    . (cardFromHand' p c)
+
+
+
 baseAct :: Game
 baseAct e@(Action p a m) gs
     | (Draw n)<-a
@@ -101,15 +113,12 @@ baseAct e@(Action p a m) gs
           ) gs
     | (Play c)<-a, Just True /= fmap (c`elem`) (getHand p gs) =
           penalty 1 (p++" attempted invalid play of "++show c) e gs
-    | (Play c)<-a = let play::Step
-                        play = liftM2 ap ((if' =<<) . ((Just [] ==) .) . getHand) win p -- check for winning
-                                   . sayAct e . broadcast ("{} plays {}"%p%%c)
-                                   . (lastMoveLegal .~ True). nextTurn . (cardFromHand' p c) . (cardToPile c) in
+    | (Play c)<-a =
          (if not inTurn
               then (penalty 1 "Playing out of turn" e)
               else if not (suit c == suit (NE.head (gs^.pile)) || rank c == rank (NE.head (gs^.pile)))
                                           then penalty 1 "Bad card" e
-                                          else play)
+                                          else play p e c)
                      gs
     where inTurn = p == (head $ gs ^. players)
 baseAct Timeout gs = let activePlayer = head $ gs^.players in
