@@ -3,7 +3,8 @@
 module ServerInterface(
    handle, view,
    addRule, addRule', addViewRule, setState,
-   OngoingGame, MError, readError, initialGame)
+   OngoingGame, MError, readError, initialGame,
+   Rule, GameState, getName)
  where
 
 import DataTypes

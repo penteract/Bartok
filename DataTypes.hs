@@ -2,17 +2,17 @@
 
 module DataTypes where
 
-import Control.Lens
-import Control.Monad --(join,liftM,liftM2)
-import Control.Monad.Trans.State
+import Control.Lens ((^.),(%~),makeLenses)
+import Control.Monad (ap,liftM2)
+import Control.Monad.Trans.State (StateT(StateT),runStateT)
 import Data.Char (toLower,isSpace)
-import Data.List (isPrefixOf,stripPrefix,delete)
+import Data.List (isPrefixOf,stripPrefix)
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty(NonEmpty(..))
-import qualified Data.Map as Map (Map,insert,findWithDefault,empty,fromList)
 import Data.Map (Map)
+import qualified Data.Map as Map (empty,findWithDefault,fromList,insert) -- (insert,findWithDefault,empty,fromList)
 import Data.Maybe (listToMaybe)
-import System.Random
+import System.Random (StdGen,mkStdGen,split)
 import System.Random.Shuffle (shuffle')
 
 type Parser = StateT String Maybe
@@ -62,7 +62,7 @@ data GameState = GS {
 
        _winner :: Maybe Name,
 
-       _varMap :: Map.Map String Int
+       _varMap :: Map String Int
      } deriving Show
 makeLenses ''GameState
 

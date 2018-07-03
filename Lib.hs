@@ -1,21 +1,15 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Lib where
 
-import Control.Arrow (first,second,(***))
-import Control.Lens
-import Control.Monad --(join,liftM,liftM2)
---import Control.Monad.Random
-import Control.Monad.Trans.State
-import Data.Char (toLower,isSpace)
-import Data.List (isPrefixOf,stripPrefix,delete,intercalate)
-import qualified Data.List.NonEmpty as NE
-import Data.List.NonEmpty (NonEmpty(..))
+import Control.Arrow (first)
+import Control.Lens ((.~),(%~),(^.),(&),(<>~),at)
+import Control.Monad (ap,liftM2,liftM3)
+import Data.List (delete,intercalate)
+import qualified Data.List.NonEmpty as NE ((<|),head)
+import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.List.Split (endBy)
-import qualified Data.Map as Map (Map,insert,findWithDefault,empty,fromList,map,adjust,mapAccum)
-import Data.Maybe (listToMaybe)
-import Data.Text (dropAround,pack,unpack,strip)
-import System.Random.Shuffle (shuffle')
-import System.Random
+import qualified Data.Map as Map (adjust,insert,mapAccum)
+import Data.Text (pack,unpack,strip)
 import qualified Data.CaseInsensitive as CI (mk,original)
 
 import DataTypes
@@ -25,8 +19,6 @@ doNothing = id
 
 fromStep :: Step -> Game
 fromStep = const
-
---type TState = GameState -> GameState (better to just write GameState->GameState everywhere)
 
 if' :: Bool -> a -> a -> a
 if' b a a' = if b then a else a'

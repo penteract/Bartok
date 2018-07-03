@@ -1,13 +1,13 @@
 module Views where
 
+import Control.Arrow (second)
+import Control.Lens ((%~),(^.))
+import Control.Monad (ap)
+import qualified Data.Map as Map (findWithDefault)
+import Data.List.NonEmpty (NonEmpty((:|)))
+
 import DataTypes hiding (_hands,_pile,_deck,_messages)
 import Lib
-import Control.Lens
-import qualified Data.Map as Map (toList)
-import Data.Map (Map,toList,findWithDefault)
-import Data.List.NonEmpty (NonEmpty(..))
-import Control.Arrow (first,second,(***))
-import Control.Monad (ap,liftM2,liftM3)
 
 makeViewTransformer :: (GameView -> GameView) -> ViewRule
 makeViewTransformer = (.) . (.)
@@ -33,7 +33,7 @@ baseViewer p gs = GV {
                 -- liftM2 (:) head (takeWhile ((/=p).fst)) . dropWhile ((/=p).fst) . cycle -- starting with the viewer
                 uncurry (flip (++)) . span ((/=p).fst) -- put p to the front
               . map (second (map CardFace)) -- turn Cards into CardViews
-              . map (ap (,) (flip (findWithDefault []) (gs^.hands))) -- tuple each player with their hand
+              . map (ap (,) (flip (Map.findWithDefault []) (gs^.hands))) -- tuple each player with their hand
               $ (gs^.seats) , -- get the players in seating order
     _pileV = (\(c:|cs) -> (CardFace c:map (const CardBack) cs)) (gs^.pile) ,
     _deckV = map (const CardBack) (gs^.deck) ,

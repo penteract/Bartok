@@ -1,19 +1,11 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric, StandaloneDeriving #-}
 
 module Serialize where
 
 import GHC.Generics (Generic)
-import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
 import qualified Data.Text as T (unpack)
-import Data.Aeson (ToJSON,toEncoding,genericToEncoding,defaultOptions,toJSON,encode,fromJSON,FromJSON,decode)
-import Data.Maybe (fromMaybe)
-import Data.Text.Internal (showText)
-import Data.Text.Lazy (fromStrict)
-import Data.Text.Lazy.Encoding (encodeUtf8)
-import Text.Read (readMaybe)
-import Control.Monad (join)
+import Data.Aeson (FromJSON,ToJSON,defaultOptions,decode,encode,fromJSON,genericToEncoding,toEncoding,toJSON)
 
 import DataTypes
 import Views
