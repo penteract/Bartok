@@ -18,10 +18,6 @@ import Control.Monad.Reader
 
 import Language.Haskell.Interpreter hiding (get)
 
-import DataTypes
-import Lib
-import Views
-
 import Serialize
 import ServerInterface
 
