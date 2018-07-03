@@ -3,17 +3,91 @@
 <title> Bartok </title>
 <head>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-
+    <style>
+    .hand{
+        width: 20%;
+    }
+    </style>
 <script>
 function display(obj){
-    obj._deckV
+    console.log(obj)
+    $("#deck").html(obj._deckV.map(showCard).join(" "))
+    $("#pile").html(obj._pileV.map(showCard).join(" "))
+    $("#msg").html(obj._messagesV.join("<br />"))
+    first=true
+    $("#others").html("")
+    for (h of obj._handsV){
+        if(first){
+            $("#self").html(displayOwnHand(h))
+            name = h[0]
+            first=false
+        }
+        else{
+            $("#others").append(displayHand(h))
+        }
+    }
+}
+function displayHand(h){
+    s = "<div class=hand>"
+    s+=h[0]+"<br />"
+    s+=h[1].map(showCard).join(" ")
+    s+="</div>"
+    return s
+}
+function displayOwnHand(h){
+    s = "<div class=hand>"
+    s+=h[0]+"<br />"
+    s+=h[1].map(tagCard).join(" ")
+    s+="</div>"
+    return s
 }
 
-function showcard(c){
+function tagCard(c){
+    //let x = showCard(c)
+    console.log(c)
+    sh = showCard(c)
+    c = c.contents
+    dat={rank:c[0],suit:c[1]}
+    return "<a onclick=sendC("+JSON.stringify(dat)+")>"+sh+"</a>"
+}
+
+function sendC(dat){
+    $.post("",JSON.stringify({
+        action:"play",
+        name:name,
+        card:dat,
+        message:""
+    }))
+}
+
+function showCard(c){
     if (c.tag=="CardBack") return String.fromCodePoint(0x1f0a0)
-    else if (c.tag=="CardFace") return String.fromCodePoint(0x1f0a0)
+    else if (c.tag=="CardFace") return String.fromCodePoint(
+        0x1f0a0 + suitNums[c.contents[1]]*16 + rankNums[c.contents[0]])
     else console.log("unrecognised card")
 }
+
+rankNums = {"Ace": 1,
+"Two": 2,
+"Three": 3,
+"Four": 4,
+"Five": 5,
+"Six": 6,
+"Seven": 7,
+"Eight": 8,
+"Nine": 9,
+"Ten": 10,
+"Jack": 11,
+"Knight": 12,
+"Queen": 13,
+"King":14}
+
+suitNums = {
+    "Spades" : 0,
+    "Hearts" : 1,
+    "Diamonds" : 2,
+    "Clubs" : 3}
+
 
 </script>
 
@@ -34,7 +108,12 @@ function showcard(c){
 </div>
 
 <script>
-$.post("",JSON.stringify({tag:'PlayerJoin',contents:'Anne'}), (data => console.log(data)), "json")
+
+//console.log(display)
+
+$.post("",JSON.stringify(
+    {tag:'PlayerJoin',contents:'Anne'}),
+  display, "json")
 
 </script>
 </body>
