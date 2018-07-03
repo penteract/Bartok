@@ -61,3 +61,19 @@ type RuleSet = Event -> GameState -> GameState
 --is named right - this is the type of what people
 --other options: NewRule
 type Rule = Game -> Game --this type is named correctly
+
+
+
+
+JSON
+-------------------
+
+TODO(angus): Parse this
+
+{name: "Toby, action :"join"}
+
+{name:"Toby", action: "draw",number:3}
+
+{name:"Toby", action: "play",card:{rank: "Ten", suit: "Diamonds"}}
+
+{name:"Toby", action: "play",card:{rank: "Ten", suit: "Diamonds"}, message: "hello"}
