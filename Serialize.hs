@@ -22,7 +22,7 @@ instance ToJSON Rank where
   toEncoding = genericToEncoding defaultOptions
 instance ToJSON Suit where
   toEncoding = genericToEncoding defaultOptions
-instance ToJSON CardView where -- TODO: Angus; go to unicode chars instead
+instance ToJSON CardView where
   toEncoding = genericToEncoding defaultOptions
 instance ToJSON GameView where
   toEncoding = genericToEncoding defaultOptions
@@ -40,7 +40,11 @@ instance FromJSON Event
 serialize :: GameView -> L.ByteString
 serialize = encode . toJSON
 
-unserialize :: L.ByteString -> Maybe Event
+data ActionReq = ReqPlay PlayerIndex Int String | ReqDraw PlayerIndex Int String | ReqJoin Name deriving (Show,Eq,Generic)
+instance ToJSON ActionReq where toEncoding = genericToEncoding defaultOptions
+instance FromJSON ActionReq
+
+unserialize :: L.ByteString -> Maybe ActionReq
 unserialize = decode
 -- unserialize s = do
 --   name <- s ^? key "name" . _String . to T.unpack

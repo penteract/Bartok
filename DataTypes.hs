@@ -44,6 +44,7 @@ type Step = GameState -> GameState
 --the type could almost be called Game
 type Game = Event -> Step
 type Rule = Game -> Game --this type is named correctly
+-- Game -> Game == (Event -> GameState -> GameState) -> Event -> GameState -> GameState
 
 
 
