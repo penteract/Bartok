@@ -16,18 +16,19 @@ import Control.Concurrent.MVar
 import Control.Monad.State
 import Control.Monad.Reader
 
-import Language.Haskell.Interpreter
+import Language.Haskell.Interpreter hiding (get)
 
 import DataTypes
 import Lib
 import Views
 
 import Serialize
+import ServerInterface
 
-type GData = (GameState,Game,Viewer)
-type GMap = CMap.Map Text GData
+--type GData = (GameState,Game,Viewer)
+type GMap = CMap.Map Text OngoingGame
 
-makeNewGame = return$ newGame ["Toby","Angus"]
+
 
 app :: GMap -> Application
 app games req resp = do
@@ -52,8 +53,8 @@ playPage gameName games req resp = do
     mx <- CMap.lookup gameName games
     case mx of
         Nothing -> do
-                gs <- makeNewGame
-                CMap.insertIfAbsent gameName (gs,baseAct,defaultView) games
+            og <- initialGame
+            CMap.insertIfAbsent gameName og games
         Just a -> return ()
     resp$ responseFile ok200 [] "index.html" Nothing
 
@@ -63,8 +64,8 @@ newRulePage gameName games req resp= do
     mx <- CMap.lookup gameName games
     case mx of
         Nothing -> do
-                gs <- makeNewGame
-                CMap.insertIfAbsent gameName (gs,baseAct,defaultView) games
+            og <- initialGame
+            CMap.insertIfAbsent gameName og games
         Just a -> return ()
     resp$ responseFile ok200 [] "newRule.html" Nothing
 
@@ -94,18 +95,18 @@ onPost games req resp = do
         _ -> resp$ err404
 
 
-type WithGame a = ReaderT (Request,L.ByteString) (StateT GData IO) a
+type WithGame a = ReaderT (Request,L.ByteString) (StateT OngoingGame IO) a
 
-getGS :: WithGame GameState
-getGS = gets (\(st,act,vw)->st)
-setGS :: GameState -> WithGame ()
-setGS st = modify (\(_,act,vw)->(st,act,vw))
-
-getViewer :: WithGame Viewer
-getViewer = gets (\(st,act,vw)->vw)
-
-getGame :: WithGame Game
-getGame = gets (\(st,act,vw)->act)
+-- getGS :: WithGame GameState
+-- getGS = gets (\(st,act,vw)->st)
+-- setGS :: GameState -> WithGame ()
+-- setGS st = modify (\(_,act,vw)->(st,act,vw))
+--
+-- getViewer :: WithGame Viewer
+-- getViewer = gets (\(st,act,vw)->vw)
+--
+getGame :: WithGame OngoingGame
+getGame = get
 
 getBody :: WithGame L.ByteString
 getBody = asks snd
@@ -114,17 +115,28 @@ fromErr (WontCompile errs) = Prelude.unlines (map frghc errs)
 
 frghc (GhcError{errMsg=m}) = m
 
+doErr :: MError a -> (a -> WithGame Response) -> WithGame Response
+doErr e f = do
+    case readError e of
+        Left err -> return$ err422 err
+        Right (x,Nothing) -> f x
+        Right (x,Just o) -> put o >> f x
+
+--putState :: GameState -> WithGame ()
+--putState gs = modify (setState gs)
+
 playMove :: WithGame Response
 playMove = do
     e <- getBody
     case unserialize e >>= (\e -> (,) e <$> getName e) of
         Just (e,n) -> do
-            g <- getGame
-            v <- getViewer
-            gs <- getGS
-            let gs' = g e gs
-            setGS gs'
-            return$ jsonResp (serialize (v n gs'))
+            game <- getGame
+            doErr (handle e game) (\ state -> do
+             modify (setState state)
+             game <- getGame
+             doErr (view n game) (\ v ->
+                return$ jsonResp (serialize v)))
+
         Nothing -> return err404
 
 newRule :: WithGame Response
@@ -132,10 +144,10 @@ newRule = do
     b <- asks snd
     f <- liftIO$ runInterpreter$ interpret (L.unpack b) (as::Rule)
     case f of
-        Left err -> return$ responseLBS unprocessableEntity422 [] (L.pack$ show err)
+        Left err -> return$ err422 (show err)
         Right r -> do
-            modify (\(st,act,vw)->(st,r act, vw))
-            return$ responseLBS ok200 [(hContentType,"application/json")] "{}"
+            modify$ addRule r
+            return$ jsonResp "{}"
 
 jsonResp = responseLBS ok200 [(hContentType,"application/json")]
 
@@ -147,6 +159,8 @@ main = do
                 [] -> 8080
     games <- CMap.empty
     run port (app games)
+
+err422 err = responseLBS unprocessableEntity422 [] (L.pack err)
 
 err404 = responseLBS notFound404 []
   "<html><head><title>404: Page Not Found</title></head>\

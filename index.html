@@ -55,10 +55,10 @@ function sendC(dat){
     $.post("",JSON.stringify({
         tag:"Action",
         contents:[name,{tag:"Play",contents:[dat.rank,dat.suit]},""]
-    }))
+    }),display)
 }
 
-function draw(num){}{
+function draw(num){
     $.post("",JSON.stringify({
         tag:"Action",
         contents:[name,{tag:"Draw",contents:num},""]
