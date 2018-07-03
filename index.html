@@ -4,13 +4,38 @@
 <head>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 
+<script>
+function display(obj){
+    obj._deckV
+}
+
+function showcard(c){
+    if (c.tag=="CardBack") return String.fromCodePoint(0x1f0a0)
+    else if (c.tag=="CardFace") return String.fromCodePoint(0x1f0a0)
+    else console.log("unrecognised card")
+}
+
+</script>
+
 </head>
 <body>
 
-
+<div id=msg>
+</div>
+<div id=others>
+</div>
+<div id=piles>
+    <span id=deck>
+    </span>
+    <span id=pile>
+    </span>
+</div>
+<div id=self>
+</div>
 
 <script>
-$.post("",JSON.stringify({tag:'PlayerJoin',contents:'Toby'}), (data => console.log(data)), "json")
+$.post("",JSON.stringify({tag:'PlayerJoin',contents:'Anne'}), (data => console.log(data)), "json")
+
 </script>
 </body>
 </html>

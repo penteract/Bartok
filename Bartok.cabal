@@ -31,8 +31,8 @@ executable server
     main-is:             Web.hs
     build-depends:       aeson, base, Bartok,
                          bytestring,
-                         warp, wai, http-types, ctrie,
-                         lens,random-shuffle, transformers,
+                         warp, wai, http-types, ctrie, hint,
+                         lens,random-shuffle, transformers, mtl,
                          containers, random, split, text, case-insensitive
     other-modules:       Serialize, DataTypes, Lib, Views
     default-language:    Haskell2010

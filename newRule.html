@@ -1,0 +1,25 @@
+<!--TODO(anne): please -->
+<html>
+<title> Bartok </title>
+<head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+
+</head>
+<body>
+
+<textarea id="prog">
+    rule = onLegalCard (\card event -> if (rank card == Eight) then nextTurn else doNothing)
+</textarea>
+<button onclick="submit()">Submit Rule</button>
+
+<script>
+console.log()
+function submit(){
+    console.log("hi")
+    $.post("",$.post("",
+    $("#prog").val(),
+    (data => console.log(data)), "json"))
+}
+</script>
+</body>
+</html>
