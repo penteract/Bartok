@@ -10,6 +10,7 @@ import Control.Monad (when)
 import Control.Monad.Except
 import Control.Arrow((***))
 import Data.List (nub,permutations)
+import qualified Data.Map as Map (member)
 
 type Error = String
 type MError a = Either Error a
@@ -39,9 +40,9 @@ hasDuplicates :: (Eq a) => [a] -> Bool
 hasDuplicates l = l == nub l
 
 checkGSokay :: GameState -> Bool
-checkGSokay og = (not$ hasDuplicates (og^.players)) -- each player appears only once
-              && ((og^.players) `elem` (permutations (og^.seats))) -- players is permutation of seats
-              && undefined -- TODO: Angus (hand for each player)
+checkGSokay gs = (not$ hasDuplicates (gs^.players)) -- each player appears only once
+              && ((gs^.players) `elem` (permutations (gs^.seats))) -- players is permutation of seats
+              && all (flip Map.member (gs^.hands)) (gs^.players)
 
 view :: PlayerIndex -> OngoingGame -> MError GameView
 view p og = do
