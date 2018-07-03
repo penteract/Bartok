@@ -47,22 +47,25 @@ function tagCard(c){
     console.log(c)
     sh = showCard(c)
     c = c.contents
-    dat={rank:c[0],suit:c[1]}
-    return "<a onclick=sendC("+JSON.stringify(dat)+")>"+sh+"</a>"
+    return "<a onclick=sendC("+JSON.stringify(c)+")>"+sh+"</a>"
 }
 
-function sendC(dat){
-    $.post("",JSON.stringify({
+function sendC(card){
+    sendMove({
         tag:"Action",
-        contents:[name,{tag:"Play",contents:[dat.rank,dat.suit]},""]
-    }),display)
+        contents:[name,{tag:"Play",contents:card},""]
+    })
 }
 
 function draw(num){
-    $.post("",JSON.stringify({
+    sendMove({
         tag:"Action",
         contents:[name,{tag:"Draw",contents:num},""]
-    }))
+    })
+}
+
+function sendMove(dat){
+    $.post("",JSON.stringify(dat),display,"json")
 }
 
 function showCard(c){
