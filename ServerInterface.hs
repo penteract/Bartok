@@ -24,6 +24,7 @@ import DataTypes
 import Lib hiding (when)
 import Views
 import Serialize
+import Rules
 
 type Error = String
 --type MError a = Either Error a
@@ -42,7 +43,7 @@ instance Show OngoingGame where
 --TODO(angus): add comments
 
 initialGame :: IO OngoingGame
-initialGame = return$ OG (newGame []) [("base",id)] [("base",id)]
+initialGame = return$ OG (newGame []) (defaultRulesNamed++[("base",id)]) [("base",id)]
 
 readError :: MError a -> Either String (a, Maybe OngoingGame)
 readError s = runStateT s Nothing

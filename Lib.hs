@@ -248,6 +248,8 @@ mustSay :: String -> Game
 mustSay s (Action p a m) = if s `findIn` m then doNothing else legalPenalty 1 ("failure to say: '{}'"%s) p
 mustSay s Timeout = doNothing
 
+said :: String -> String -> Bool
+said = findIn
 
 -- possibly a mustSay component could be extracted
 require :: (PlayerIndex, Action, String) -> (Bool -> Game) -> Rule
