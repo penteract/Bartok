@@ -67,14 +67,14 @@ data GameState = GS {
      } deriving Show
 makeLenses ''GameState
 
-data CardView = CardFace Card | CardBack
+data CardView = CardFace Card | CardBack deriving (Show)
 
 data GameView = GV {
     _handsV :: [(Name,[CardView])] , -- list is in seating order, beginning with the recipient
     _pileV :: [CardView] ,
     _deckV :: [CardView] ,
     _messagesV :: [String]
-}
+} deriving Show
 makeLenses ''GameView
 
 type Viewer = PlayerIndex -> GameState -> GameView

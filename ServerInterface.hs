@@ -14,7 +14,7 @@ import Control.Monad.Except (throwError,unless)
 import Control.Monad.Trans.State (StateT,gets,put,runStateT)
 
 import Control.Arrow((***))
-import Data.List (nub,permutations)
+import Data.List (intercalate,nub,permutations)
 import qualified Data.Map as Map (member)
 import Data.Maybe (isJust)
 import qualified Data.Set as Set (empty,fromList,insert,notMember)
@@ -36,10 +36,13 @@ data OngoingGame = OG {
 }
 makeLenses ''OngoingGame
 
+instance Show OngoingGame where
+  show og = show (og ^. gameState) ++ '\n': intercalate ", " (map fst (og^.rules)) ++ '\n': intercalate ", " (map fst (og^.viewRules))
+
 --TODO(angus): add comments
 
 initialGame :: IO OngoingGame
-initialGame = return$ OG (newGame []) [] []
+initialGame = return$ OG (newGame []) [("base",id)] [("base",id)]
 
 readError :: MError a -> Either String (a, Maybe OngoingGame)
 readError s = runStateT s Nothing
@@ -70,7 +73,7 @@ carryOut e og = return . snd $
                               in if checkGSokay gs'
                                 then (r g,gs')
                                 else (g,broadcast ("Rule "++n++" malfunctioned and was not applied for this event.") gs))
-                          (baseAct,og^.gameState)
+                          (baseAct, og^.gameState)
                           (og^.rules)
 
 timeout :: OngoingGame -> MError GameState
@@ -90,7 +93,7 @@ checkGSokay gs = (allUniques (gs^.players)) -- each player appears only once
               && (Set.fromList (gs^.players) == Set.fromList (gs^.seats)) -- players is permutation of seats
               && all (`Map.member` (gs^.hands)) (gs^.players) -- each player has a hand
 
---only restriction on GameViews is that they can't misrepresent the # of players 
+--only restriction on GameViews is that they can't misrepresent the # of players
 checkGVokay :: GameView -> GameState -> Bool
 checkGVokay gv gs = length (gv^.handsV) == length (gs^.seats)
 
