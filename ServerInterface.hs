@@ -17,7 +17,7 @@ import Control.Arrow((***))
 import Data.List (nub,permutations)
 import qualified Data.Map as Map (member)
 import Data.Maybe (isJust)
-import qualified Data.Set as Set (empty,fromList,insert,member)
+import qualified Data.Set as Set (empty,fromList,insert,notMember)
 import Data.Set (Set)
 
 import DataTypes
@@ -79,16 +79,19 @@ timeout og = return$ foldr ($) baseAct (og^.rules) Timeout (og ^. gameState)
 nameExists :: Name -> OngoingGame -> Bool
 nameExists n og = n `elem` og^.gameState.seats
 
-hasDuplicates :: (Ord a) => [a] -> Bool
-hasDuplicates l = hasDuplicates' l Set.empty
-hasDuplicates' :: (Ord a) => [a] -> Set a -> Bool
-hasDuplicates' [] s = False
-hasDuplicates' (x:xs) s = x `Set.member` s || hasDuplicates' xs (Set.insert x s)
+allUniques :: (Ord a) => [a] -> Bool
+allUniques l = allUniques' l Set.empty
+allUniques' :: (Ord a) => [a] -> Set a -> Bool
+allUniques' [] s = True
+allUniques' (x:xs) s = x `Set.notMember` s && allUniques' xs (Set.insert x s)
 
 checkGSokay :: GameState -> Bool
-checkGSokay gs = (not$ hasDuplicates (gs^.players)) -- each player appears only once
+checkGSokay gs = (allUniques (gs^.players)) -- each player appears only once
               && (Set.fromList (gs^.players) == Set.fromList (gs^.seats)) -- players is permutation of seats
-              && all (flip Map.member (gs^.hands)) (gs^.players) -- each player has a hand
+              && all (`Map.member` (gs^.hands)) (gs^.players) -- each player has a hand
+
+checkGVokay :: GameView -> Bool
+checkGVokay gv = True
 
 view :: PlayerIndex -> OngoingGame -> MError GameView
 view p og = do
