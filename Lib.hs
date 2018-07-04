@@ -26,13 +26,6 @@ if' b a a' = if b then a else a'
 if'' :: Bool -> (a->a) -> (a->a)
 if'' b a = if' b a id
 
-if2 :: (a->Bool) -> (a->b) -> (a->b) -> a -> b
-if2 = liftM3 if' -- if2 b a a' x = if (b x) then (a x) else (a' x)
---
--- if2' :: (a->Bool) -> (a->a) -> a -> a
--- if2' = flip flip id . if2 -- if2' b a = if2 b a id
-
-
 (%) :: String -> String -> String
 (%) ('{':'}':s) x = x++s
 (%) ('\\':c:s) x = c:(s%x)

@@ -11,7 +11,8 @@ import Control.Arrow (second)
 r8 :: Rule
 --r8 = onLegalCard$ when' ((==Eight).rank) (fromStep nextTurn)
 --r8 = onLegalCard (\card event gs -> if (rank card == Eight) then nextTurn gs else gs)
-r8 = onLegalCard (\card event -> if (rank card == Eight) then nextTurn else doNothing)
+r8 = onLegalCard (\card event ->
+    if (rank card == Eight) then nextTurn else doNothing)
 
 
 --r8 = onLegalCard$ when ((==Eight).rank) nextTurn
@@ -34,11 +35,11 @@ rq act e gs = onLegalCard (\ card event gs'->
                 ) act e gs
 
 
-rq act e@(Action p (Play c) m) gs = if (rank c == Queen) then
-    if _lastMoveLegal (act e gs) then act e (reverseDirection gs)
-        else act e gs
-        else act e gs
-rq act e gs = act e gs
+-- rq act e@(Action p (Play c) m) gs = if (rank c == Queen) then
+--     if _lastMoveLegal (act e gs) then act e (reverseDirection gs)
+--         else act e gs
+--         else act e gs
+-- rq act e gs = act e gs
 
 --r8 = onLegalCard (\card event -> if (rank card == Queen) then reverseDirection else doNothing)
 
