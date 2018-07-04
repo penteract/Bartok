@@ -2,7 +2,7 @@
 module Lib where
 
 import Control.Arrow (first)
-import Control.Lens ((.~),(%~),(^.),(&),(<>~),at)
+import Control.Lens ((.~),(%~),(^.),(^?),(&),(<>~),_1,at,ix)
 import Control.Monad (ap,liftM2,liftM3)
 import Data.List (delete,intercalate)
 import qualified Data.List.NonEmpty as NE ((<|),head)
@@ -177,7 +177,8 @@ cardToPile c = pile %~ (c NE.<|)
 cardFromHand' :: PlayerIndex -> Card -> Step
 cardFromHand' p c = hands %~ Map.adjust (delete c) p
 
-
+isTurn :: PlayerIndex -> GameState -> Bool
+isTurn p gs = p == (gs^.players.ix 0)
 
 -- precond: requires at least one player
 nextTurn :: Step -- perhaps nextTurn should also set lastMoveLegal .~ True
