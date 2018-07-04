@@ -9,9 +9,9 @@ module ServerInterface(
 
 
 import Control.Lens ((^?),(^.),(.~),(%~),_Just,at,contains,ix,makeLenses)
-import Control.Monad (when)
+import Control.Monad (ap,when)
 import Control.Monad.Except (throwError,unless)
-import Control.Monad.Trans.State (StateT,runStateT)
+import Control.Monad.Trans.State (StateT,gets,put,runStateT)
 
 import Control.Arrow((***))
 import Data.List (nub,permutations)
@@ -31,12 +31,11 @@ type MError a = StateT (Maybe OngoingGame) (Either Error) a
 
 data OngoingGame = OG {
     _gameState :: GameState ,
-    _rules :: [Rule] ,
-    _viewRules :: [ViewRule]
+    _rules :: [(String,Rule)] ,
+    _viewRules :: [(String,ViewRule)]
 }
 makeLenses ''OngoingGame
 
---TODO(angus): perform ongoing checks
 --TODO(angus): add comments
 
 initialGame :: IO OngoingGame
@@ -47,34 +46,35 @@ readError s = runStateT s Nothing
 
 -- data Event = Action PlayerIndex Action String | Timeout | PlayerJoin Name deriving (Show,Eq)
 handle :: ActionReq -> OngoingGame -> MError GameState
-handle ar og = do
-  e <- case ar of
-        ReqPlay p i m -> do
-          unless (nameExists p og)
-              (throwError $ "Player "++p++" is not a member of this game.")
-          case og^?gameState.hands.at p._Just.ix i of
-              Just c -> return $ Action p (Play c) m
-              Nothing -> throwError $ "Player "++p++" does not have "++show (i+1)++" card(s) in hand."
-        ReqDraw p n m -> do
-          unless (nameExists p og)
-                  (throwError $ "Player "++p++" is not a member of this game.")
-          return $ Action p (Draw n) m
-        ReqJoin n -> if nameExists n og then (throwError $ "Player "++n++" is already a member of this game.")
-                         else return $ PlayerJoin n -- TODO: (Toby) can change this again if you like
-  carryOut e og
+handle ar og =
+   case ar of
+      ReqPlay p i m -> do
+        unless (nameExists p og)
+            (throwError $ "Player "++p++" is not a member of this game.")
+        case og^?gameState.hands.at p._Just.ix i of
+            Just c -> carryOut (Action p (Play c) m) og
+            Nothing -> throwError $ "Player "++p++" does not have "++show (i+1)++" card(s) in hand."
+      ReqDraw p n m -> do
+        unless (nameExists p og)
+                (throwError $ "Player "++p++" is not a member of this game.")
+        carryOut (Action p (Draw n) m) og
+      ReqJoin n -> if nameExists n og then return (og^.gameState) -- (throwError $ "Player "++n++" is already a member of this game.")
+                       else carryOut (PlayerJoin n) og
   -- return $ foldr ($) baseAct (og^.rules) e (og^.gameState)
 
--- TODO: doesn't yet chuck out the bad rule
+-- Remove rules left to admin
 carryOut :: Event -> OngoingGame -> MError GameState
 carryOut e og = return . snd $
-                    foldr (\r (g,gs) ->
-                              let gs' = r g e gs
-                              in if checkGSokay gs' then (r g,gs') else (g,gs))
+                    foldr (\(n,r) (g,gs) ->
+                              let gs' = r g e (og^.gameState)
+                              in if checkGSokay gs'
+                                then (r g,gs')
+                                else (g,broadcast ("Rule "++n++" malfunctioned and was not applied for this event.") gs))
                           (baseAct,og^.gameState)
                           (og^.rules)
 
 timeout :: OngoingGame -> MError GameState
-timeout og = return$ foldr ($) baseAct (og^.rules) Timeout (og ^. gameState)
+timeout = carryOut Timeout
 
 nameExists :: Name -> OngoingGame -> Bool
 nameExists n og = n `elem` og^.gameState.seats
@@ -90,23 +90,37 @@ checkGSokay gs = (allUniques (gs^.players)) -- each player appears only once
               && (Set.fromList (gs^.players) == Set.fromList (gs^.seats)) -- players is permutation of seats
               && all (`Map.member` (gs^.hands)) (gs^.players) -- each player has a hand
 
-checkGVokay :: GameView -> Bool
-checkGVokay gv = True
+--only restriction on GameViews is that they can't misrepresent the # of players 
+checkGVokay :: GameView -> GameState -> Bool
+checkGVokay gv gs = length (gv^.handsV) == length (gs^.seats)
 
 view :: PlayerIndex -> OngoingGame -> MError GameView
 view p og = do
   unless (nameExists p og)
       (throwError $ "Player "++p++" is not a member of this game.")
-  return $ foldr ($) defaultView (og^.viewRules) p (og^.gameState)
+  getView p og
+
+-- can still run into problems if views do weird things to the messages!
+-- because the "malfunction" messages are passed in at the end and
+-- we don't check whether these cause further malfunctions in the other viewRules
+getView :: PlayerIndex -> OngoingGame -> MError GameView
+getView p og = let (v,gs') = foldr (\(n,vr) (v,gs') ->
+                                      let gv = vr v p (og^.gameState)
+                                      in if checkGVokay gv gs'
+                                           then (vr v,gs')
+                                           else (v,broadcast ("ViewRule "++n++" malfunctioned for player "++p++" and was not applied for them.") gs'))
+                                   (defaultView,og^.gameState) -- change this so gs
+                                   (og^.viewRules) in
+                put (Just$ (gameState .~ gs') og) >> return (v p gs')
 
 setState :: GameState -> OngoingGame -> OngoingGame
 setState s = gameState .~ s
 
-addRule' :: Rule' -> OngoingGame -> OngoingGame
-addRule' (r,vr) = (rules /\ viewRules) %~ ((r:) *** (vr:))
+addRule' :: String -> Rule' -> OngoingGame -> OngoingGame
+addRule' n (r,vr) = (rules /\ viewRules) %~ (((n,r):) *** ((n,vr):))
 
-addRule :: Rule -> OngoingGame -> OngoingGame
-addRule = (rules %~) . (:)
+addRule :: String -> Rule -> OngoingGame -> OngoingGame
+addRule n r = rules %~ ((n,r):)
 
-addViewRule :: ViewRule -> OngoingGame -> OngoingGame
-addViewRule = (viewRules %~) . (:)
+addViewRule :: String -> ViewRule -> OngoingGame -> OngoingGame
+addViewRule n vr = viewRules %~ ((n,vr):)
