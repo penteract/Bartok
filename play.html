@@ -58,21 +58,21 @@ function tagCard(c,i){
 }
 
 function sendC(card){
-    sendMove({
-        tag:"ReqPlay",
-        contents:[name,card,""]
-    })
+    sendMove("ReqPlay",card)
 }
 
-function draw(num){
-    sendMove({
-        tag:"ReqDraw",
-        contents:[name,num,""]
-    })
+function draw(){
+    n=$("#drawN").val() - 0
+    sendMove("ReqDraw",n)
+    $("#drawN").val(1)
 }
 
-function sendMove(dat){
-    $.post("",JSON.stringify(dat),display,"json")
+function sendMove(type,dat){
+    $.post("",JSON.stringify({
+        tag:type,
+        contents:[name,dat,$("#mmsg").val()]
+    }),display,"json")
+    $("#mmsg").val("")
 }
 
 function showCard(c){
@@ -103,23 +103,35 @@ suitNums = {
     "Diamonds" : 2,
     "Clubs" : 3}
 
+//https://stackoverflow.com/a/901144/1779797
+function getParameterByName(name, url) {
+    if (!url) url = window.location.href;
+    name = name.replace(/[\[\]]/g, "\\$&");
+    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, " "));
+}
 
 </script>
 
 </head>
 <body>
 
-<div id=msg>
-</div>
 <div id=others>
 </div>
 <div id=piles>
-    <span id=deck>
+    <input min=0 max=56 type="number" id="drawN" value="1" />
+    <span id=deck onclick="draw()">
     </span>
     <span id=pile>
     </span>
 </div>
 <div id=self>
+</div>
+<div ><input type="text" id="mmsg"/></div>
+<div id=msg>
 </div>
 
 <script>
@@ -127,7 +139,7 @@ suitNums = {
 //console.log(display)
 
 $.post("",JSON.stringify(
-    {tag:'ReqJoin',contents:'Anne'}),
+    {tag:'ReqJoin',contents:getParameterByName(name)}),
   display, "json")
 
 </script>

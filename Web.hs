@@ -45,7 +45,7 @@ onGet games req resp = do
 --GET handlers
 
 homepage :: GMap -> Application
-homepage games req resp = resp err404
+homepage games req resp = resp$ responseFile ok200 [] "home.html" Nothing
 
 playPage :: Text -> GMap -> Application
 playPage gameName games req resp = do
@@ -57,7 +57,7 @@ playPage gameName games req resp = do
             og <- initialGame
             CMap.insertIfAbsent gameName og games
         Just a -> return ()
-    resp$ responseFile ok200 [] "index.html" Nothing
+    resp$ responseFile ok200 [] "play.html" Nothing
 
 newRulePage :: Text -> GMap -> Application
 newRulePage gameName games req resp= do

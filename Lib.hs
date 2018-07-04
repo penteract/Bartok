@@ -246,7 +246,7 @@ removeIn target msg = intercalate ";" . map (unpack . CI.original) $
 --happens on legal move; not penalised afterwards
 mustSay :: String -> Game
 mustSay s (Action p a m) = if s `findIn` m then doNothing else legalPenalty 1 ("failure to say: '{}'"%s) p
-mustSay s Timeout = doNothing
+mustSay s _ = doNothing
 
 said :: String -> String -> Bool
 said = findIn
