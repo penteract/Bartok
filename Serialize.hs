@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric, StandaloneDeriving #-}
 
-module Serialize where
+module Serialize(serialize, unserialize, getName, ActionReq(..))
+ where
 
 import GHC.Generics (Generic)
 import qualified Data.ByteString.Lazy as L
@@ -40,9 +41,16 @@ instance FromJSON Event
 serialize :: GameView -> L.ByteString
 serialize = encode . toJSON
 
-data ActionReq = ReqPlay PlayerIndex Int String | ReqDraw PlayerIndex Int String | ReqJoin Name deriving (Show,Eq,Generic)
+data ActionReq = ReqPlay PlayerIndex Int String
+               | ReqDraw PlayerIndex Int String
+               | ReqJoin Name deriving (Show,Eq,Generic)
 instance ToJSON ActionReq where toEncoding = genericToEncoding defaultOptions
 instance FromJSON ActionReq
+
+getName :: ActionReq -> PlayerIndex
+getName (ReqPlay p _ _) = p
+getName (ReqDraw p _ _) = p
+getName (ReqJoin p) = p
 
 unserialize :: L.ByteString -> Maybe ActionReq
 unserialize = decode

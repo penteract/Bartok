@@ -7,6 +7,13 @@
     .hand{
         width: 20%;
     }
+    #others {
+        width:90%;
+        height: 10%;
+        border:1px solid black;
+        display: flex;
+        flex-flow:row wrap;
+    }
     </style>
 <script>
 function display(obj){
@@ -42,25 +49,25 @@ function displayOwnHand(h){
     return s
 }
 
-function tagCard(c){
+function tagCard(c,i){
     //let x = showCard(c)
-    console.log(c)
+    //console.log(c)
     sh = showCard(c)
     c = c.contents
-    return "<a onclick=sendC("+JSON.stringify(c)+")>"+sh+"</a>"
+    return "<a onclick=sendC("+i+")>"+sh+"</a>"
 }
 
 function sendC(card){
     sendMove({
-        tag:"Action",
-        contents:[name,{tag:"Play",contents:card},""]
+        tag:"ReqPlay",
+        contents:[name,card,""]
     })
 }
 
 function draw(num){
     sendMove({
-        tag:"Action",
-        contents:[name,{tag:"Draw",contents:num},""]
+        tag:"ReqDraw",
+        contents:[name,num,""]
     })
 }
 
@@ -120,7 +127,7 @@ suitNums = {
 //console.log(display)
 
 $.post("",JSON.stringify(
-    {tag:'PlayerJoin',contents:'Anne'}),
+    {tag:'ReqJoin',contents:'Anne'}),
   display, "json")
 
 </script>

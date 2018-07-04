@@ -42,6 +42,11 @@ onGet games req resp = do
         [gname,"newRule"] -> newRulePage gname
         _ -> const$const($err404)) games req resp
 
+--GET handlers
+
+homepage :: GMap -> Application
+homepage games req resp = resp err404
+
 playPage :: Text -> GMap -> Application
 playPage gameName games req resp = do
     --let gameName = intercalate "/" (pathInfo req)
@@ -65,8 +70,11 @@ newRulePage gameName games req resp= do
         Just a -> return ()
     resp$ responseFile ok200 [] "newRule.html" Nothing
 
-homepage :: GMap -> Application
-homepage games req resp = resp err404
+
+
+--WithGame Monad
+
+type WithGame a = ReaderT (Request,L.ByteString) (StateT OngoingGame IO) a
 
 doWithGame :: WithGame Response -> GMap -> Text -> Application
 doWithGame wg games gname req resp = do
@@ -81,6 +89,21 @@ doWithGame wg games gname req resp = do
             CMap.insert gname gd' games
             resp$ r
 
+getGame :: WithGame OngoingGame
+getGame = get
+
+getBody :: WithGame L.ByteString
+getBody = asks snd
+
+doErr :: MError a -> (a -> WithGame Response) -> WithGame Response
+doErr e f = do
+    case readError e of
+        Left err -> do
+            liftIO (print err)
+            return$ err422 err
+        Right (x,Nothing) -> f x
+        Right (x,Just o) -> put o >> f x
+
 
 onPost :: GMap -> Application
 onPost games req resp = do
@@ -90,47 +113,21 @@ onPost games req resp = do
         [gname, "newRule"] -> doWithGame newRule games gname req resp
         _ -> resp$ err404
 
-
-type WithGame a = ReaderT (Request,L.ByteString) (StateT OngoingGame IO) a
-
--- getGS :: WithGame GameState
--- getGS = gets (\(st,act,vw)->st)
--- setGS :: GameState -> WithGame ()
--- setGS st = modify (\(_,act,vw)->(st,act,vw))
---
--- getViewer :: WithGame Viewer
--- getViewer = gets (\(st,act,vw)->vw)
---
-getGame :: WithGame OngoingGame
-getGame = get
-
-getBody :: WithGame L.ByteString
-getBody = asks snd
-
-fromErr (WontCompile errs) = Prelude.unlines (map frghc errs)
-
-frghc (GhcError{errMsg=m}) = m
-
-doErr :: MError a -> (a -> WithGame Response) -> WithGame Response
-doErr e f = do
-    case readError e of
-        Left err -> return$ err422 err
-        Right (x,Nothing) -> f x
-        Right (x,Just o) -> put o >> f x
-
---putState :: GameState -> WithGame ()
---putState gs = modify (setState gs)
+-- POST handlers
 
 playMove :: WithGame Response
 playMove = do
     e <- getBody
-    case unserialize e >>= (\e -> (,) e <$> getName e) of
-        Just (e,n) -> do
+    case unserialize e of
+        Just r -> do
+            --liftIO (putStrLn (show r))
+            let p = getName r
             game <- getGame
-            doErr (handle e game) (\ state -> do
+            doErr (handle r game) (\ state -> do
              modify (setState state)
-             game <- getGame
-             doErr (view n game) (\ v ->
+             --liftIO (putStrLn (show (_players state)))
+             game' <- getGame
+             doErr (view p game') (\ v ->
                 return$ jsonResp (serialize v)))
 
         Nothing -> return err404
@@ -142,8 +139,13 @@ newRule = do
     case f of
         Left err -> return$ err422 (show err)
         Right r -> do
-            modify$ addRule r
+            modify$ addRule "" r
             return$ jsonResp "{}"
+
+
+fromErr (WontCompile errs) = Prelude.unlines (map frghc errs)
+
+frghc (GhcError{errMsg=m}) = m
 
 jsonResp = responseLBS ok200 [(hContentType,"application/json")]
 
