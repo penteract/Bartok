@@ -156,6 +156,7 @@ main = do
                 (n:_) -> (read n ::Int)
                 [] -> 8080
     games <- CMap.empty
+    putStrLn ("server running at http://localhost:"++show port)
     run port (app games)
 
 err422 err = responseLBS unprocessableEntity422 [] (L.pack err)

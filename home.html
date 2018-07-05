@@ -1,7 +1,8 @@
-<!--TODO(anne): please -->
+ <!DOCTYPE html>
 <html>
-<title> Bartok </title>
 <head>
+    <meta charset="utf-8">
+    <title> Bartok </title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <style>
     .field{
@@ -10,7 +11,7 @@
         margin-bottom: 10px;
     }
     .centered{
-        width:400px;
+        width:300px;
         margin-left: auto;
         margin-right: auto;
     }
@@ -25,7 +26,7 @@
 
 </head>
 <body>
-<form onSubmit="start()">
+<form onSubmit="startgame();return false">
 <div class=centered>
 <div class=field>Name: <input type="text" id="name"/></div>
 <div class=field>Game: <input type="text" id="game"/></div>
@@ -35,9 +36,11 @@
 
 <script>
 //TODO(toby) : get this to work
-function start() {
-    console.log("hi");
-    location.assign("/"+$("#game").val()+"?name="+$("#name").val())}
+function startgame() {
+    //console.log()
+    //console.log("hi");
+    location.assign("/"+$("#game").val()+"?name="+$("#name").val())
+}
 
 
 </script>
