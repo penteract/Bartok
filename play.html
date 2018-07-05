@@ -1,7 +1,8 @@
-<!--TODO(anne): please -->
+<!DOCTYPE html>
 <html>
-<title> Bartok </title>
 <head>
+    <meta charset="utf-8">
+    <title> Bartok </title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <style>
     .hand{
@@ -139,7 +140,7 @@ function getParameterByName(name, url) {
 //console.log(display)
 
 $.post("",JSON.stringify(
-    {tag:'ReqJoin',contents:getParameterByName(name)}),
+    {tag:'ReqJoin',contents:getParameterByName("name")}),
   display, "json")
 
 </script>
