@@ -56,6 +56,7 @@ playPage gameName games req resp = do
         Nothing -> do
             og <- initialGame
             CMap.insertIfAbsent gameName og games
+            return ()
         Just a -> return ()
     resp$ responseFile ok200 [] "play.html" Nothing
 
@@ -67,6 +68,7 @@ newRulePage gameName games req resp= do
         Nothing -> do
             og <- initialGame
             CMap.insertIfAbsent gameName og games
+            return ()
         Just a -> return ()
     resp$ responseFile ok200 [] "newRule.html" Nothing
 

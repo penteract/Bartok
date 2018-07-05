@@ -15,7 +15,6 @@ import Data.Maybe (listToMaybe)
 import System.Random (StdGen,mkStdGen,split)
 import System.Random.Shuffle (shuffle')
 
-type Parser = StateT String Maybe
 
 data Suit = Clubs | Diamonds | Hearts | Spades deriving (Show,Eq,Enum,Bounded,Ord)
 data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Knight | Queen | King deriving (Show,Eq,Bounded,Ord)
@@ -36,18 +35,26 @@ type Hand = [Card]
 type Name = String
 type PlayerIndex = Name
 data Action = Draw Int | Play Card deriving (Show,Eq)
+
+-- | Events that rules should be able to deal with
 data Event = Action PlayerIndex Action String | Timeout | PlayerJoin Name deriving (Show,Eq)
 
 type Step = GameState -> GameState
 
 -- I'd call a function playmove or runevent. the problem is that it's used too much
 --the type could almost be called Game
+-- | This is the type of games (a ruleset, rather than a specific instance of a game).
+-- given an event such as a player action, and a game state, it returns the resulting state
 type Game = Event -> Step
+
+-- | The type of rules - a rule is added by function composition forming a chain
+-- 'such as r3 (r1 (r2 baseAct))' .
+-- Most rules should call the first argument under most circumstances.
 type Rule = Game -> Game --this type is named correctly
 -- Game -> Game == (Event -> GameState -> GameState) -> Event -> GameState -> GameState
 
 
-
+-- | The state of a game in play
 data GameState = GS {
        _players :: [Name], -- current player is head of list
        _seats :: [Name],
@@ -67,8 +74,10 @@ data GameState = GS {
      } deriving Show
 makeLenses ''GameState
 
+-- | A card as viewed - the type of cards sent to the client
 data CardView = CardFace Card | CardBack deriving (Show)
 
+-- | The structure describing data seen by players
 data GameView = GV {
     _handsV :: [(Name,[CardView])] , -- list is in seating order, beginning with the recipient
     _pileV :: [CardView] ,
@@ -77,9 +86,13 @@ data GameView = GV {
 } deriving Show
 makeLenses ''GameView
 
+-- | Functions to tell a player what they should see
 type Viewer = PlayerIndex -> GameState -> GameView
 
+-- Rules that modify what players see without affecting the game state
 type ViewRule = Viewer -> Viewer
+
+-- Complex rules
 type Rule' = (Rule,ViewRule)
 
 
@@ -147,11 +160,13 @@ rank = fst
 rankChar :: Rank -> Char
 rankChar r = (['A'] ++ [head $ show i | i <- [2..9]::[Int] ] ++ ['T','J','C','Q','K'])!!(fromEnum r - 1) -- UNSAFE
 
-
+-- | Get the unicode playing card character corresponding to some card
 uniCard :: Card -> Char
 uniCard (r,s) = toEnum (0x1F0A0 + (fromEnum (maxBound::Suit) + fromEnum (minBound::Suit) - fromEnum s) * 16 + fromEnum r)
 
+--reading cards
 
+type Parser = StateT String Maybe
 -- | Given 2 parsers, tries the first, if it fails, try the second
 (<|>) :: Parser a -> Parser a -> Parser a
 a <|> b = StateT (\s -> case runStateT a s of
