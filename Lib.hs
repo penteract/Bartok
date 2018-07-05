@@ -232,7 +232,7 @@ win p = broadcast (p++" wins the game!") . (winner .~ Just p)
 -- splitm = map (unpack . strip . pack) . endBy ";"
 
 
-process = (CI.mk . strip . pack)
+process = CI.mk . strip . pack
 regexProcess s = "^[[:space:]]*"++s++"[[:space:]]*$"
 -- tells if a string is one semi-colon delimited segment of another
 -- ignore (segment-)leading/ending whitespace, case-insensitive

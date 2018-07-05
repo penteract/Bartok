@@ -67,37 +67,36 @@ r7 = with (const count7s) (\n -> if  n > 0
 
 r7' :: Rule
 r7' =  onAction (\(p,a,m) act e gs ->
-         let count7 = readVar "sevens" gs
-             veries = concat $ replicate count7 " very"
-             veriesmuch = concat (replicate (count7-1) " very")
-                             ++if count7 > 0 then " much" else ""
-             (b',m') = removeIn ("Have a"++veries++" nice day") m
-             (b'',m'') = removeIn ("Thank you"++veriesmuch) m
-             (i',_) = removeAll "Have a ( very)* nice day" m'
-             (i'',_) = removeAll "Thank you( very)*( much)?" m''
-             bePolite i = let b1 = i == 1 -- should bid good day
-                              b2 = i == 2 -- should thank
-                              f b = if b then 1 else 0
-                              g = min 0
-                              pens = g (i'-f (b1 && not b'))+g (i'' - f (b2 && not b''))
-                              saying
-                                  | b1 = ("Have a"++veries++" nice day")
-                                  | b2 = ("Thank you"++veriesmuch)
-                                  | otherwise = ""
-                              reqSpeak = saying /= "" in
-                            if pens > 0 then legalPenalty pens "Excessive politeness" p else doNothing
-                            . if reqSpeak then mustSay saying e else doNothing
-             gs' = act e gs in
-         case a of
-             (Draw n) | count7 > 0 , isTurn p gs ->
-                 if n == 2*count7
-                   then bePolite 2 . setVar "sevens" 0 $ gs'
-                   else bePolite 2 $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
-             (Play c) | gs'^.lastMoveLegal, rank c == Seven ->
-                 bePolite 1 . modifyVar "sevens" (+1) $ gs'
-             (Play c) | gs'^.lastMoveLegal, count7 > 0 -> -- rank c /= Seven
-                 bePolite 2 $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
-             _ -> bePolite 0 gs' )
+        let count7 = readVar "sevens" gs
+            veries = concat $ replicate count7 " very"
+            veriesmuch = concat (replicate (count7-1) " very")
+                            ++if count7 > 0 then " much" else ""
+            (b',m') = removeIn ("Have a"++veries++" nice day") m
+            (b'',m'') = removeIn ("Thank you"++veriesmuch) m
+            (i',_) = removeAll "Have a( very)* nice day" m
+            (i'',_) = removeAll "Thank you( very)*( much)?" m
+            bePolite i = let b1 = i == 1 -- should bid good day
+                             b2 = i == 2 -- should thank
+                             f b = if b then 1 else 0 -- eg. bid pens = i' - f b1
+                             pens = i' + i'' - f (b1 || b2)
+                             saying
+                                 | b1 = ("Have a"++veries++" nice day")
+                                 | b2 = ("Thank you"++veriesmuch)
+                                 | otherwise = ""
+                             reqSpeak = saying /= "" in
+                           if pens > 0 then legalPenalty pens "Excessive politeness" p else doNothing
+                           . if reqSpeak then mustSay saying e else doNothing
+            gs' = act e gs in
+        case a of
+            (Draw n) | count7 > 0 , isTurn p gs ->
+                if n == 2*count7
+                  then bePolite 2 . setVar "sevens" 0 $ gs'
+                  else bePolite 2 $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
+            (Play c) | gs'^.lastMoveLegal, rank c == Seven ->
+                bePolite 1 . modifyVar "sevens" (+1) $ gs'
+            (Play c) | gs'^.lastMoveLegal, count7 > 0 -> -- rank c /= Seven
+                bePolite 2 $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
+            _ -> bePolite 0 gs' )
 
                 -- else onLegalCard (\card e->
                 --     if (rank card == Seven)

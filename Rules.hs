@@ -81,21 +81,18 @@ rMao''  = onAction (\(p,a,m)->
 
 r7' :: Rule
 r7' =  onAction (\(p,a,m) act e gs ->
-         let count7 = readVar "sevens" gs
-             veries = concat $ replicate count7 " very"
-             veriesmuch = concat (replicate (count7-1) " very")
-                             ++if count7 > 0 then " much" else ""
-             (b',m') = removeIn ("Have a"++veries++" nice day") m
-             (b'',m'') = removeIn ("Thank you"++veriesmuch) m
-             (i',_) = removeAll "Have a( very)* nice day" m
-             (i'',_) = removeAll "Thank you( very)*( much)?" m
+         let f b = if b then 1 else 0
+             count7 = readVar "sevens" gs
+             veries = "( very)\\{"++show count7++"\\}"
+             bidm = ("Have a" ++ veries ++ " nice day")
+             thankm = "Thank you" ++ veries ++ "( much)\\{"++show (f (count7 > 0))++"\\}"
+             i = fst $ removeAll "(Have a( very)* nice day)|(Thank you( very)*( very much)?)" m
              bePolite i = let b1 = i == 1 -- should bid good day
                               b2 = i == 2 -- should thank
-                              f b = if b then 1 else 0 -- eg. bid pens = i' - f b1
-                              pens = i' + i'' - f (b1 || b2)
+                              pens = i - f (b1 || b2)
                               saying
-                                  | b1 = ("Have a"++veries++" nice day")
-                                  | b2 = ("Thank you"++veriesmuch)
+                                  | b1 = bidm
+                                  | b2 = thankm
                                   | otherwise = ""
                               reqSpeak = saying /= "" in
                             if pens > 0 then legalPenalty pens "Excessive politeness" p else doNothing
