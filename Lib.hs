@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Lib where
 
-import Control.Arrow (first)
+import Control.Arrow (first,second)
 import Control.Lens ((.~),(%~),(^.),(^?),(&),(<>~),_1,at,ix)
 import Control.Monad (ap,liftM2,liftM3)
 import Data.List (delete,intercalate)
@@ -11,6 +11,9 @@ import Data.List.Split (endBy)
 import qualified Data.Map as Map (adjust,insert,mapAccum)
 import Data.Text (pack,unpack,strip)
 import qualified Data.CaseInsensitive as CI (mk,original)
+
+import Text.Regex(Regex,matchRegex,mkRegex,mkRegexWithOpts,splitRegex)
+import Data.Maybe(isJust)
 
 import DataTypes
 
@@ -230,24 +233,46 @@ splitm = map (unpack . strip . pack) . endBy ";"
 
 
 process = (CI.mk . strip . pack)
+regexProcess s = "^[:space:]*"++s++"[:space:]*$"
 -- tells if a string is one semi-colon delimited segment of another
 -- ignore (segment-)leading/ending whitespace, case-insensitive
 findIn :: String -> String -> Bool
 --findIn = liftM2 flip (((.).elem).) ((.endBy ";").map) (CI.mk.strip.pack)
-findIn target msg = process target `elem` map process (endBy ";" msg)
+findIn target msg = any  ((Nothing /=) . matchRegex (mkRegexWithOpts (regexProcess target) True False)) (splitRegex (mkRegex ";") msg)
+  --process target `elem` map process (endBy ";" msg)
 
 -- remove up to one semi-colon delimited segment equal to target string
 -- ignore (segment-)leading/ending whitespace, case-insensitive
 -- note: returned string will lack (segment-)leading/ending whitespace
-removeIn :: String -> String -> String
+removeIn :: String -> String -> (Bool,String)
+removeIn target msgs = (\(a,b,c) -> (a,intercalate ";" (b++c))) $
+                           removeIn' (mkRegexWithOpts (regexProcess target) True False) [] (splitRegex (mkRegex ";") msgs)
+removeIn' :: Regex -> [String] -> [String] -> (Bool,[String],[String])
+removeIn' r ss [] = (False,reverse ss,[])
+removeIn' r ss (s':ss') = if isJust $ matchRegex r s' then (True,reverse ss,ss') else removeIn' r (s':ss) ss'
 --removeIn = ((intercalate ";".map(unpack.CI.original)).).liftM2 flip (((.).delete).) ((.endBy ";").map) (CI.mk.strip.pack)
-removeIn target msg = intercalate ";" . map (unpack . CI.original) $
-                          delete (process target) (map process (endBy ";" msg))
+-- removeIn target msg = intercalate ";" . map (unpack . CI.original) $
+--                           delete (process target) (map process (endBy ";" msg))
+
+removeAll :: String -> String -> (Int,String)
+removeAll target msgs = second (intercalate ";") $
+                           removeAll' (mkRegexWithOpts (regexProcess target) True False) (0,[]) (splitRegex (mkRegex ";") msgs)
+removeAll' :: Regex -> (Int,[String]) -> [String] -> (Int,[String])
+removeAll' r (n,ss) [] = (n,reverse ss)
+removeAll' r (n,ss) (s':ss') = if isJust $ matchRegex r s' then removeAll' r (n+1,ss) ss' else removeAll' r (n,s':ss) ss'
 
 --happens on legal move; not penalised afterwards
 mustSay :: String -> Game
 mustSay s (Action p a m) = if s `findIn` m then doNothing else legalPenalty 1 ("failure to say: '{}'"%s) p
 mustSay s _ = doNothing
+
+-- like mustSay but also consumes the desired String
+-- note that this means it also returns the modified event
+mustSay' :: String -> Event -> (Event,Step)
+mustSay' s e@(Action p a m) = let (b,m') = removeIn s m in
+                                if b then (Action p a m',doNothing)
+                                     else (e,legalPenalty 1 ("failure to say: '{}'"%s) p)
+mustSay' s e = (e,doNothing)
 
 said :: String -> String -> Bool
 said = findIn

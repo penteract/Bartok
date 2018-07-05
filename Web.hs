@@ -83,7 +83,7 @@ doWithGame wg games gname req resp = do
         Nothing -> resp$ responseLBS badRequest400 [] ""
         Just gd -> do
             rb <- lazyRequestBody req
-            putStrLn "Requst Body:"
+            putStrLn "Request Body:"
             print$ rb
             (r,gd') <- runStateT (runReaderT wg (req,rb)) gd
             CMap.insert gname gd' games

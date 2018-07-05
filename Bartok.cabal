@@ -22,7 +22,7 @@ library
 --  ghc-options:
   exposed-modules:     Lib, Sample, DataTypes, Views
 --  other-extensions:    FlexibleContexts
-  build-depends:       base,lens,random-shuffle, transformers,
+  build-depends:       base,lens,random-shuffle, transformers, regex-compat,
                        containers, random, split, text, case-insensitive
 
   default-language:    Haskell2010
