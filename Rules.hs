@@ -2,6 +2,7 @@ module Rules where
 
 import Control.Lens((%~),(^.),_2,at)
 import Control.Applicative
+import Data.Maybe
 
 import DataTypes
 import Lib
@@ -81,33 +82,29 @@ rMao''  = onAction (\(p,a,m)->
 
 r7' :: Rule
 r7' =  onAction (\(p,a,m) act e gs ->
-         let f b = if b then 1 else 0
+         let --f b = if b then 1 else 0 (this is fromEnum)
              count7 = readVar "sevens" gs
              veries = "( very)\\{"++show count7++"\\}"
              bidm = ("Have a" ++ veries ++ " nice day")
-             thankm = "Thank you" ++ veries ++ "( much)\\{"++show (f (count7 > 0))++"\\}"
+             thankm = "Thank you" ++ veries ++ "( much)\\{"++show (fromEnum (count7 > 0))++"\\}"
              i = fst $ removeAll "(Have a( very)* nice day)|(Thank you( very)*( very much)?)" m
-             bePolite i = let b1 = i == 1 -- should bid good day
-                              b2 = i == 2 -- should thank
-                              pens = i - f (b1 || b2)
-                              saying
-                                  | b1 = bidm
-                                  | b2 = thankm
-                                  | otherwise = ""
-                              reqSpeak = saying /= "" in
-                            if pens > 0 then legalPenalty pens "Excessive politeness" p else doNothing
-                            . if reqSpeak then mustSay saying e else doNothing
+             bePolite :: Maybe String -> Step
+             bePolite c = let pens = i - fromEnum (isJust c) in
+                            (if pens > 0 then legalPenalty pens "Excessive politeness" p else doNothing)
+                              . (case c of
+                                  Just s -> mustSay s e
+                                  Nothing -> doNothing)
              gs' = act e gs in
          case a of
              (Draw n) | count7 > 0 , isTurn p gs ->
                  if n == 2*count7
-                   then bePolite 2 . setVar "sevens" 0 $ gs'
-                   else bePolite 2 $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
+                   then bePolite (Just thankm) . setVar "sevens" 0 $ gs'
+                   else bePolite (Just thankm) $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
              (Play c) | gs'^.lastMoveLegal, rank c == Seven ->
-                 bePolite 1 . modifyVar "sevens" (+1) $ gs'
+                 bePolite (Just bidm) . modifyVar "sevens" (+1) $ gs'
              (Play c) | gs'^.lastMoveLegal, count7 > 0 -> -- rank c /= Seven
-                 bePolite 2 $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
-             _ -> bePolite 0 gs' )
+                 bePolite (Just thankm) $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
+             _ -> bePolite Nothing gs' )
 
 defaultRules = [rlast,r8,rq,rMao]
 defaultRulesNamed = [("r7'",r7'),("rLastCard",rlast),("r8",r8),("rq",rq),("rMao",rMao)]
