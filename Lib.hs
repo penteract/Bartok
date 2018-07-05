@@ -7,7 +7,7 @@ import Control.Monad (ap,liftM2,liftM3)
 import Data.List (delete,intercalate)
 import qualified Data.List.NonEmpty as NE ((<|),head)
 import Data.List.NonEmpty (NonEmpty((:|)))
-import Data.List.Split (endBy)
+-- import Data.List.Split (endBy)
 import qualified Data.Map as Map (adjust,insert,mapAccum)
 import Data.Text (pack,unpack,strip)
 import qualified Data.CaseInsensitive as CI (mk,original)
@@ -228,12 +228,12 @@ win p = broadcast (p++" wins the game!") . (winner .~ Just p)
 -- how do I make require actions for something other than a single
 
 -- splits a message into semi-colon separated parts with whitespace stripped
-splitm :: String -> [String]
-splitm = map (unpack . strip . pack) . endBy ";"
+-- splitm :: String -> [String]
+-- splitm = map (unpack . strip . pack) . endBy ";"
 
 
 process = (CI.mk . strip . pack)
-regexProcess s = "^[:space:]*"++s++"[:space:]*$"
+regexProcess s = "^[[:space:]]*"++s++"[[:space:]]*$"
 -- tells if a string is one semi-colon delimited segment of another
 -- ignore (segment-)leading/ending whitespace, case-insensitive
 findIn :: String -> String -> Bool
