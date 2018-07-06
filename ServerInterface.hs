@@ -43,8 +43,8 @@ instance Show OngoingGame where
 --TODO(angus): add comments
 
 initialGame :: IO OngoingGame
---initialGame = return$ OG (newGame []) (defaultRulesNamed++[("base",id)]) [("base",id)]
-initialGame = return$ addRule' "Snap" gSnap (OG (newGame []) [] [])
+initialGame = return$ OG (newGame []) (defaultRulesNamed++[("base",id)]) [("base",id)]
+-- initialGame = return$ addRule' "Snap" gSnap (OG (newGame []) [] [])
 
 readError :: MError a -> Either String (a, Maybe OngoingGame)
 readError s = runStateT s Nothing

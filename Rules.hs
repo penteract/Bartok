@@ -111,8 +111,13 @@ r7' =  onAction (\(p,a,m) act e gs ->
 
 -- multiple winners
 gSnap :: Rule'
-gSnap = (onAction(\(p,a,m) act e gs -> if readVar "snapdeal" gs == 0
-           then broadcast "Snap! dealing" . ((deck /\ hands) %~ (\(d,hs) -> ([], foldr (\(c,p)-> Map.insertWith (++) p [c]) hs (zip d (cycle (Map.keys hs)))) ) ) . setVar "snapdeal" 1 $ gs
+gSnap = (
+        onAction (\(p,a,m) act e gs -> if readVar "snapdeal" gs == 0
+           then broadcast "Snap! dealing"
+              . ((deck /\ hands) %~ (\(d,hs) ->
+                     ([], foldr (\(c,p)-> Map.insertWith (++) p [c]) hs
+                                (zip d (cycle (Map.keys hs)))) ) )
+              . setVar "snapdeal" 1 $ gs
            else act e gs) .
          onAction(\(p,a,m) _ e gs ->
             let pickUpDeck p s = (\gs' -> case filter (null.snd) (Map.toList $ gs'^.hands) of
@@ -137,7 +142,8 @@ gSnap = (onAction(\(p,a,m) act e gs -> if readVar "snapdeal" gs == 0
                 (Play c) ->
                     if isTurn p gs
                         then nextTurn' . broadcastp p m . broadcast (p++" plays the "++[uniCard c]) . (deck %~ (c:)) . cardFromHand' p c $ gs
-                        else pickUpDeck p "playing out of turn" gs ) ,
+                        else pickUpDeck p "playing out of turn" gs )
+         ,
          (\v p gs -> GV {
              _handsV = uncurry (flip (++)) . span ((/=p).fst) -- put p to the front
                      . map (second (\h -> case h of [] -> []; _ -> [CardBack])) -- turn Cards into CardViews
