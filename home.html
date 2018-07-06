@@ -30,7 +30,9 @@
 <div class=centered>
 <div class=field>Name: <input type="text" id="name"/></div>
 <div class=field>Game: <input type="text" id="game"/></div>
-<div style="width:100%"><input style="width:100%" type="submit" value="Play" id="start" /> </div>
+<div style="width:100%">
+    <input style="width:100%" type="submit" value="Play" id="start" />
+</div>
 </form>
 </div>
 
@@ -39,7 +41,7 @@
 function startgame() {
     //console.log()
     //console.log("hi");
-    location.assign("/"+$("#game").val()+"?name="+$("#name").val())
+    location.assign("/"+$("#game").val()+"/?name="+$("#name").val())
 }
 
 

@@ -1,8 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
-import Data.Text(Text,intercalate)
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy.Char8 as L
+
 import System.Environment
+import Data.Text(Text,intercalate,unpack)
+
+import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Lazy.Char8 as L
 
 import Network.Wai.Handler.Warp
 import Network.Wai
@@ -24,6 +26,9 @@ import ServerInterface
 --type GData = (GameState,Game,Viewer)
 type GMap = CMap.Map Text OngoingGame
 
+cannonisepath :: Middleware
+cannonisepath app req resp =
+    app req{pathInfo=filter (/="") (pathInfo req)} resp
 
 
 app :: GMap -> Application
@@ -36,11 +41,14 @@ app games req resp = do
 
 onGet :: GMap -> Application
 onGet games req resp = do
-    (case pathInfo req of
-        [] -> homepage
-        [gname] -> playPage gname
-        [gname,"newRule"] -> newRulePage gname
-        _ -> const$const($err404)) games req resp
+    --print (pathInfo req)
+    case pathInfo req of
+        [] -> homepage games req resp
+        [gname] -> playPage gname games req resp
+        -- [gname] -> resp$redirect308 (concat
+        --     ["/",unpack gname,"/",B.unpack (rawQueryString req)])
+        [gname,"newRule"] -> newRulePage gname games req resp
+        _ -> resp $ err404
 
 --GET handlers
 
@@ -50,7 +58,7 @@ homepage games req resp = resp$ responseFile ok200 [] "home.html" Nothing
 playPage :: Text -> GMap -> Application
 playPage gameName games req resp = do
     --let gameName = intercalate "/" (pathInfo req)
-    putStrLn$ show$ gameName
+    --putStrLn$ show$ gameName
     mx <- CMap.lookup gameName games
     case mx of
         Nothing -> do
@@ -113,9 +121,18 @@ onPost games req resp = do
     case pathInfo req of
         [gname] -> doWithGame playMove games gname req resp
         [gname, "newRule"] -> doWithGame newRule games gname req resp
+        [gname, "poll"] -> doWithGame viewGame games gname req resp
         _ -> resp$ err404
 
 -- POST handlers
+
+viewGame :: WithGame Response
+viewGame = do
+    e <- getBody
+    let p = L.unpack e
+    game <- getGame
+    doErr (view p game) (\ v ->
+       return$ jsonResp (serialize v))
 
 playMove :: WithGame Response
 playMove = do
@@ -159,7 +176,10 @@ main = do
                 [] -> 8080
     games <- CMap.empty
     putStrLn ("server running at http://localhost:"++show port)
-    run port (app games)
+    run port (cannonisepath (app games))
+
+
+redirect308 url = responseLBS permanentRedirect308 [] (L.pack url)
 
 err422 err = responseLBS unprocessableEntity422 [] (L.pack err)
 

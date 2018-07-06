@@ -8,6 +8,19 @@
     .hand{
         width: 20%;
     }
+    #drawN{
+        width:3em;
+    }
+    #piles{
+        padding:4px;
+    }
+    #deck{
+        border: 2px;
+        border-color: black;
+        border-radius: 4px;
+        border-style: solid;
+        padding: 2px;
+    }
     #others {
         width:90%;
         height: 10%;
@@ -19,8 +32,8 @@
 <script>
 function display(obj){
     console.log(obj)
-    $("#deck").html(obj._deckV.map(showCard).join(" "))
-    $("#pile").html(obj._pileV.map(showCard).join(" "))
+    $("#deck").html(joincards(obj._deckV))
+    $("#pile").html(joincards(obj._pileV))
     $("#msg").html(obj._messagesV.join("<br />"))
     first=true
     $("#others").html("")
@@ -35,10 +48,25 @@ function display(obj){
         }
     }
 }
+
+function allOf(l,f){
+    for (c of l) if (!f(c)) return false;
+    return true;
+}
+
+function joincards(cs){//TODO: debug
+    if(cs.length==0)return "0"
+    topc = cs[0];
+    rest=cs.slice(1);
+    if (rest.length==0) return showCard(topc)
+    if (! allOf(cs,c=>c.tag=="CardBack")) return showCard(topc)+" "+joincards(rest)
+    return (showCard(topc)+cs.length)
+}
+
 function displayHand(h){
     s = "<div class=hand>"
     s+=h[0]+"<br />"
-    s+=h[1].map(showCard).join(" ")
+    s+=joincards(h[1])
     s+="</div>"
     return s
 }
@@ -142,6 +170,10 @@ function getParameterByName(name, url) {
 $.post("",JSON.stringify(
     {tag:'ReqJoin',contents:getParameterByName("name")}),
   display, "json")
+
+poller = setInterval(() => $.post("./poll",name,
+  display, "json")
+    ,1000)
 
 </script>
 </body>
