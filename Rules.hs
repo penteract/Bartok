@@ -1,8 +1,9 @@
 module Rules where
 
-import Control.Lens((%~),(^.),_2,at)
+import Control.Lens((%~),(^.),(^?),_1,_2,_Just,at,ix)
 import Control.Applicative
 import Data.Maybe
+import qualified Data.Map as Map (toList,insertWith,keys)
 
 import DataTypes
 import Lib
@@ -105,6 +106,45 @@ r7' =  onAction (\(p,a,m) act e gs ->
              (Play c) | gs'^.lastMoveLegal, count7 > 0 -> -- rank c /= Seven
                  bePolite (Just thankm) $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
              _ -> bePolite Nothing gs' )
+
+
+
+
+
+gSnap :: Rule'
+gSnap = (onAction(\(p,a,m) act e gs ->
+            let pickUpDeck p s = broadcast (p++" picks up the deck for "++s) . setVar "snapped" 0 . ((deck /\ hands.at p._Just) %~ (\(d,h)-> ([],d++h))) in
+            case a of
+                (Draw n) ->
+                    if not (null (gs^.deck)) && gs^?deck.ix 0._1 == gs^?deck.ix 1._1
+                        then if readVar "snapped" gs == length (gs^.players) - 1
+                            then (case filter (null.snd) (Map.toList $ gs^.hands) of
+                                     null -> doNothing
+                                     (p':_) -> win (fst p'))
+                                 . setVar "snapped" 0
+                                 . pickUpDeck p "snapping last"
+                                 $ gs
+                            else broadcast (p++" snapped!") . modifyVar "snapped" (+1) $ gs
+                        else pickUpDeck p "snapping badly" gs
+                (Play c) | readVar "snapped" gs > 0 -> pickUpDeck p "attempting to play with a snap in session" gs
+                (Play c) ->
+                    if isTurn p gs
+                        then nextTurn . broadcastp p m . (deck %~ (c:)) . cardFromHand' p c $ gs
+                        else pickUpDeck p "playing out of turn" gs
+                _ -> gs ) .
+          onAction(\(p,a,m) act e gs -> if readVar "snapdeal" gs == 0
+                     then broadcast "Snap! dealing" . ((deck /\ hands) %~ (\(d,hs) -> ([], foldr (\(c,p)-> Map.insertWith (++) p [c]) hs (zip d (cycle (Map.keys hs)))) ) ) . setVar "snapdeal" 1 $ gs
+                     else broadcast "not snap dealing" gs),
+         (\v p gs -> GV {
+             _handsV = map (flip (,) [CardBack]) (gs^.players), -- get the players in seating order
+             _pileV = [CardBack] ,
+             _deckV = case gs^.deck of
+                          null -> []
+                          (c:cs) -> CardFace c : map (const CardBack) cs ,
+             _messagesV = gs^.messages })
+         )
+
+
 
 defaultRules = [rlast,r8,rq,rMao]
 defaultRulesNamed = [("r7'",r7'),("rLastCard",rlast),("r8",r8),("rq",rq),("rMao",rMao)]
