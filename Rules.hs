@@ -1,9 +1,11 @@
 module Rules where
 
-import Control.Lens((%~),(^.),(^?),_1,_2,_Just,at,ix)
+import Control.Lens((%~),(^.),(^?),(&),_1,_2,_Just,at,ix)
 import Control.Applicative
 import Data.Maybe
-import qualified Data.Map as Map (toList,insertWith,keys)
+import qualified Data.Map as Map (toList,insertWith,keys,findWithDefault,lookup)
+import Control.Arrow ((***),second)
+import Control.Monad (ap,join)
 
 import DataTypes
 import Lib
@@ -107,21 +109,26 @@ r7' =  onAction (\(p,a,m) act e gs ->
                  bePolite (Just thankm) $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
              _ -> bePolite Nothing gs' )
 
-
-
-
-
+-- multiple winners
 gSnap :: Rule'
-gSnap = (onAction(\(p,a,m) act e gs ->
-            let pickUpDeck p s = broadcast (p++" picks up the deck for "++s) . setVar "snapped" 0 . ((deck /\ hands.at p._Just) %~ (\(d,h)-> ([],d++h))) in
+gSnap = (onAction(\(p,a,m) act e gs -> if readVar "snapdeal" gs == 0
+           then broadcast "Snap! dealing" . ((deck /\ hands) %~ (\(d,hs) -> ([], foldr (\(c,p)-> Map.insertWith (++) p [c]) hs (zip d (cycle (Map.keys hs)))) ) ) . setVar "snapdeal" 1 $ gs
+           else act e gs) .
+         onAction(\(p,a,m) _ e gs ->
+            let pickUpDeck p s = (\gs' -> case filter (null.snd) (Map.toList $ gs'^.hands) of
+                                     [] -> gs'
+                                     (p':_) -> win (fst p') gs')
+                                 . setVar "snapped" 0
+                                 . (join $ ap (if'.not.null.(^.deck))
+                                              (broadcast (p++" picks up the deck for "++s)
+                                              . (players %~ (uncurry (flip (++)) . span (/=p)))
+                                              . ((deck /\ hands.at p._Just) %~ (\(d,h)-> ([],h++d)))))
+                nextTurn' gs = gs & (players %~ (uncurry (++) . span (\p -> Just [] /= Map.lookup p (gs^.hands)) . (\(p:ps)->ps++[p]))) in
             case a of
                 (Draw n) ->
                     if not (null (gs^.deck)) && gs^?deck.ix 0._1 == gs^?deck.ix 1._1
                         then if readVar "snapped" gs == length (gs^.players) - 1
-                            then (case filter (null.snd) (Map.toList $ gs^.hands) of
-                                     [] -> doNothing
-                                     (p':_) -> win (fst p'))
-                                 . setVar "snapped" 0
+                            then setVar "snapped" 0
                                  . pickUpDeck p "snapping last"
                                  $ gs
                             else broadcast (p++" snapped!") . modifyVar "snapped" (+1) $ gs
@@ -129,20 +136,24 @@ gSnap = (onAction(\(p,a,m) act e gs ->
                 (Play c) | readVar "snapped" gs > 0 -> pickUpDeck p "attempting to play with a snap in session" gs
                 (Play c) ->
                     if isTurn p gs
-                        then nextTurn . broadcastp p m . (deck %~ (c:)) . cardFromHand' p c $ gs
-                        else pickUpDeck p "playing out of turn" gs ) .
-          onAction(\(p,a,m) act e gs -> if readVar "snapdeal" gs == 0
-                     then broadcast "Snap! dealing" . ((deck /\ hands) %~ (\(d,hs) -> ([], foldr (\(c,p)-> Map.insertWith (++) p [c]) hs (zip d (cycle (Map.keys hs)))) ) ) . setVar "snapdeal" 1 $ gs
-                     else broadcast "not snap dealing" gs),
+                        then nextTurn' . broadcastp p m . broadcast (p++" plays the "++[uniCard c]) . (deck %~ (c:)) . cardFromHand' p c $ gs
+                        else pickUpDeck p "playing out of turn" gs ) ,
          (\v p gs -> GV {
-             _handsV = map (flip (,) [CardBack]) (gs^.players), -- get the players in seating order
+             _handsV = uncurry (flip (++)) . span ((/=p).fst) -- put p to the front
+                     . map (second (\h -> case h of [] -> []; _ -> [CardBack])) -- turn Cards into CardViews
+                     . map (ap (,) (flip (Map.findWithDefault []) (gs^.hands))) -- tuple each player with their hand
+                     $ (gs^.seats) ,
              _pileV = [CardBack] ,
              _deckV = case gs^.deck of
                           [] -> []
                           (c:cs) -> CardFace c : map (const CardBack) cs ,
              _messagesV = gs^.messages })
          )
+gSnap' :: (Game,Viewer)
+gSnap' = gameFromRule gSnap
 
+gameFromRule :: (Rule,ViewRule)->(Game,Viewer)
+gameFromRule = ($ undefined) *** ($ undefined)
 
 
 defaultRules = [rlast,r8,rq,rMao]
