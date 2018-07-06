@@ -100,6 +100,13 @@ r7' =  onAction (\(p,a,m) act e gs ->
                 bePolite 2 $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
             _ -> bePolite 0 gs' )
 
+rC = onPlay (\ _ act e@(Action p (Play c) m) gs->
+        if rank c == Knight
+          then case removeIn' "(Clubs)|(Diamonds)|(Hearts)|(Spades)" m of
+              (Just s,m') -> undefined
+              (Nothing,m') -> undefined
+          else act e gs )
+
                 -- else onLegalCard (\card e->
                 --     if (rank card == Seven)
                 --       then modifyVar "sevens" (+1) . mustSay "have a nice day" e

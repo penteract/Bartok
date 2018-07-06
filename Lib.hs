@@ -7,10 +7,8 @@ import Control.Monad (ap,join,liftM2,liftM3)
 import Data.List (delete,intercalate)
 import qualified Data.List.NonEmpty as NE ((<|),head)
 import Data.List.NonEmpty (NonEmpty((:|)))
--- import Data.List.Split (endBy)
 import qualified Data.Map as Map (adjust,insert,mapAccum)
 import Data.Text (pack,unpack,strip)
-import qualified Data.CaseInsensitive as CI (mk,original)
 
 import Text.Regex(Regex,matchRegex,mkRegex,mkRegexWithOpts,splitRegex)
 import Data.Maybe(isJust)
@@ -229,8 +227,7 @@ win p = broadcast (p++" wins the game!") . (winner .~ Just p)
 -- splitm :: String -> [String]
 -- splitm = map (unpack . strip . pack) . endBy ";"
 
-
-process = CI.mk . strip . pack
+regexProcess :: String -> String
 regexProcess s = "^[[:space:]]*"++s++"[[:space:]]*$"
 -- tells if a string is one semi-colon delimited segment of another
 -- ignore (segment-)leading/ending whitespace, case-insensitive
@@ -243,14 +240,15 @@ findIn target msg = any  ((Nothing /=) . matchRegex (mkRegexWithOpts (regexProce
 -- ignore (segment-)leading/ending whitespace, case-insensitive
 -- note: returned string will lack (segment-)leading/ending whitespace
 removeIn :: String -> String -> (Bool,String)
-removeIn target msgs = (\(a,b,c) -> (a,intercalate ";" (b++c))) $
-                           removeIn' (mkRegexWithOpts (regexProcess target) True False) [] (splitRegex (mkRegex ";") msgs)
-removeIn' :: Regex -> [String] -> [String] -> (Bool,[String],[String])
-removeIn' r ss [] = (False,reverse ss,[])
-removeIn' r ss (s':ss') = if isJust $ matchRegex r s' then (True,reverse ss,ss') else removeIn' r (s':ss) ss'
---removeIn = ((intercalate ";".map(unpack.CI.original)).).liftM2 flip (((.).delete).) ((.endBy ";").map) (CI.mk.strip.pack)
--- removeIn target msg = intercalate ";" . map (unpack . CI.original) $
---                           delete (process target) (map process (endBy ";" msg))
+removeIn = (first isJust .) . removeIn'
+
+removeIn' :: String -> String -> (Maybe String,String)
+removeIn' target msgs = (\(a,b,c) -> (a,intercalate ";" (b++c))) $
+                            removeIn'' (mkRegexWithOpts (regexProcess target) True False) [] (splitRegex (mkRegex ";") msgs)
+removeIn'' :: Regex -> [String] -> [String] -> (Maybe String,[String],[String])
+removeIn'' r ss [] = (Nothing,reverse ss,[])
+removeIn'' r ss (s':ss') = if isJust $ matchRegex r s' then (fmap head (matchRegex r s'),reverse ss,ss') else removeIn'' r (s':ss) ss'
+-- UNSAFE HEAD AAAAH
 
 removeAll :: String -> String -> (Int,String)
 removeAll target msgs = second (intercalate ";") $

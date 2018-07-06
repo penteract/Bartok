@@ -23,7 +23,7 @@ library
   exposed-modules:     Lib, Sample, DataTypes, Views
 --  other-extensions:    FlexibleContexts
   build-depends:       base,lens,random-shuffle, transformers, regex-compat,
-                       containers, random, text, case-insensitive
+                       containers, random, text
 
   default-language:    Haskell2010
 
@@ -33,7 +33,7 @@ executable server
                          bytestring,
                          warp, wai, http-types, ctrie, hint, regex-compat,
                          lens,random-shuffle, transformers, mtl,
-                         containers, random, text, case-insensitive
+                         containers, random, text
     other-modules:       Serialize, DataTypes, Lib, Views, ServerInterface, Rules
     default-language:    Haskell2010
 
