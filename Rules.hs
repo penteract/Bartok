@@ -119,7 +119,7 @@ gSnap = (onAction(\(p,a,m) act e gs ->
                     if not (null (gs^.deck)) && gs^?deck.ix 0._1 == gs^?deck.ix 1._1
                         then if readVar "snapped" gs == length (gs^.players) - 1
                             then (case filter (null.snd) (Map.toList $ gs^.hands) of
-                                     null -> doNothing
+                                     [] -> doNothing
                                      (p':_) -> win (fst p'))
                                  . setVar "snapped" 0
                                  . pickUpDeck p "snapping last"
@@ -130,8 +130,7 @@ gSnap = (onAction(\(p,a,m) act e gs ->
                 (Play c) ->
                     if isTurn p gs
                         then nextTurn . broadcastp p m . (deck %~ (c:)) . cardFromHand' p c $ gs
-                        else pickUpDeck p "playing out of turn" gs
-                _ -> gs ) .
+                        else pickUpDeck p "playing out of turn" gs ) .
           onAction(\(p,a,m) act e gs -> if readVar "snapdeal" gs == 0
                      then broadcast "Snap! dealing" . ((deck /\ hands) %~ (\(d,hs) -> ([], foldr (\(c,p)-> Map.insertWith (++) p [c]) hs (zip d (cycle (Map.keys hs)))) ) ) . setVar "snapdeal" 1 $ gs
                      else broadcast "not snap dealing" gs),
@@ -139,7 +138,7 @@ gSnap = (onAction(\(p,a,m) act e gs ->
              _handsV = map (flip (,) [CardBack]) (gs^.players), -- get the players in seating order
              _pileV = [CardBack] ,
              _deckV = case gs^.deck of
-                          null -> []
+                          [] -> []
                           (c:cs) -> CardFace c : map (const CardBack) cs ,
              _messagesV = gs^.messages })
          )
