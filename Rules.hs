@@ -31,6 +31,7 @@ rlast = onLegalCard
                 if maybe False ((==1).length) (gs'^.hands.at p) && not ("last card" `findIn` m)
                     then legalPenalty 1 "failure to declare \"last card\"" p gs'
                     else gs' )
+      . banPhrase 1 "False \"last card\" pronouncement" (\(p,a,m) gs -> maybe False ((/=1).length) (gs^.hands.at p) && ("last card" `findIn` m))
 
 -- TODO: make it order sensitive (Mao should only be sayable last)
 -- rMao :: Rule
