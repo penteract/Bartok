@@ -10,6 +10,7 @@ import qualified Data.List.NonEmpty as NE
 import Control.Monad
 import Control.Arrow (second)
 import Data.Map.Lazy as Map (insertWith,toList,keys)
+import Data.Maybe (fromJust,isJust)
 
 --all definitions work*
 r8 :: Rule
@@ -101,11 +102,30 @@ r7' =  onAction (\(p,a,m) act e gs ->
             _ -> bePolite 0 gs' )
 
 rC = onPlay (\ _ act e@(Action p (Play c) m) gs->
+        let gs' = act e gs in
         if rank c == Knight
           then case removeIn' "(Clubs)|(Diamonds)|(Hearts)|(Spades)" m of
-              (Just s,m') -> undefined
-              (Nothing,m') -> undefined
-          else act e gs )
+                   (Just s,m') -> let suit
+                                       | "clubs" `findIn` s = Clubs
+                                       | "diamonds" `findIn` s = Diamonds
+                                       | "hearts" `findIn` s = Hearts
+                                       | "spades" `findIn` s = Spades
+                                       | otherwise = error ("unknown suit "++s) in -- lol what happened
+                              setVar "newSuit" (fromEnum suit + 1) $ act (Action p (Play c) m') gs
+                   (Nothing,_) -> if gs'^.lastMoveLegal then penalty 1 "Failure to specify new suit" e gs else gs'
+          else gs') .
+      onPlay (\ _ act e@(Action p (Play c) m) gs->
+         let gs' = act e gs
+             i = readVar "newSuit" gs'
+             ns = toEnum $ i - 1
+             alt = (act e (gs & pile.ix 0._2 .~ ns))
+             restore = (alt & pile.ix 1._2 .~ fromJust (gs ^? pile.ix 0._2))
+             restore' = (alt & pile.ix 0._2 .~ fromJust (gs ^? pile.ix 0._2)) in
+         if i > 0 && suit c == ns && not (gs'^.lastMoveLegal) && alt^.lastMoveLegal && isJust (alt ^? pile . ix 1)
+             then setVar "newSuit" 0 restore
+         else if i > 0 && suit c /= ns && (gs'^.lastMoveLegal) && not (alt^.lastMoveLegal)
+             then restore'
+         else gs')
 
                 -- else onLegalCard (\card e->
                 --     if (rank card == Seven)

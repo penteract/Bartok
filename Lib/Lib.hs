@@ -10,7 +10,7 @@ import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Data.Map as Map (adjust,insert,mapAccum)
 import Data.Text (pack,unpack,strip)
 
-import Text.Regex(Regex,matchRegex,mkRegex,mkRegexWithOpts,splitRegex)
+import Text.Regex(Regex,matchRegex,matchRegexAll,mkRegex,mkRegexWithOpts,splitRegex)
 import Data.Maybe(isJust)
 
 import DataTypes
@@ -247,7 +247,7 @@ removeIn' target msgs = (\(a,b,c) -> (a,intercalate ";" (b++c))) $
                             removeIn'' (mkRegexWithOpts (regexProcess target) True False) [] (splitRegex (mkRegex ";") msgs)
 removeIn'' :: Regex -> [String] -> [String] -> (Maybe String,[String],[String])
 removeIn'' r ss [] = (Nothing,reverse ss,[])
-removeIn'' r ss (s':ss') = if isJust $ matchRegex r s' then (fmap head (matchRegex r s'),reverse ss,ss') else removeIn'' r (s':ss) ss'
+removeIn'' r ss (s':ss') = if isJust $ matchRegexAll r s' then (fmap (\(_,b,_,_)->b) (matchRegexAll r s'),reverse ss,ss') else removeIn'' r (s':ss) ss'
 -- UNSAFE HEAD AAAAH
 
 removeAll :: String -> String -> (Int,String)
