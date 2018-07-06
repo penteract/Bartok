@@ -22,8 +22,9 @@
     }
     #piles{
         padding:4px;
-        transform: scale(2);
-        transform-origin: left;
+        height: 200%;
+        /*transform: scale(2);
+        transform-origin: left;*/
         /*position: absolute;*/
     }
     #deck{
@@ -164,6 +165,14 @@ function getParameterByName(name, url) {
     return decodeURIComponent(results[2].replace(/\+/g, " "));
 }
 
+
+function randstr(n) {
+  var text = "";
+  for (var i = 0; i < n; i++)
+    text += String.fromCharCode(Math.floor(Math.random()*(127-32)+32));
+  return text;
+}
+
 </script>
 
 </head>
@@ -188,9 +197,12 @@ function getParameterByName(name, url) {
 
 //console.log(display)
 
+
+tok = randstr(10)
 $.post("",JSON.stringify(
-    {tag:'ReqJoin',contents:getParameterByName("name")}),
+    {tag:'ReqJoin',contents:[getParameterByName("name"),tok]}),
   display, "json")
+
 
 poller = setInterval(() => $.post("./poll",name,
   display, "json")

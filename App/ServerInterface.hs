@@ -3,15 +3,15 @@
 module ServerInterface(
    handle, view,
    addRule, addRule', addViewRule, setState,
-   OngoingGame, MError, readError, initialGame,
+   OngoingGame(..), MError, readError, initialGame,
    Rule, GameState)
  where
 
 
-import Control.Lens ((^?),(^.),(.~),(%~),_Just,at,contains,ix,makeLenses)
+import Control.Lens ((^?),(^.),(.~),(%~), (&),_Just,at,contains,ix,makeLenses)
 import Control.Monad (ap,when)
 import Control.Monad.Except (throwError,unless)
-import Control.Monad.Trans.State (StateT,gets,put,runStateT)
+import Control.Monad.Trans.State (StateT,gets,put,runStateT,modify)
 
 import Control.Arrow((***))
 import Data.List (intercalate,nub,permutations)
@@ -20,7 +20,7 @@ import Data.Maybe (isJust)
 import qualified Data.Set as Set (empty,fromList,insert,notMember)
 import Data.Set (Set)
 
-import DataTypes
+import DataTypes hiding (seats)
 import Lib hiding (when)
 import Views
 import Serialize
@@ -30,10 +30,12 @@ type Error = String
 --type MError a = Either Error a
 type MError a = StateT (Maybe OngoingGame) (Either Error) a
 
+
 data OngoingGame = OG {
     _gameState :: GameState ,
     _rules :: [(String,Rule)] ,
-    _viewRules :: [(String,ViewRule)]
+    _viewRules :: [(String,ViewRule)],
+    _seats :: [(Name,Token)]
 }
 makeLenses ''OngoingGame
 
@@ -43,7 +45,7 @@ instance Show OngoingGame where
 --TODO(angus): add comments
 
 initialGame :: IO OngoingGame
-initialGame = return$ OG (newGame []) (defaultRulesNamed++[("base",id)]) [("base",id)]
+initialGame = return$ OG (newGame []) (defaultRulesNamed++[("base",id)]) [("base",id)] []
 -- initialGame = return$ addRule' "Snap" gSnap (OG (newGame []) [] [])
 
 readError :: MError a -> Either String (a, Maybe OngoingGame)
@@ -63,8 +65,8 @@ handle ar og =
         unless (nameExists p og)
                 (throwError $ "Player "++p++" is not a member of this game.")
         carryOut (Action p (Draw n) m) og
-      ReqJoin n -> if nameExists n og then return (og^.gameState) -- (throwError $ "Player "++n++" is already a member of this game.")
-                       else carryOut (PlayerJoin n) og
+      ReqJoin n tok -> if nameExists n og then return (og^.gameState) -- (throwError $ "Player "++n++" is already a member of this game.")
+                       else put (Just $ og & seats %~ ((n,tok):)) >> carryOut (PlayerJoin n) og
   -- return $ foldr ($) baseAct (og^.rules) e (og^.gameState)
 
 -- Remove rules left to admin
@@ -72,7 +74,7 @@ carryOut :: Event -> OngoingGame -> MError GameState
 carryOut e og = return . snd $
                     foldr (\(n,r) (g,gs) ->
                               let gs' = r g e (og^.gameState)
-                              in if checkGSokay gs'
+                              in if checkGSokay (og & gameState .~gs')
                                 then (r g,gs')
                                 else (g,broadcast ("Rule "++n++" malfunctioned and was not applied for this event.") gs))
                           (baseAct, og^.gameState)
@@ -82,7 +84,7 @@ timeout :: OngoingGame -> MError GameState
 timeout = carryOut Timeout
 
 nameExists :: Name -> OngoingGame -> Bool
-nameExists n og = n `elem` og^.gameState.seats
+nameExists n og = n `elem` map fst (og^.seats)
 
 allUniques :: (Ord a) => [a] -> Bool
 allUniques l = allUniques' l Set.empty
@@ -90,14 +92,15 @@ allUniques' :: (Ord a) => [a] -> Set a -> Bool
 allUniques' [] s = True
 allUniques' (x:xs) s = x `Set.notMember` s && allUniques' xs (Set.insert x s)
 
-checkGSokay :: GameState -> Bool
-checkGSokay gs = (allUniques (gs^.players)) -- each player appears only once
-              && (Set.fromList (gs^.players) == Set.fromList (gs^.seats)) -- players is permutation of seats
+checkGSokay :: OngoingGame -> Bool
+checkGSokay og =let gs = og ^. gameState in
+              (allUniques (gs^.players)) -- each player appears only once
+              -- && (Set.fromList (gs^.players) == Set.fromList (map fst $ og^.seats)) -- players is permutation of seats
               && all (`Map.member` (gs^.hands)) (gs^.players) -- each player has a hand
 
 --only restriction on GameViews is that they can't misrepresent the # of players
-checkGVokay :: GameView -> GameState -> Bool
-checkGVokay gv gs = length (gv^.handsV) == length (gs^.seats)
+checkGVokay :: GameView -> OngoingGame -> Bool
+checkGVokay gv og = Set.fromList (map fst (gv^.handsV)) == Set.fromList (map fst $ og^.seats)
 
 view :: PlayerIndex -> OngoingGame -> MError GameView
 view p og = do
@@ -111,7 +114,7 @@ view p og = do
 getView :: PlayerIndex -> OngoingGame -> MError GameView
 getView p og = let (v,gs') = foldr (\(n,vr) (v,gs') ->
                                       let gv = vr v p (og^.gameState)
-                                      in if checkGVokay gv gs'
+                                      in if checkGVokay gv (og & gameState .~ gs')
                                            then (vr v,gs')
                                            else (v,broadcast ("ViewRule "++n++" malfunctioned for player "++p++" and was not applied for them.") gs'))
                                    (defaultView,og^.gameState) -- change this so gs

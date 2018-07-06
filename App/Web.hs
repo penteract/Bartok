@@ -127,8 +127,14 @@ doErr e f = do
         Left err -> do
             liftIO (print err)
             return$ err422 err
-        Right (x,Nothing) -> f x
-        Right (x,Just o) -> put o >> f x
+        Right (x,Nothing) -> do
+            liftIO$ print "fine"
+            f x
+        Right (x,Just o) -> do
+            liftIO$ print "some error"
+            liftIO$ print$  _gameState o
+            put o
+            f x
 
 
 onPost :: GMap -> Application
@@ -153,16 +159,21 @@ viewGame = do
 playMove :: WithGame Response
 playMove = do
     e <- getBody
+    liftIO (putStrLn (L.unpack e))
     case unserialize e of
         Just r -> do
-            --liftIO (putStrLn (show r))
+            liftIO (putStrLn (show r))
             let p = getName r
             game <- getGame
             doErr (handle r game) (\ state -> do
-             modify (setState state)
-             --liftIO (putStrLn (show (_players state)))
-             game' <- getGame
-             doErr (view p game') (\ v ->
+              g<-getGame
+              liftIO.print$ _seats g
+              liftIO.print$ _gameState g
+              liftIO.print$ state
+              modify (setState state)
+              --liftIO (putStrLn (show (_players state)))
+              game' <- getGame
+              doErr (view p game') (\ v ->
                 return$ jsonResp (serialize v)))
 
         Nothing -> return err404
