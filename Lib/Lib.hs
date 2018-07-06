@@ -3,7 +3,7 @@ module Lib where
 
 import Control.Arrow (first,second)
 import Control.Lens ((.~),(%~),(^.),(^?),(&),(<>~),_1,at,ix)
-import Control.Monad (ap,liftM2,liftM3)
+import Control.Monad (ap,join,liftM2,liftM3)
 import Data.List (delete,intercalate)
 import qualified Data.List.NonEmpty as NE ((<|),head)
 import Data.List.NonEmpty (NonEmpty((:|)))
@@ -88,8 +88,6 @@ play p e c = (\ gs -> if getHand p gs == Just [] then win p gs else gs ) -- chec
     . nextTurn
     . (cardToPile c)
     . (cardFromHand' p c)
-
-
 
 baseAct :: Game
 baseAct e@(Action p a m) gs
@@ -276,6 +274,16 @@ mustSay' s e = (e,doNothing)
 
 said :: String -> String -> Bool
 said = findIn
+
+-- n is penalty
+-- s is banned string
+-- pm is penalty message to display when found
+-- banPhrase :: Int -> String -> String -> Rule
+-- banPhrase n pm s = banPhrase' n pm (\m e gs -> s `findIn` m)
+
+-- tests "on the way out" if you said the phrase
+banPhrase :: Int -> String -> ((PlayerIndex,Action,String) -> GameState -> Bool) -> Rule
+banPhrase n pm f = onAction (\t@(p,_,_) -> ((join (ap (if' . f t) (legalPenalty n pm p)) .) .))
 
 -- possibly a mustSay component could be extracted
 require :: (PlayerIndex, Action, String) -> (Bool -> Game) -> Rule
