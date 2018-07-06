@@ -24,7 +24,11 @@ import Serialize
 import ServerInterface
 
 --type GData = (GameState,Game,Viewer)
-type GMap = CMap.Map Text OngoingGame
+type GMap = CMap.Map Text (OngoingGame,MVar ())
+
+
+
+initialStoredGame = liftM2 (,) initialGame  (newMVar ())
 
 cannonisepath :: Middleware
 cannonisepath app req resp =
@@ -62,7 +66,7 @@ playPage gameName games req resp = do
     mx <- CMap.lookup gameName games
     case mx of
         Nothing -> do
-            og <- initialGame
+            og <- initialStoredGame
             CMap.insertIfAbsent gameName og games
             return ()
         Just a -> return ()
@@ -70,11 +74,11 @@ playPage gameName games req resp = do
 
 newRulePage :: Text -> GMap -> Application
 newRulePage gameName games req resp= do
-    putStrLn$ show$ gameName
+    --putStrLn$ show$ gameName
     mx <- CMap.lookup gameName games
     case mx of
         Nothing -> do
-            og <- initialGame
+            og <- initialStoredGame
             CMap.insertIfAbsent gameName og games
             return ()
         Just a -> return ()
@@ -91,12 +95,24 @@ doWithGame wg games gname req resp = do
     mx <- CMap.lookup gname games
     case mx of
         Nothing -> resp$ responseLBS badRequest400 [] ""
-        Just gd -> do
+        Just (gd,mv) -> do
+            _ <- takeMVar mv
             rb <- lazyRequestBody req
-            putStrLn "Request Body:"
-            print$ rb
+            -- putStrLn "Request Body:"
+            -- print$ rb
             (r,gd') <- runStateT (runReaderT wg (req,rb)) gd
-            CMap.insert gname gd' games
+            CMap.insert gname (gd',mv) games
+            putMVar mv ()
+            resp$ r
+
+doSafeWithGame :: WithGame Response -> GMap -> Text -> Application
+doSafeWithGame wg games gname req resp = do
+    mx <- CMap.lookup gname games
+    case mx of
+        Nothing -> resp$ responseLBS badRequest400 [] ""
+        Just (gd,mv) -> do
+            rb <- lazyRequestBody req
+            (r,gd') <- runStateT (runReaderT wg (req,rb)) gd
             resp$ r
 
 getGame :: WithGame OngoingGame
@@ -121,7 +137,7 @@ onPost games req resp = do
     case pathInfo req of
         [gname] -> doWithGame playMove games gname req resp
         [gname, "newRule"] -> doWithGame newRule games gname req resp
-        [gname, "poll"] -> doWithGame viewGame games gname req resp
+        [gname, "poll"] -> doSafeWithGame viewGame games gname req resp
         _ -> resp$ err404
 
 -- POST handlers
@@ -153,10 +169,14 @@ playMove = do
 
 newRule :: WithGame Response
 newRule = do
-    b <- asks snd
-    f <- liftIO$ runInterpreter$ interpret (L.unpack b) (as::Rule)
+    b <- getBody
+    liftIO$ putStrLn "New Rule: "
+    liftIO$ putStrLn (L.unpack b)
+    f <- liftIO$ runInterpreter$ setImports ["Lib","DataTypes","Prelude"] >>(interpret (L.unpack b) (as::Rule))
     case f of
-        Left err -> return$ err422 (show err)
+        Left err -> do
+            liftIO$ putStrLn$ fromErr err
+            return$ err422 (show err)
         Right r -> do
             modify$ addRule "" r
             return$ jsonResp "{}"
