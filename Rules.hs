@@ -14,7 +14,7 @@ r8 = onLegalCard (\card event ->
 
 
 reverseDirection :: Step
-reverseDirection = players %~ reverse
+reverseDirection = players %~ (\ (c:cs) -> c: reverse cs)
 
 rq :: Rule --reverse direction on q, may have problems if reversing direction makes a move become illegal
 rq act e gs = onLegalCard (\ card event gs'->
