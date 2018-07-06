@@ -84,9 +84,9 @@ r7' :: Rule
 r7' =  onAction (\(p,a,m) act e gs ->
          let --f b = if b then 1 else 0 (this is fromEnum)
              count7 = readVar "sevens" gs
-             veries = "( very)\\{"++show count7++"\\}"
+             veries = concat $ replicate count7 " very"
              bidm = ("Have a" ++ veries ++ " nice day")
-             thankm = "Thank you" ++ veries ++ "( much)\\{"++show (fromEnum (count7 > 0))++"\\}"
+             thankm = "Thank you" ++ veries ++ if count7 > 0 then " much" else ""
              i = fst $ removeAll "(Have a( very)* nice day)|(Thank you( very)*( very much)?)" m
              bePolite :: Maybe String -> Step
              bePolite c = let pens = i - fromEnum (isJust c) in
