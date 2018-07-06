@@ -97,7 +97,7 @@ baseAct e@(Action p a m) gs
         = ( sayAct e
           . broadcast (p++" draws "++show n++" cards.")
           . draw n p
-          . if'' inTurn (nextTurn . (lastMoveLegal .~ True))
+          . if'' (inTurn && n > 0) (nextTurn . (lastMoveLegal .~ True))
           ) gs
     | (Play c)<-a, Just True /= fmap (c`elem`) (getHand p gs) =
           penalty 1 (p++" attempted invalid play of "++show c) e gs
