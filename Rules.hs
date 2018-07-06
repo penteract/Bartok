@@ -28,8 +28,8 @@ rq act e gs = onLegalCard (\ card event gs'->
 rlast :: Rule
 rlast = onLegalCard
             (\card e'@(Action p _ m) gs'->
-                if maybe False ((==1).length) (gs'^.hands.at p) && not (said m "last card")
-                    then legalPenalty 1 ("failure to declare \"last card\"") p gs'
+                if maybe False ((==1).length) (gs'^.hands.at p) && not ("last card" `findIn` m)
+                    then legalPenalty 1 "failure to declare \"last card\"" p gs'
                     else gs' )
 
 -- TODO: make it order sensitive (Mao should only be sayable last)
@@ -88,8 +88,9 @@ r7' =  onAction (\(p,a,m) act e gs ->
          let --f b = if b then 1 else 0 (this is fromEnum)
              count7 = readVar "sevens" gs
              veries = concat $ replicate count7 " very"
+             veries' = concat $ replicate (count7-1) " very"
              bidm = ("Have a" ++ veries ++ " nice day")
-             thankm = "Thank you" ++ veries ++ if count7 > 0 then " much" else ""
+             thankm = "Thank you" ++ veries' ++ if count7 > 0 then " much" else ""
              i = fst $ removeAll "(Have a( very)* nice day)|(Thank you( very)*( very much)?)" m
              bePolite :: Maybe String -> Step
              bePolite c = let pens = i - fromEnum (isJust c) in
@@ -109,6 +110,7 @@ r7' =  onAction (\(p,a,m) act e gs ->
                  bePolite (Just thankm) $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
              _ -> bePolite Nothing gs' )
 
+-- turn order when one+ hand(s) [is/are] empty
 -- multiple winners
 gSnap :: Rule'
 gSnap = (
@@ -161,6 +163,5 @@ gSnap' = gameFromRule gSnap
 gameFromRule :: (Rule,ViewRule)->(Game,Viewer)
 gameFromRule = ($ undefined) *** ($ undefined)
 
-
-defaultRules = [rlast,r8,rq,rMao]
+defaultRules = [r7',rlast,r8,rq,rMao]
 defaultRulesNamed = [("r7'",r7'),("rLastCard",rlast),("r8",r8),("rq",rq),("rMao",rMao)]

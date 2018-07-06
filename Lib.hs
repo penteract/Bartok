@@ -89,8 +89,6 @@ play p e c = (\ gs -> if getHand p gs == Just [] then win p gs else gs ) -- chec
     . (cardToPile c)
     . (cardFromHand' p c)
 
-
-
 baseAct :: Game
 baseAct e@(Action p a m) gs
     | (Draw n)<-a

@@ -95,3 +95,7 @@ testSequence (g,state,(e: es)) sh = do
     if sh then putStr$ prGS state' else return ()
     testSequence (g,state',es) sh
 testSequence (_,s,_) _ = return s
+
+
+
+testg = (draw 5 "Angus" . draw 5 "rolf" . draw 5 "Toby" $ newGame ["Angus","rolf","Toby"])
