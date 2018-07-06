@@ -6,13 +6,25 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <style>
     .hand{
-        width: 20%;
+        font-size: 200%;
+        width: 140px;
+        text-align: center;
+    }
+    #self .hand{
+        width: 40%;
+    }
+    .hand p{
+        margin-top: 0;
+        /*margin-bottom: ;*/
     }
     #drawN{
         width:3em;
     }
     #piles{
         padding:4px;
+        transform: scale(2);
+        transform-origin: left;
+        /*position: absolute;*/
     }
     #deck{
         border: 2px;
@@ -27,6 +39,15 @@
         border:1px;
         display: flex;
         flex-flow:row wrap;
+    }
+    .Hearts {
+        color: red
+    }
+    .Diamonds {
+        color: orange
+    }
+    .Clubs {
+        color: brown
     }
     </style>
 <script>
@@ -65,8 +86,8 @@ function joincards(cs){//TODO: debug
 
 function displayHand(h){
     s = "<div class=hand>"
-    s+=h[0]+"<br />"
-    s+=joincards(h[1])
+    s+=h[0]
+    s+="<p>"+joincards(h[1])+"</p>"
     s+="</div>"
     return s
 }
@@ -106,8 +127,8 @@ function sendMove(type,dat){
 
 function showCard(c){
     if (c.tag=="CardBack") return String.fromCodePoint(0x1f0a0)
-    else if (c.tag=="CardFace") return String.fromCodePoint(
-        0x1f0a0 + suitNums[c.contents[1]]*16 + rankNums[c.contents[0]])
+    else if (c.tag=="CardFace") return "<span class="+c.contents[1]+">"+String.fromCodePoint(
+        0x1f0a0 + suitNums[c.contents[1]]*16 + rankNums[c.contents[0]])+"</span>"
     else console.log("unrecognised card")
 }
 
@@ -151,9 +172,9 @@ function getParameterByName(name, url) {
 <div id=others>
 </div>
 <div id=piles>
-    <input min=0 max=56 type="number" id="drawN" value="1" />
     <span id=deck onclick="draw()">
     </span>
+    <input min=0 max=56 type="number" id="drawN" value="1" />
     <span id=pile>
     </span>
 </div>
