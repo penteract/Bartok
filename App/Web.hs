@@ -2,6 +2,7 @@
 
 import System.Environment
 import Data.Text(Text,intercalate,unpack)
+import Data.Maybe
 
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -27,7 +28,7 @@ import ServerInterface
 type GMap = CMap.Map Text (OngoingGame,MVar ())
 
 
-
+html = (hContentType,"text/html")
 initialStoredGame = liftM2 (,) initialGame  (newMVar ())
 
 cannonisepath :: Middleware
@@ -47,17 +48,23 @@ onGet :: GMap -> Application
 onGet games req resp = do
     --print (pathInfo req)
     case pathInfo req of
-        [] -> homepage games req resp
+        [] -> load "home.html" req resp
         [gname] -> playPage gname games req resp
         -- [gname] -> resp$redirect308 (concat
         --     ["/",unpack gname,"/",B.unpack (rawQueryString req)])
+        ["static",x] -> load x req resp
         [gname,"newRule"] -> newRulePage gname games req resp
         _ -> resp $ err404
 
+load :: Text -> Application
+load p req resp = resp$ responseFile ok200 [(hContentType,getContentType p)] (unpack p) Nothing
+
+getContentType :: Text ->  B.ByteString
+getContentType p = fromMaybe "text/html" (lookup p [("dejavupc","font/woff")])
 --GET handlers
 
-homepage :: GMap -> Application
-homepage games req resp = resp$ responseFile ok200 [] "home.html" Nothing
+-- homepage :: GMap -> Application
+-- homepage games req resp = resp$ responseFile ok200 [html] "home.html" Nothing
 
 playPage :: Text -> GMap -> Application
 playPage gameName games req resp = do
