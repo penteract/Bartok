@@ -29,7 +29,7 @@ rlast :: Rule
 rlast = onLegalCard
             (\card e'@(Action p _ m) gs'->
                 if maybe False ((==1).length) (gs'^.hands.at p) && not ("last card" `findIn` m)
-                    then legalPenalty 1 "failure to declare \"last card\"" p gs'
+                    then penalty 1 "failure to declare \"last card\"" p gs'
                     else gs' )
       . banPhrase 1 "False \"last card\" pronouncement" (\(p,a,m) gs -> maybe False ((/=1).length) (gs^.hands.at p) && ("last card" `findIn` m))
 
@@ -37,24 +37,24 @@ rlast = onLegalCard
 -- rMao :: Rule
 -- rMao act e gs = (onAction (\(p,a,m) act' e' gs'->
 --                     if said m "mao" && (act' e' gs')^.winner /= Just p
---                         then penalty 3 ("Lying, cheating, stealing, deceiving, taking the name of the Chairman in vain.") e' gs'
+--                         then illegal 3 ("Lying, cheating, stealing, deceiving, taking the name of the Chairman in vain.") e' gs'
 --                         else act' e' gs' )
 --               . onLegalCard
 --                     (\card e'@(Action p _ m) gs'->
 --                         if gs'^.winner == Just p && not (said m "mao")
---                             then penalty 1 ("Failure to declare Mao!") e gs
+--                             then illegal 1 ("Failure to declare Mao!") e gs
 --                             else gs' )) act e gs
 
 rMao :: Rule
 rMao  = onAction (\(p,a,m) act e gs->
             let next = act e gs
-                won = next^.winner == (Just p)
-                saidmao = said m "mao" in
+                won = next^.winner == Just p && "mao" `findIn` last (split m)
+                saidmao = "mao" `findIn` m in
             case (saidmao, won) of
-                (True,False) -> legalPenalty 4 "Lying, cheating, deceiving, taking the name of the Chairman in vain."
+                (True,False) -> penalty 4 "Lying, cheating, deceiving, taking the name of the Chairman in vain."
                     p next
                 (False,True) -> act e
-                    (legalPenalty 1 "Failure to declare Mao!" p gs)
+                    (penalty 1 "Failure to declare Mao!" p gs)
                 _ -> next)
 
 (^.^) = liftA2 (.)
@@ -77,7 +77,7 @@ rMao''  = onAction (\(p,a,m)->
                        ^^.^^
                    when' not
                     (ifSaid "mao"
-                        (penalty 3 ("Lying, cheating, stealing, deceiving, taking the name of the Chairman in vain.")))
+                        (illegal 3 ("Lying, cheating, stealing, deceiving, taking the name of the Chairman in vain.")))
                     )
                   )
                 )
@@ -95,7 +95,7 @@ r7' =  onAction (\(p,a,m) act e gs ->
              i = fst $ removeAll "(Have a( very)* nice day)|(Thank you( very)*( very much)?)" m
              bePolite :: Maybe String -> Step
              bePolite c = let pens = i - fromEnum (isJust c) in
-                            (if pens > 0 then legalPenalty pens "Excessive politeness" p else doNothing)
+                            (if pens > 0 then penalty pens "Excessive politeness" p else doNothing)
                               . (case c of
                                   Just s -> mustSay s e
                                   Nothing -> doNothing)
@@ -104,11 +104,11 @@ r7' =  onAction (\(p,a,m) act e gs ->
              (Draw n) | count7 > 0 , isTurn p gs ->
                  if n == 2*count7
                    then bePolite (Just thankm) . setVar "sevens" 0 $ gs'
-                   else bePolite (Just thankm) $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
+                   else bePolite (Just thankm) $ illegal 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
              (Play c) | gs'^.lastMoveLegal, rank c == Seven ->
                  bePolite (Just bidm) . modifyVar "sevens" (+1) $ gs'
              (Play c) | gs'^.lastMoveLegal, count7 > 0 -> -- rank c /= Seven
-                 bePolite (Just thankm) $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
+                 bePolite (Just thankm) $ illegal 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
              _ -> bePolite Nothing gs' )
 
 defaultRules = [r7',rlast,r8,rq,rMao]

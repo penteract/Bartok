@@ -4,7 +4,7 @@ module DataTypes where
 
 import Control.Lens ((^.),(%~),makeLenses, (%%~),(&))
 import Control.Monad (ap,liftM2)
-import Control.Monad.Trans.State (StateT(StateT),runStateT)
+import Control.Monad.Trans.State (StateT(StateT),evalStateT,runStateT)
 import Data.Char (toLower,isSpace)
 import Data.List (isPrefixOf,stripPrefix)
 import qualified Data.List.NonEmpty as NE
@@ -174,6 +174,8 @@ type Parser = StateT String Maybe
 a <|> b = StateT (\s -> case runStateT a s of
     Just (x,s') -> Just (x,s')
     Nothing -> runStateT b s)--note that state is saved - Parsec does not do this for efficiency
+runParser :: Parser a -> String -> Maybe a
+runParser = evalStateT
 
 
 parseRank :: Parser Rank

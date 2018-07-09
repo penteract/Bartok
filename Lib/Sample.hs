@@ -9,7 +9,7 @@ import Views
 import Control.Lens
 import qualified Data.List.NonEmpty as NE
 import Control.Monad
-import Control.Arrow (second)
+import Control.Arrow (first,second)
 import Data.Map.Lazy as Map (insertWith,toList,keys,lookup,findWithDefault)
 import Data.Maybe (fromJust,isJust)
 
@@ -88,43 +88,38 @@ r7' =  onAction (\(p,a,m) act e gs ->
                                  | b2 = ("Thank you"++veriesmuch)
                                  | otherwise = ""
                              reqSpeak = saying /= "" in
-                           if pens > 0 then legalPenalty pens "Excessive politeness" p else doNothing
+                           if pens > 0 then penalty pens "Excessive politeness" p else doNothing
                            . if reqSpeak then mustSay saying e else doNothing
             gs' = act e gs in
         case a of
             (Draw n) | count7 > 0 , isTurn p gs ->
                 if n == 2*count7
                   then bePolite 2 . setVar "sevens" 0 $ gs'
-                  else bePolite 2 $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
+                  else bePolite 2 $ illegal 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
             (Play c) | gs'^.lastMoveLegal, rank c == Seven ->
                 bePolite 1 . modifyVar "sevens" (+1) $ gs'
             (Play c) | gs'^.lastMoveLegal, count7 > 0 -> -- rank c /= Seven
-                bePolite 2 $ penalty 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
+                bePolite 2 $ illegal 1 ("Failure to draw "++show (2*count7)++" cards.") e gs
             _ -> bePolite 0 gs' )
 
 rC = onPlay (\ _ act e@(Action p (Play c) m) gs->
         let gs' = act e gs in
         if rank c == Knight
-          then case removeIn' "(Clubs)|(Diamonds)|(Hearts)|(Spades)" m of
-                   (Just s,m') -> let suit
-                                       | "clubs" `findIn` s = Clubs
-                                       | "diamonds" `findIn` s = Diamonds
-                                       | "hearts" `findIn` s = Hearts
-                                       | "spades" `findIn` s = Spades
-                                       | otherwise = error ("unknown suit "++s) in -- lol what happened
-                              setVar "newSuit" (fromEnum suit + 1) $ act (Action p (Play c) m') gs
-                   (Nothing,_) -> if gs'^.lastMoveLegal then penalty 1 "Failure to specify new suit" e gs else gs'
+          then case removeIn' "(Clubs)|(Diamonds)|(Hearts)|(Spades)" m & first (>>= runParser parseSuit) of
+                   (Just s,m') -> setVar "newSuit" (fromEnum s + 1) $ act (Action p (Play c) m') gs
+                   (Nothing,_) -> if gs'^.lastMoveLegal then illegal 1 "Failure to specify new suit" e gs else gs'
           else gs') .
       onPlay (\ _ act e@(Action p (Play c) m) gs->
          let gs' = act e gs
              i = readVar "newSuit" gs'
              ns = toEnum $ i - 1
-             alt = (act e (gs & pile.ix 0._2 .~ ns))
-             restore = (alt & pile.ix 1._2 .~ fromJust (gs ^? pile.ix 0._2))
-             restore' = (alt & pile.ix 0._2 .~ fromJust (gs ^? pile.ix 0._2)) in
-         if i > 0 && suit c == ns && not (gs'^.lastMoveLegal) && alt^.lastMoveLegal && isJust (alt ^? pile . ix 1)
+             altgs = gs & pile.ix 0._2 .~ ns
+             altgs' = act e altgs
+             restore = altgs' & pile.ix 1 .~ fromJust (gs ^? pile.ix 0)
+             restore' = altgs' & pile.ix 0 .~ fromJust (gs ^? pile.ix 0) in
+         if i > 0 && altgs'^.lastMoveLegal && altgs ^? pile . ix 0 == altgs' ^? pile . ix 1
              then setVar "newSuit" 0 restore
-         else if i > 0 && suit c /= ns && (gs'^.lastMoveLegal) && not (alt^.lastMoveLegal)
+         else if i > 0 && not (altgs'^.lastMoveLegal) && altgs ^? pile . ix 0 == altgs' ^? pile . ix 0
              then restore'
          else gs')
 

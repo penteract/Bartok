@@ -31,8 +31,8 @@ if'' b a = if' b a id
 
 --TODO(angus): rename these
 
-penalty ::Int -> String -> Game
-penalty n reason e@(Action p a m) =
+illegal ::Int -> String -> Game
+illegal n reason e@(Action p a m) =
     draw n p .
     broadcast ("{} recieves penalty {}: {}"%p%show n%reason) .
     sayAct e .
@@ -43,10 +43,13 @@ penalty n reason e@(Action p a m) =
 
 
 --a penalty which does not end the turn
-legalPenalty ::Int -> String -> PlayerIndex -> Step
-legalPenalty n reason p =
-    draw n p .
-    broadcast ("{} recieves penalty {}: {}"%p%show n%reason)
+penalty ::Int -> String -> PlayerIndex -> Step
+penalty n reason p =
+    if n > 0 then
+        (winner %~ (\mw -> if mw == Just p then Nothing else mw))
+        . draw n p
+        . broadcast ("{} recieves penalty {}: {}"%p%show n%reason)
+    else doNothing
 
 broadcastp :: PlayerIndex -> String -> Step
 broadcastp p m = if'' (not $ null m) (broadcast (p++": "++m))
@@ -90,12 +93,12 @@ baseAct e@(Action p a m) gs
           . if'' (inTurn && n > 0) (nextTurn . (lastMoveLegal .~ True))
           ) gs
     | (Play c)<-a, Just True /= fmap (c`elem`) (getHand p gs) =
-          penalty 1 (p++" attempted invalid play of "++show c) e gs
+          illegal 1 (p++" attempted invalid play of "++show c) e gs
     | (Play c)<-a =
          (if not inTurn
-              then (penalty 1 "Playing out of turn" e)
+              then (illegal 1 "Playing out of turn" e)
               else if not (suit c == suit (NE.head (gs^.pile)) || rank c == rank (NE.head (gs^.pile)))
-                                          then penalty 1 "Bad card" e
+                                          then illegal 1 "Bad card" e
                                           else play p e c)
                      gs
     where inTurn = isTurn p gs
@@ -161,4 +164,5 @@ nextTurn = players %~ (\(x:xs)->xs++[x])
 
 -- | incomplete
 win :: PlayerIndex -> Step
-win p = broadcast (p++" wins the game!") . (winner .~ Just p)
+win p = -- broadcast (p++" wins the game!") .
+        (winner .~ Just p)
