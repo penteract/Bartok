@@ -21,7 +21,7 @@ import qualified Data.Set as Set (empty,fromList,insert,notMember)
 import Data.Set (Set)
 
 import DataTypes hiding (seats)
-import Lib hiding (when)
+import BaseGame hiding (when)
 import Views
 import Serialize
 import Rules

@@ -2,7 +2,7 @@
 
 module DataTypes where
 
-import Control.Lens ((^.),(%~),makeLenses)
+import Control.Lens ((^.),(%~),makeLenses, (%%~),(&))
 import Control.Monad (ap,liftM2)
 import Control.Monad.Trans.State (StateT(StateT),runStateT)
 import Data.Char (toLower,isSpace)
@@ -15,6 +15,8 @@ import Data.Maybe (listToMaybe)
 import System.Random (StdGen,mkStdGen,split)
 import System.Random.Shuffle (shuffle')
 
+if' :: Bool -> a -> a -> a
+if' b a c = if b then a else c
 
 data Suit = Clubs | Diamonds | Hearts | Spades deriving (Show,Eq,Enum,Bounded,Ord)
 data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Knight | Queen | King deriving (Show,Eq,Bounded,Ord)
@@ -198,6 +200,10 @@ parseCard = do
   s <- parseSuit
   return (r,s)
 
+eventPlayer :: Event -> Maybe PlayerIndex
+eventPlayer (Action p _ _) = Just p
+eventPlayer (PlayerJoin p) = Just p
+eventPlayer Timeout = Nothing
 
 -- | variable processing
 
@@ -209,13 +215,14 @@ modifyVar :: String -> (Int -> Int) -> Step
 modifyVar s f gs = setVar s (f $ readVar s gs) gs
 
 shuffleDeck :: Step
-shuffleDeck = (deck /\ randg) %~ ap ((`ap` snd) . ((,) .) . (. fst) . liftM2 shuffle' fst (length . fst)) (split . snd)
+shuffleDeck = uncurry ((deck%~).flip (ap shuffle' length)) . (randg %%~ split)
+-- shuffleDeck = (deck /\ randg) %~ ap ((`ap` snd) . ((,) .) . (. fst) . liftM2 shuffle' fst (length . fst)) (split . snd)
 -- shuffleDeck = (deck /\ randg) %~ (\(d,r) -> let (r1,r2) = split r in (shuffle' d (length d) r1,r2))
 
 newGame :: [String] -> GameState
 newGame pls =  ((pile /\ deck) %~ (\(_,y:ys) -> (y:|[],ys))) . shuffleDeck $ -- UNSAFE
            GS { _deck = [ minBound.. ]
-              , _pile = undefined -- put a card so it's happy for now
+              , _pile = undefined
               , _messages = []
               , _lastMoveLegal = True
               , _randg = mkStdGen 0

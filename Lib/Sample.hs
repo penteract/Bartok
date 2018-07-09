@@ -2,14 +2,15 @@
 
 module Sample where
 
-import Lib
+import BaseGame
+import RuleHelpers
 import DataTypes
 import Views
 import Control.Lens
 import qualified Data.List.NonEmpty as NE
 import Control.Monad
 import Control.Arrow (second)
-import Data.Map.Lazy as Map (insertWith,toList,keys)
+import Data.Map.Lazy as Map (insertWith,toList,keys,lookup,findWithDefault)
 import Data.Maybe (fromJust,isJust)
 
 --all definitions work*
@@ -131,6 +132,83 @@ rC = onPlay (\ _ act e@(Action p (Play c) m) gs->
                 --     if (rank card == Seven)
                 --       then modifyVar "sevens" (+1) . mustSay "have a nice day" e
                 --       else doNothing)) act e gs
+
+-- turn order when one+ hand(s) [is/are] empty
+-- multiple winners
+gSnap :: Rule'
+gSnap = (
+        onAction (\(p,a,m) act e gs -> if readVar "snapdeal" gs == 0
+           then broadcast "Snap! dealing"
+              . ((deck /\ hands) %~ (\(d,hs) ->
+                     ([], foldr (\(c,p)-> Map.insertWith (++) p [c]) hs
+                                (zip d (cycle (Map.keys hs)))) ) )
+              . setVar "snapdeal" 1 $ gs
+           else act e gs) .
+         onAction(\(p,a,m) _ e gs ->
+            let pickUpDeck p s = (\gs' -> case filter (null.snd) (Map.toList $ gs'^.hands) of
+                                     [] -> gs'
+                                     (p':_) -> win (fst p') gs')
+                                 . setVar "snapped" 0
+                                 . (join $ ap (if'.not.null.(^.deck))
+                                              (broadcast (p++" picks up the deck for "++s)
+                                              . (players %~ (uncurry (flip (++)) . span (/=p)))
+                                              . ((deck /\ hands.at p._Just) %~ (\(d,h)-> ([],h++d)))))
+                nextTurn' gs = gs & (players %~ (uncurry (++) . span (\p -> Just [] /= Map.lookup p (gs^.hands)) . (\(p:ps)->ps++[p]))) in
+            case a of
+                (Draw n) ->
+                    if not (null (gs^.deck)) && gs^?deck.ix 0._1 == gs^?deck.ix 1._1
+                        then if readVar "snapped" gs == length (gs^.players) - 1
+                            then setVar "snapped" 0
+                                 . pickUpDeck p "snapping last"
+                                 $ gs
+                            else broadcast (p++" snapped!") . modifyVar "snapped" (+1) $ gs
+                        else pickUpDeck p "snapping badly" gs
+                (Play c) | readVar "snapped" gs > 0 -> pickUpDeck p "attempting to play with a snap in session" gs
+                (Play c) ->
+                    if isTurn p gs
+                        then nextTurn' . broadcastp p m . broadcast (p++" plays the "++[uniCard c]) . (deck %~ (c:)) . cardFromHand' p c $ gs
+                        else pickUpDeck p "playing out of turn" gs )
+         ,
+         (\v p gs -> GV {
+             _handsV = uncurry (flip (++)) . span ((/=p).fst) -- put p to the front
+                     . map (second (\h -> case h of [] -> []; _ -> [CardBack])) -- turn Cards into CardViews
+                     . map (ap (,) (flip (Map.findWithDefault []) (gs^.hands))) -- tuple each player with their hand
+                     $ (gs^.seats) ,
+             _pileV = [CardBack] ,
+             _deckV = case gs^.deck of
+                          [] -> []
+                          (c:cs) -> CardFace c : map (const CardBack) cs ,
+             _messagesV = gs^.messages })
+         )
+
+nextTurnDo :: String -> (Game -> Event -> GameState -> Bool) -> Rule -> Rule
+nextTurnDo s f r = (\act e gs -> (if f act e gs then setVar s 1 else id) (act e gs))
+                   . (\act e gs -> if readVar s gs == 1 && gs^?players.ix 0 == eventPlayer e
+                                     then setVar s 0 $ r act e gs
+                                     else act e gs)
+
+nextTurnDoUntil :: String -> (Game -> Event -> GameState -> Bool) -> (Game -> Event -> GameState -> (GameState,Bool)) -> Rule
+nextTurnDoUntil s f r = (\act e gs -> (if f act e gs then setVar s 1 else id) (act e gs))
+                       . (\act e gs -> if readVar s gs == 1 && gs^?players.ix 0 == eventPlayer e
+                                       then case r act e gs of
+                                           (g,True) -> setVar s 0 g
+                                           (g,False) -> g
+                                       else act e gs)
+
+-- let's try writing "upon a 6, any suit is valid"
+r6 = nextTurnDo "r6"
+                (\ _ e _ -> case e of
+                              (Action _ (Play c) _) | rank c == Six -> True
+                              _ -> False) $
+                onPlay
+                    (\c act e gs ->
+                        let gs' = act e gs
+                            altgs = gs & pile . ix 0 . _2 .~ suit c
+                            altgs' = act e altgs
+                            restoregs' = altgs' & pile . ix 1 . _2 .~ fromJust (gs^?pile.ix 0._2) in
+                        if Just (suit c) /= gs ^? pile . ix 0 . _2 && not (gs'^.lastMoveLegal) && altgs' ^. lastMoveLegal && (altgs^?pile.ix 0) == (altgs'^?pile.ix 1)
+                        then restoregs'
+                        else gs')
 
 run7 :: Int -> Rule
 run7 = undefined

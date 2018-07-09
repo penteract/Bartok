@@ -7,7 +7,6 @@ import qualified Data.Map as Map (findWithDefault)
 import Data.List.NonEmpty (NonEmpty((:|)))
 
 import DataTypes hiding (_hands,_pile,_deck,_messages)
-import Lib
 
 makeViewTransformer :: (GameView -> GameView) -> ViewRule
 makeViewTransformer = (.) . (.)
