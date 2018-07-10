@@ -1,3 +1,4 @@
+{-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE DeriveGeneric, StandaloneDeriving #-}
 
 module Serialize(serialize, unserialize, getName, ActionReq(..),Token)
@@ -44,15 +45,15 @@ serialize = encode . toJSON
 
 type Token = String
 
-data ActionReq = ReqPlay PlayerIndex Int String
-               | ReqDraw PlayerIndex Int String
+data ActionReq = ReqPlay PlayerIndex Token Int String
+               | ReqDraw PlayerIndex Token Int String
                | ReqJoin Name Token deriving (Show,Eq,Generic)
 instance ToJSON ActionReq where toEncoding = genericToEncoding defaultOptions
 instance FromJSON ActionReq
 
 getName :: ActionReq -> PlayerIndex
-getName (ReqPlay p _ _) = p
-getName (ReqDraw p _ _) = p
+getName (ReqPlay p _ _ _) = p
+getName (ReqDraw p _ _ _) = p
 getName (ReqJoin p _) = p
 
 unserialize :: L.ByteString -> Maybe ActionReq

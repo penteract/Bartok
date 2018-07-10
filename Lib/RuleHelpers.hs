@@ -1,3 +1,5 @@
+{-# LANGUAGE Trustworthy #-}
+
 module RuleHelpers
   ( module RuleHelpers
   , BaseGame.nextTurn , BaseGame.doNothing , BaseGame.illegal

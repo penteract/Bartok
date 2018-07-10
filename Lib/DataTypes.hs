@@ -1,8 +1,9 @@
-{-# LANGUAGE TemplateHaskell, ScopedTypeVariables #-}
+{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module DataTypes where
 
-import Control.Lens ((^.),(%~),makeLenses, (%%~),(&))
+import Control.Lens ((^.),(%~),makeLenses, (%%~),(&),Lens'(..),Lens)
 import Control.Monad (ap,liftM2)
 import Control.Monad.Trans.State (StateT(StateT),evalStateT,runStateT)
 import Data.Char (toLower,isSpace)
@@ -74,7 +75,27 @@ data GameState = GS {
 
        _varMap :: Map String Int
      } deriving Show
-makeLenses ''GameState
+--makeLenses ''GameState
+players :: Lens' GameState [Name]
+players f gs@GS{_players = p} = (\p' -> gs{_players = p'}) <$> f p
+seats :: Lens' GameState [Name]
+seats f gs@GS{_seats = s} = (\s' -> gs{_seats = s'}) <$> f s
+hands :: Lens' GameState (Map Name Hand)
+hands f gs@GS{_hands = h} = (\h' -> gs{_hands = h'}) <$> f h
+deck :: Lens' GameState [Card]
+deck f gs@GS{_deck = d} = (\d' -> gs{_deck = d'}) <$> f d
+pile :: Lens' GameState (NonEmpty Card)
+pile f gs@GS{_pile = p} = (\p' -> gs{_pile = p'}) <$> f p
+messages :: Lens' GameState [String]
+messages f gs@GS{_messages = m} = (\m' -> gs{_messages = m'}) <$> f m
+lastMoveLegal :: Lens' GameState Bool
+lastMoveLegal f gs@GS{_lastMoveLegal = b} = (\b' -> gs{_lastMoveLegal = b'}) <$> f b
+randg :: Lens' GameState StdGen
+randg f gs@GS{_randg = r} = (\r' -> gs{_randg = r'}) <$> f r
+winner :: Lens' GameState (Maybe Name)
+winner f gs@GS{_winner = w} = (\w' -> gs{_winner = w'}) <$> f w
+varMap :: Lens' GameState (Map String Int)
+varMap f gs@GS{_varMap = v} = (\v' -> gs{_varMap = v'}) <$> f v
 
 -- | A card as viewed - the type of cards sent to the client
 data CardView = CardFace Card | CardBack deriving (Show)
@@ -86,7 +107,15 @@ data GameView = GV {
     _deckV :: [CardView] ,
     _messagesV :: [String]
 } deriving Show
-makeLenses ''GameView
+-- makeLenses ''GameView
+handsV :: Lens' GameView [(Name,[CardView])]
+handsV f gv@GV{_handsV = h} = (\h' -> gv{_handsV = h'}) <$> f h
+deckV :: Lens' GameView  [CardView]
+deckV f gv@GV{_deckV = d} = (\d' -> gv{_deckV = d'}) <$> f d
+pileV :: Lens' GameView  [CardView]
+pileV f gv@GV{_pileV = p} = (\p' -> gv{_pileV = p'}) <$> f p
+messagesV :: Lens' GameView  [String]
+messagesV f gv@GV{_messagesV = m} = (\m' -> gv{_messagesV = m'}) <$> f m
 
 -- | Functions to tell a player what they should see
 type Viewer = PlayerIndex -> GameState -> GameView

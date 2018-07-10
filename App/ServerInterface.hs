@@ -1,4 +1,5 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE TemplateHaskell, FlexibleContexts #-}
 -- | Sanitisation of user input and check that rules behave well.
 module ServerInterface(
    handle, view,
@@ -54,16 +55,19 @@ readError s = runStateT s Nothing
 -- data Event = Action PlayerIndex Action String | Timeout | PlayerJoin Name deriving (Show,Eq)
 handle :: ActionReq -> OngoingGame -> MError GameState
 handle ar og =
+   let nameCheck p = unless (nameExists p og)
+          (throwError $ "Player "++p++" is not a member of this game.")
+       tokenCheck p t = unless (tokenMatches p t og)
+          (throwError $ "Token given does not match that of player "++p++".")
+       checks p t = nameCheck p >> tokenCheck p t in
    case ar of
-      ReqPlay p i m -> do
-        unless (nameExists p og)
-            (throwError $ "Player "++p++" is not a member of this game.")
+      ReqPlay p t i m -> do
+        checks p t
         case og^?gameState.hands.at p._Just.ix i of
             Just c -> carryOut (Action p (Play c) m) og
             Nothing -> throwError $ "Player "++p++" does not have "++show (i+1)++" card(s) in hand."
-      ReqDraw p n m -> do
-        unless (nameExists p og)
-                (throwError $ "Player "++p++" is not a member of this game.")
+      ReqDraw p t n m -> do
+        checks p t
         carryOut (Action p (Draw n) m) og
       ReqJoin n tok -> if nameExists n og then return (og^.gameState) -- (throwError $ "Player "++n++" is already a member of this game.")
                        else put (Just $ og & seats %~ ((n,tok):)) >> carryOut (PlayerJoin n) og
@@ -85,6 +89,9 @@ timeout = carryOut Timeout
 
 nameExists :: Name -> OngoingGame -> Bool
 nameExists n og = n `elem` map fst (og^.seats)
+
+tokenMatches :: Name -> Token -> OngoingGame -> Bool
+tokenMatches n t og = (n,t) `elem` og^.seats
 
 allUniques :: (Ord a) => [a] -> Bool
 allUniques l = allUniques' l Set.empty
