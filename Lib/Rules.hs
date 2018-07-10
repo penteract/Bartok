@@ -29,10 +29,10 @@ rq = onPlay (\ c act e gs->
 rlast :: Rule
 rlast = onLegalCard
             (\card e'@(Action p _ m) gs'->
-                if maybe False ((==1).length) (gs'^.hands.at p) && not ("last card" `findIn` m)
+                if maybe False ((==1).length) (gs'^.hands.at p) && not ("last card" `findInMs` m)
                     then penalty 1 "failure to declare \"last card\"" p gs'
                     else gs' )
-      . banPhrase 1 "False \"last card\" pronouncement" (\(p,a,m) gs -> maybe False ((/=1).length) (gs^.hands.at p) && ("last card" `findIn` m))
+      . banPhrase 1 "False \"last card\" pronouncement" (\(p,a,m) gs -> maybe False ((/=1).length) (gs^.hands.at p) && ("last card" `findInMs` m))
 
 -- TODO: make it order sensitive (Mao should only be sayable last)
 -- rMao :: Rule
@@ -49,8 +49,8 @@ rlast = onLegalCard
 rMao :: Rule
 rMao  = onAction (\(p,a,m) act e gs->
             let next = act e gs
-                won = next^.winner == Just p && "mao" `findIn` last (split m)
-                saidmao = "mao" `findIn` m in
+                won = next^.winner == Just p && "mao" `findInMs` last (split m)
+                saidmao = "mao" `findInMs` m in
             case (saidmao, won) of
                 (True,False) -> penalty 4 "Lying, cheating, deceiving, taking the name of the Chairman in vain."
                     p next
@@ -63,7 +63,7 @@ rMao  = onAction (\(p,a,m) act e gs->
 (^^.^^) = liftA2 (^.^)
 
 ifSaid :: String -> Game -> Game
-ifSaid s g e@(Action p a m) = if s `findIn` m then  g e
+ifSaid s g e@(Action p a m) = if s `findInMs` m then  g e
     else doNothing
 ifSaid s g _ = doNothing
 
@@ -93,7 +93,7 @@ r7' =  onAction (\(p,a,m) act e gs ->
              veries' = concat $ replicate (count7-1) " very"
              bidm = ("Have a" ++ veries ++ " nice day")
              thankm = "Thank you" ++ veries' ++ if count7 > 0 then " much" else ""
-             i = fst $ removeAll "(Have a( very)* nice day)|(Thank you( very)*( very much)?)" m
+             i = fst $ removeAllN "(Have a( very)* nice day)|(Thank you( very)*( very much)?)" m
              bePolite :: Maybe String -> Step
              bePolite c = let pens = i - fromEnum (isJust c) in
                             (if pens > 0 then penalty pens "Excessive politeness" p else doNothing)

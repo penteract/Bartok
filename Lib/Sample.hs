@@ -1,4 +1,4 @@
-{-# LANGUAGE Safe #-}
+{-# LANGUAGE Trustworthy #-}
 
 module Sample where
 
@@ -10,8 +10,10 @@ import Control.Lens
 import qualified Data.List.NonEmpty as NE
 import Control.Monad
 import Control.Arrow (first,second)
-import Data.Map.Lazy as Map (insertWith,toList,keys,lookup,findWithDefault)
-import Data.Maybe (fromJust,isJust)
+import qualified Data.Map.Lazy as Map (lookup,map,insertWith,toList,keys,lookup,findWithDefault,foldrWithKey)
+import Data.Maybe (fromJust,isJust,isNothing)
+import Text.Regex(matchRegex,mkRegexWithOpts)
+import Data.List ((\\))
 
 --all definitions work*
 r8 :: Rule
@@ -77,8 +79,8 @@ r7' =  onAction (\(p,a,m) act e gs ->
                             ++if count7 > 0 then " much" else ""
             (b',m') = removeIn ("Have a"++veries++" nice day") m
             (b'',m'') = removeIn ("Thank you"++veriesmuch) m
-            (i',_) = removeAll "Have a( very)* nice day" m
-            (i'',_) = removeAll "Thank you( very)*( much)?" m
+            (i',_) = removeAllN "Have a( very)* nice day" m
+            (i'',_) = removeAllN "Thank you( very)*( much)?" m
             bePolite i = let b1 = i == 1 -- should bid good day
                              b2 = i == 2 -- should thank
                              f b = if b then 1 else 0 -- eg. bid pens = i' - f b1
@@ -165,10 +167,7 @@ gSnap = (
                         else pickUpDeck p "playing out of turn" gs )
          ,
          (\v p gs -> GV {
-             _handsV = uncurry (flip (++)) . span ((/=p).fst) -- put p to the front
-                     . map (second (\h -> case h of [] -> []; _ -> [CardBack])) -- turn Cards into CardViews
-                     . map (ap (,) (flip (Map.findWithDefault []) (gs^.hands))) -- tuple each player with their hand
-                     $ (gs^.seats) ,
+             _handsV = Map.map (map (const CardBack)) (gs^.hands) ,
              _pileV = [CardBack] ,
              _deckV = case gs^.deck of
                           [] -> []
@@ -204,6 +203,33 @@ r6 = nextTurnDo "r6"
                         if Just (suit c) /= gs ^? pile . ix 0 . _2 && not (gs'^.lastMoveLegal) && altgs' ^. lastMoveLegal && (altgs^?pile.ix 0) == (altgs'^?pile.ix 1)
                         then restoregs'
                         else gs')
+
+rPM :: Rule
+rPM = onAction (\_ act e@(Action p a m) gs ->
+                   let (pms,m') = removeAll ("@"++tail(foldr (\a b->"("++a++")|"++b) "" (gs^.players))++":") m in
+                   ((messages %~ flip (foldr ((:) . (p ++))) pms) $ act (Action p a m') gs))
+rPMV :: ViewRule
+rPMV v p gs = let otherPlayersRegex = (tail(foldr (\a b->"("++a++")|"++b) "" (filter (/=p) (gs^.players))))
+                  allPlayersRegex = otherPlayersRegex++"|("++p++")"++"|()"
+                  pmRegex = "^[[:space:]]*"++allPlayersRegex++"@"++otherPlayersRegex++":"
+                  pmRegex' = mkRegexWithOpts pmRegex True False in
+                  (v p gs) & messagesV %~ filter (isNothing . matchRegex pmRegex')
+
+rBlind :: Rule
+rBlind act e gs = (messages /\ hands %~
+                      (\(ms,hs)-> let newCards p = liftM2 (\\) (hs^.at p) (gs^.hands.at p) in
+                          (Map.foldrWithKey (\p h ms'-> case newCards p of
+                                                            Just l@(_:_) -> ("@"++p++": you acquired cards "++map uniCard l):ms'
+                                                            _ -> ms' )
+                                            ms
+                                            hs
+                          ,hs)))
+                  $ act e gs
+rBlindV :: ViewRule
+rBlindV v p gs = v p gs & handsV.at p %~ fmap (map (const CardBack))
+
+rBlind' :: Rule'
+rBlind' = (rPM.rBlind,rPMV.rBlindV)
 
 run7 :: Int -> Rule
 run7 = undefined

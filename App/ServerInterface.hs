@@ -16,7 +16,7 @@ import Control.Monad.Trans.State (StateT,gets,put,runStateT,modify)
 
 import Control.Arrow((***))
 import Data.List (intercalate,nub,permutations)
-import qualified Data.Map as Map (member)
+import qualified Data.Map as Map (keysSet,member)
 import Data.Maybe (isJust)
 import qualified Data.Set as Set (empty,fromList,insert,notMember)
 import Data.Set (Set)
@@ -43,7 +43,7 @@ makeLenses ''OngoingGame
 instance Show OngoingGame where
   show og = show (og ^. gameState) ++ '\n': intercalate ", " (map fst (og^.rules)) ++ '\n': intercalate ", " (map fst (og^.viewRules))
 
---TODO(angus): add comments
+--TODO(angus): make sure rules can't stop players being added
 
 initialGame :: IO OngoingGame
 initialGame = return$ OG (newGame []) (defaultRulesNamed++[("base",id)]) [("base",id)] []
@@ -70,7 +70,8 @@ handle ar og =
         checks p t
         carryOut (Action p (Draw n) m) og
       ReqJoin n tok -> if nameExists n og then return (og^.gameState) -- (throwError $ "Player "++n++" is already a member of this game.")
-                       else put (Just $ og & seats %~ ((n,tok):)) >> carryOut (PlayerJoin n) og
+                       else let neighbs = case map fst (og^.seats) of l@(x:xs) -> Just (x,last l); _ -> Nothing in
+                            put (Just $ og & seats %~ ((n,tok):)) >> carryOut (PlayerJoin n neighbs) og
   -- return $ foldr ($) baseAct (og^.rules) e (og^.gameState)
 
 -- Remove rules left to admin
@@ -107,7 +108,7 @@ checkGSokay og =let gs = og ^. gameState in
 
 --only restriction on GameViews is that they can't misrepresent the # of players
 checkGVokay :: GameView -> OngoingGame -> Bool
-checkGVokay gv og = Set.fromList (map fst (gv^.handsV)) == Set.fromList (map fst $ og^.seats)
+checkGVokay gv og = Map.keysSet (gv^.handsV) == Set.fromList (map fst $ og^.seats)
 
 view :: PlayerIndex -> OngoingGame -> MError GameView
 view p og = do

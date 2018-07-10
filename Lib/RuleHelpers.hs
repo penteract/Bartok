@@ -58,12 +58,11 @@ split = splitRegex (mkRegex ";")
 reconstitute :: [String] -> String
 reconstitute = intercalate ";"
 
-
 -- tells if a string is one semi-colon delimited segment of another
 -- ignore (segment-)leading/ending whitespace, case-insensitive
-findIn :: String -> String -> Bool
---findIn = liftM2 flip (((.).elem).) ((.endBy ";").map) (CI.mk.strip.pack)
-findIn target msg = any  (isJust. matchRegex (regexProcess target)) (split msg)
+findInMs :: String -> String -> Bool
+--findInMs = liftM2 flip (((.).elem).) ((.endBy ";").map) (CI.mk.strip.pack)
+findInMs target msg = any  (isJust. matchRegex (regexProcess target)) (split msg)
   --process target `elem` map process (endBy ";" msg)
 
 -- remove up to one semi-colon delimited segment equal to target string
@@ -80,16 +79,17 @@ removeIn'' r ss [] = (Nothing,reverse ss,[])
 removeIn'' r ss (s':ss') = if isJust $ matchRegexAll r s' then (fmap (\(_,b,_,_)->b) (matchRegexAll r s'),reverse ss,ss') else removeIn'' r (s':ss) ss'
 -- UNSAFE HEAD AAAAH
 
-removeAll :: String -> String -> (Int,String)
-removeAll target msgs = second reconstitute $
-                           removeAll' (regexProcess target) (0,[]) (split msgs)
-removeAll' :: Regex -> (Int,[String]) -> [String] -> (Int,[String])
-removeAll' r (n,ss) [] = (n,reverse ss)
-removeAll' r (n,ss) (s':ss') = if isJust $ matchRegex r s' then removeAll' r (n+1,ss) ss' else removeAll' r (n,s':ss) ss'
+removeAll :: String -> String -> ([String],String)
+removeAll target msgs = second reconstitute $ removeAll' (regexProcess target) ([],[]) (split msgs)
+removeAllN :: String -> String -> (Int,String)
+removeAllN = (first length .) . removeAll
+removeAll' :: Regex -> ([String],[String]) -> [String] -> ([String],[String])
+removeAll' r (ss,ss') [] = (reverse ss,reverse ss')
+removeAll' r (ss,ss') (s:ss'') = if isJust $ matchRegex r s then removeAll' r (s:ss,ss') ss'' else removeAll' r (ss,s:ss') ss''
 
 --happens on legal move; not penalised afterwards
 mustSay :: String -> Game
-mustSay s (Action p a m) = if s `findIn` m then doNothing else penalty 1 ("failure to say: '{}'"%s) p
+mustSay s (Action p a m) = if s `findInMs` m then doNothing else penalty 1 ("failure to say: '{}'"%s) p
 mustSay s _ = doNothing
 
 -- like mustSay but also consumes the desired String
@@ -101,13 +101,13 @@ mustSay' s e@(Action p a m) = let (b,m') = removeIn s m in
 mustSay' s e = (e,doNothing)
 
 said :: String -> String -> Bool
-said = findIn
+said = findInMs
 
 -- n is penalty
 -- s is banned string
 -- pm is penalty message to display when found
 -- banPhrase :: Int -> String -> String -> Rule
--- banPhrase n pm s = banPhrase' n pm (\m e gs -> s `findIn` m)
+-- banPhrase n pm s = banPhrase' n pm (\m e gs -> s `findInMs` m)
 
 -- tests "on the way out" if you said the phrase
 banPhrase :: Int -> String -> ((PlayerIndex,Action,String) -> GameState -> Bool) -> Rule
@@ -116,7 +116,7 @@ banPhrase n pm f = onAction (\t@(p,_,_) -> ((join (ap (if' . f t) (penalty n pm 
 -- possibly a mustSay component could be extracted
 require :: (PlayerIndex, Action, String) -> (Bool -> Game) -> Rule
 require (p, a, m) f = onAction (\(p',a',m') -> if p==p'
-    then if a == a' && (m `findIn` m') then (doAfter (f True))
+    then if a == a' && (m `findInMs` m') then (doAfter (f True))
       else doAfter (f False) . (doOnly$ illegal 1 ("failure to {}{}"%show a%(if null m then "" else " and say '{}'"%m)))
     else id )
 

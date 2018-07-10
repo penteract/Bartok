@@ -1,5 +1,5 @@
 {-# LANGUAGE Trustworthy #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell, ScopedTypeVariables #-}
 
 module DataTypes where
 
@@ -40,7 +40,7 @@ type PlayerIndex = Name
 data Action = Draw Int | Play Card deriving (Show,Eq)
 
 -- | Events that rules should be able to deal with
-data Event = Action PlayerIndex Action String | Timeout | PlayerJoin Name deriving (Show,Eq)
+data Event = Action PlayerIndex Action String | Timeout | PlayerJoin Name (Maybe (PlayerIndex,PlayerIndex)) deriving (Show,Eq)
 
 type Step = GameState -> GameState
 
@@ -60,7 +60,7 @@ type Rule = Game -> Game --this type is named correctly
 -- | The state of a game in play
 data GameState = GS {
        _players :: [Name], -- current player is head of list
-       _seats :: [Name],
+       -- _seats :: [Name],
        _hands :: Map Name Hand,
        _deck :: [Card],
        _pile :: NonEmpty Card,
@@ -75,47 +75,47 @@ data GameState = GS {
 
        _varMap :: Map String Int
      } deriving Show
---makeLenses ''GameState
-players :: Lens' GameState [Name]
-players f gs@GS{_players = p} = (\p' -> gs{_players = p'}) <$> f p
-seats :: Lens' GameState [Name]
-seats f gs@GS{_seats = s} = (\s' -> gs{_seats = s'}) <$> f s
-hands :: Lens' GameState (Map Name Hand)
-hands f gs@GS{_hands = h} = (\h' -> gs{_hands = h'}) <$> f h
-deck :: Lens' GameState [Card]
-deck f gs@GS{_deck = d} = (\d' -> gs{_deck = d'}) <$> f d
-pile :: Lens' GameState (NonEmpty Card)
-pile f gs@GS{_pile = p} = (\p' -> gs{_pile = p'}) <$> f p
-messages :: Lens' GameState [String]
-messages f gs@GS{_messages = m} = (\m' -> gs{_messages = m'}) <$> f m
-lastMoveLegal :: Lens' GameState Bool
-lastMoveLegal f gs@GS{_lastMoveLegal = b} = (\b' -> gs{_lastMoveLegal = b'}) <$> f b
-randg :: Lens' GameState StdGen
-randg f gs@GS{_randg = r} = (\r' -> gs{_randg = r'}) <$> f r
-winner :: Lens' GameState (Maybe Name)
-winner f gs@GS{_winner = w} = (\w' -> gs{_winner = w'}) <$> f w
-varMap :: Lens' GameState (Map String Int)
-varMap f gs@GS{_varMap = v} = (\v' -> gs{_varMap = v'}) <$> f v
+makeLenses ''GameState
+-- players :: Lens' GameState [Name]
+-- players f gs@GS{_players = p} = (\p' -> gs{_players = p'}) <$> f p
+-- seats :: Lens' GameState [Name]
+-- seats f gs@GS{_seats = s} = (\s' -> gs{_seats = s'}) <$> f s
+-- hands :: Lens' GameState (Map Name Hand)
+-- hands f gs@GS{_hands = h} = (\h' -> gs{_hands = h'}) <$> f h
+-- deck :: Lens' GameState [Card]
+-- deck f gs@GS{_deck = d} = (\d' -> gs{_deck = d'}) <$> f d
+-- pile :: Lens' GameState (NonEmpty Card)
+-- pile f gs@GS{_pile = p} = (\p' -> gs{_pile = p'}) <$> f p
+-- messages :: Lens' GameState [String]
+-- messages f gs@GS{_messages = m} = (\m' -> gs{_messages = m'}) <$> f m
+-- lastMoveLegal :: Lens' GameState Bool
+-- lastMoveLegal f gs@GS{_lastMoveLegal = b} = (\b' -> gs{_lastMoveLegal = b'}) <$> f b
+-- randg :: Lens' GameState StdGen
+-- randg f gs@GS{_randg = r} = (\r' -> gs{_randg = r'}) <$> f r
+-- winner :: Lens' GameState (Maybe Name)
+-- winner f gs@GS{_winner = w} = (\w' -> gs{_winner = w'}) <$> f w
+-- varMap :: Lens' GameState (Map String Int)
+-- varMap f gs@GS{_varMap = v} = (\v' -> gs{_varMap = v'}) <$> f v
 
 -- | A card as viewed - the type of cards sent to the client
 data CardView = CardFace Card | CardBack deriving (Show)
 
 -- | The structure describing data seen by players
 data GameView = GV {
-    _handsV :: [(Name,[CardView])] , -- list is in seating order, beginning with the recipient
+    _handsV :: Map Name [CardView] ,
     _pileV :: [CardView] ,
     _deckV :: [CardView] ,
     _messagesV :: [String]
 } deriving Show
--- makeLenses ''GameView
-handsV :: Lens' GameView [(Name,[CardView])]
-handsV f gv@GV{_handsV = h} = (\h' -> gv{_handsV = h'}) <$> f h
-deckV :: Lens' GameView  [CardView]
-deckV f gv@GV{_deckV = d} = (\d' -> gv{_deckV = d'}) <$> f d
-pileV :: Lens' GameView  [CardView]
-pileV f gv@GV{_pileV = p} = (\p' -> gv{_pileV = p'}) <$> f p
-messagesV :: Lens' GameView  [String]
-messagesV f gv@GV{_messagesV = m} = (\m' -> gv{_messagesV = m'}) <$> f m
+makeLenses ''GameView
+-- handsV :: Lens' GameView [(Name,[CardView])]
+-- handsV f gv@GV{_handsV = h} = (\h' -> gv{_handsV = h'}) <$> f h
+-- deckV :: Lens' GameView  [CardView]
+-- deckV f gv@GV{_deckV = d} = (\d' -> gv{_deckV = d'}) <$> f d
+-- pileV :: Lens' GameView  [CardView]
+-- pileV f gv@GV{_pileV = p} = (\p' -> gv{_pileV = p'}) <$> f p
+-- messagesV :: Lens' GameView  [String]
+-- messagesV f gv@GV{_messagesV = m} = (\m' -> gv{_messagesV = m'}) <$> f m
 
 -- | Functions to tell a player what they should see
 type Viewer = PlayerIndex -> GameState -> GameView
@@ -233,7 +233,7 @@ parseCard = do
 
 eventPlayer :: Event -> Maybe PlayerIndex
 eventPlayer (Action p _ _) = Just p
-eventPlayer (PlayerJoin p) = Just p
+eventPlayer (PlayerJoin p _) = Just p
 eventPlayer Timeout = Nothing
 
 -- | variable processing
@@ -259,7 +259,7 @@ newGame pls =  ((pile /\ deck) %~ (\(_,y:ys) -> (y:|[],ys))) . shuffleDeck $ -- 
               , _randg = mkStdGen 0
               , _varMap = Map.empty
               , _players = pls  --[("Angus",[]),("Toby",[]),("Anne",[])]
-              , _seats = pls
+              -- , _seats = pls
               , _hands = Map.fromList $ map (flip (,) []) (pls)
               , _prevGS = Nothing
               , _winner = Nothing

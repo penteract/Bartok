@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module BaseGame where
 
-import Control.Arrow (first)
+import Control.Arrow (first,second)
 import Control.Lens ((.~),(%~),(%%~),(^.),(^?),(&),(<>~),_1,at,each,ix)
 import Control.Monad (liftM2,liftM3)
 import Data.List (delete)
@@ -10,6 +10,7 @@ import qualified Data.List.NonEmpty as NE ((<|),head)
 import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Data.Map as Map (adjust,insert,mapAccum)
 import Data.Text (pack,unpack,strip)
+import Data.Maybe (fromJust,isJust)
 
 import DataTypes
 
@@ -58,16 +59,13 @@ sayAct :: Game
 sayAct e@(Action p a m) = broadcastp p m
 sayAct _ = id
 
-addPlayer :: Name -> Step
-addPlayer n = draw 5 n . (hands %~ Map.insert n [])
-            . (players /\ seats %~ addToSeat n)
-
-addToSeat n (ps,ss) = if length ss>1 then
-    (ps++[n],
-        (\(a,b:bs)->a++b:n:bs)
-        (break (liftM2 (||) (==head ps) (==last ps)) ss))
-        else (ps ++ [n],ss ++ [n])
-
+addPlayer :: Name -> Maybe (PlayerIndex,PlayerIndex) -> Step
+addPlayer n mps = draw 5 n . (hands %~ Map.insert n [])
+                  . (players %~ addToSeat n mps)
+addToSeat :: Name -> Maybe (PlayerIndex,PlayerIndex) -> [PlayerIndex] -> [PlayerIndex]
+addToSeat n mps ps = case mps of
+                         Just (pl,pr) | ps /= [pl] -> (\(a,b:bs)->a++b:n:bs) (break (liftM2 (||) (==pl) (==pr)) ps)
+                         _ -> n:ps
 
 -- addToSeat n (ps,ss) = if length ss>1 then
 --     (ps++[n],
@@ -106,7 +104,7 @@ baseAct e@(Action p a m) gs
 baseAct Timeout gs = let activePlayer = head $ gs^.players in
     ( broadcast ("Penalize "++activePlayer++" 1 card for failure to play within a reasonable amount of time")
     . draw 1 activePlayer ) gs
-baseAct (PlayerJoin n) gs = addPlayer n gs
+baseAct (PlayerJoin n mps) gs = broadcast ("Player "++n++" joined the game!") . addPlayer n mps $ gs
 
 broadcast :: String -> Step
 broadcast = (messages %~).(:)
