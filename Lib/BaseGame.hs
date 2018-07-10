@@ -30,8 +30,8 @@ if'' b a = if' b a id
 
 (%%) s = (s%) . (:[]). uniCard
 
---TODO(angus): rename these
-
+-- | Returns a game where the move has not occured and a penalty has been given.
+-- Should be used with `doOnly`
 illegal ::Int -> String -> Game
 illegal n reason e@(Action p a m) =
     draw n p .
@@ -49,7 +49,7 @@ penalty n reason p =
     if n > 0 then
         (winner %~ (\mw -> if mw == Just p then Nothing else mw))
         . draw n p
-        . broadcast ("{} recieves penalty {}: {}"%p%show n%reason)
+        . broadcast ("{} receives penalty {}: {}"%p%show n%reason)
     else doNothing
 
 broadcastp :: PlayerIndex -> String -> Step

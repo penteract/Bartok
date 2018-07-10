@@ -50,19 +50,20 @@ doOnly = const
 -- splitm :: String -> [String]
 -- splitm = map (unpack . strip . pack) . endBy ";"
 
-regexProcess :: String -> String
-regexProcess s = "^[[:space:]]*"++s++"[[:space:]]*$"
+regexProcess :: String -> Regex
+regexProcess s = mkRegexWithOpts ("^[[:space:]]*"++s++"[[:space:]]*$") True False
 
 split :: String -> [String]
 split = splitRegex (mkRegex ";")
 reconstitute :: [String] -> String
 reconstitute = intercalate ";"
 
+
 -- tells if a string is one semi-colon delimited segment of another
 -- ignore (segment-)leading/ending whitespace, case-insensitive
 findIn :: String -> String -> Bool
 --findIn = liftM2 flip (((.).elem).) ((.endBy ";").map) (CI.mk.strip.pack)
-findIn target msg = any  ((Nothing /=) . matchRegex (mkRegexWithOpts (regexProcess target) True False)) (split msg)
+findIn target msg = any  (isJust. matchRegex (regexProcess target)) (split msg)
   --process target `elem` map process (endBy ";" msg)
 
 -- remove up to one semi-colon delimited segment equal to target string
@@ -73,7 +74,7 @@ removeIn = (first isJust .) . removeIn'
 
 removeIn' :: String -> String -> (Maybe String,String)
 removeIn' target msgs = (\(a,b,c) -> (a,reconstitute (b++c))) $
-                            removeIn'' (mkRegexWithOpts (regexProcess target) True False) [] (split msgs)
+                            removeIn'' (regexProcess target) [] (split msgs)
 removeIn'' :: Regex -> [String] -> [String] -> (Maybe String,[String],[String])
 removeIn'' r ss [] = (Nothing,reverse ss,[])
 removeIn'' r ss (s':ss') = if isJust $ matchRegexAll r s' then (fmap (\(_,b,_,_)->b) (matchRegexAll r s'),reverse ss,ss') else removeIn'' r (s':ss) ss'
@@ -81,7 +82,7 @@ removeIn'' r ss (s':ss') = if isJust $ matchRegexAll r s' then (fmap (\(_,b,_,_)
 
 removeAll :: String -> String -> (Int,String)
 removeAll target msgs = second reconstitute $
-                           removeAll' (mkRegexWithOpts (regexProcess target) True False) (0,[]) (split msgs)
+                           removeAll' (regexProcess target) (0,[]) (split msgs)
 removeAll' :: Regex -> (Int,[String]) -> [String] -> (Int,[String])
 removeAll' r (n,ss) [] = (n,reverse ss)
 removeAll' r (n,ss) (s':ss') = if isJust $ matchRegex r s' then removeAll' r (n+1,ss) ss' else removeAll' r (n,s':ss) ss'
