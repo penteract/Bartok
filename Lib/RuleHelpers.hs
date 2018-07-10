@@ -111,7 +111,9 @@ said = findInMs
 
 -- tests "on the way out" if you said the phrase
 banPhrase :: Int -> String -> ((PlayerIndex,Action,String) -> GameState -> Bool) -> Rule
-banPhrase n pm f = onAction (\t@(p,_,_) -> ((join (ap (if' . f t) (penalty n pm p)) .) .))
+--banPhrase n pm f = onAction (\t@(p,_,_) -> ((join (ap (if' . f t) (penalty n pm p)) .) .))
+banPhrase n pm f = onAction (\t@(p,_,_) act e gs-> if f t gs then penalty n pm p (act e gs) else act e gs )
+
 
 -- possibly a mustSay component could be extracted
 require :: (PlayerIndex, Action, String) -> (Bool -> Game) -> Rule

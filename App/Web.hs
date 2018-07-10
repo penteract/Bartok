@@ -147,6 +147,7 @@ doErr e f = do
 
 onPost :: GMap -> Application
 onPost games req resp = do
+    print$ pathInfo req
     let gameName = intercalate "/" (pathInfo req)
     case pathInfo req of
         [gname] -> doWithGame playMove games gname req resp
@@ -170,7 +171,7 @@ playMove = do
     --liftIO (putStrLn (L.unpack e))
     case unserialize e of
         Just r -> do
-            --liftIO (putStrLn (show r))
+            liftIO (putStrLn (show r))
             let p = getName r
             game <- getGame
             doErr (handle r game) (\ state -> do
