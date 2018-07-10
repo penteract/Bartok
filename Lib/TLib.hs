@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances,KindSignatures #-}
+{-# LANGUAGE FlexibleInstances #-}
 module TLib where
 
 import DataTypes
@@ -143,7 +143,7 @@ reverseDirection = modifyPlayers (\(c:cs) ->c:reverse cs)
 
 --rq = when (isLegal ~&~ cardIs ((==Queen) . rank)) (doBefore reverseDirection)
 
--- | This seems better - it does not check if the move is legal before REVERSING DIRECTION
+-- | This seems better - it does not check if the move is legal before reversing direction
 rq :: Rule
 rq = when (cardIs ((==Queen) . rank))
       (doBefore reverseDirection
@@ -188,9 +188,10 @@ withoutEach' f t@(xs,x,[]) = [f (reverse xs) x]
 withoutEach' f t@(xs,x,y:ys) = f (reverse xs ++ ys) x : withoutEach' f (x:xs,y,ys)
 
 
+a >|< b = "(" ++ a ++")|(" ++ b ++ ")"
+
 r7 :: Rule
-r7 = unnec "thank you(( very)* very much)?"
-   . unnec "have a( very)* nice day"
+r7 = unnec ("thank you(( very)* very much)?" >|< "have a( very)* nice day")
    . with (getVar "r7") (\nsevens ->
        when (isLegal ~&~ isSeven) (
            doAfter (modifyVar "r7" (+1))
