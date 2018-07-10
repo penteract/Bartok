@@ -5,7 +5,7 @@ import DataTypes
 import Control.Applicative
 import Data.Maybe(isJust)
 import BaseGame(nextTurn,draw,broadcast,(%),illegal)
-import RuleHelpers(findIn,split,regexProcess,reconstitute)
+import RuleHelpers(findInMs,split,regexProcess,reconstitute)
 import Text.Regex(matchRegexAll,matchRegex, mkRegexWithOpts)
 
 import qualified BaseGame
@@ -101,7 +101,7 @@ getVar :: String -> GEGSto Int
 getVar s act e gs = readVar s gs
 
 said :: String -> GEGSto Bool
-said s act (Action _ _ m) gs = s `findIn` m
+said s act (Action _ _ m) gs = s `findInMs` m
 said _ _ _ _ = False
 
 -- | Award a penalty to a player without preventing their action
