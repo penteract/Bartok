@@ -132,7 +132,7 @@ function draw(){
 function sendMove(type,dat){
     $.post("",JSON.stringify({
         tag:type,
-        contents:[name,dat,$("#mmsg").val()]
+        contents:[name,tok,dat,$("#mmsg").val()]
     }),display,"json")
     $("#mmsg").val("")
 }

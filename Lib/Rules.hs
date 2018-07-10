@@ -1,3 +1,5 @@
+{-# LANGUAGE Safe #-}
+
 module Rules where
 
 import Control.Lens((%~),(^.),(^?),(&),_1,_2,_Just,at,ix)
@@ -18,12 +20,11 @@ r8 = onLegalCard (\card event ->
 reverseDirection :: Step
 reverseDirection = players %~ (\ (c:cs) -> c: reverse cs)
 
-rq :: Rule --reverse direction on q, may have problems if reversing direction makes a move become illegal
-rq act e gs = onLegalCard (\ card event gs'->
-                if (rank card == Queen)
-                    then act e (reverseDirection gs)
-                    else gs'
-                ) act e gs
+rq :: Rule --reverse direction on q
+rq = onPlay (\ c act e gs->
+        let altgs' = act e (reverseDirection gs)
+            gs' = act e gs in
+        if rank c == Queen && altgs'^.lastMoveLegal && gs'^.lastMoveLegal then altgs' else gs')
 
 rlast :: Rule
 rlast = onLegalCard

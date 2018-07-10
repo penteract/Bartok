@@ -38,6 +38,8 @@ executable server
     other-modules:       Serialize, ServerInterface
     default-language:    Haskell2010
 
+
+
 -- test-suite tests
 --   type: exitcode-stdio-1.0
 --   main-is: Tests.hs

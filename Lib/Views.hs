@@ -1,3 +1,5 @@
+{-# LANGUAGE Safe #-}
+
 module Views where
 
 import Control.Arrow (second)

@@ -1,3 +1,4 @@
+{-# LANGUAGE Safe #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module BaseGame where
 
@@ -140,10 +141,9 @@ taxes gs = uncurry (deck <>~) . ( (hands . each) %%~ (splitAt =<< subtract handS
 cardFromDeck :: GameState -> (Card,GameState)
 cardFromDeck gs = case gs ^. deck of
                     (c:cs) -> (c, gs & deck .~ cs)
-                    [] -> let (newPile,restofpile) = (\(x:|xs) -> (x:|[],xs)) (gs^.pile) in
-                          let gs' = ( broadcast "Shuffling pile into deck, applying taxes..."
+                    [] -> let gs' = ( broadcast "Shuffling pile into deck, applying taxes..."
                                     . shuffleDeck
-                                    . (deck <>~ restofpile) . (pile .~ newPile)
+                                    . uncurry (deck <>~) . (pile %%~ (\(x:|xs) -> (xs,x:|[])) )
                                     . taxes ) gs in
                           case gs' ^. deck of
                               (c:cs) -> (c, gs' & deck .~ cs)
