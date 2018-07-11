@@ -5,6 +5,7 @@ import System.Environment
 import Data.Text(Text,intercalate,unpack)
 import Data.Maybe
 
+import Data.Time(getCurrentTime,diffUTCTime)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
 
@@ -35,7 +36,10 @@ html = (hContentType,"text/html")
 
 
 -- | returns True if it has been more than 10 seconds since the last player action
-checktime gd = return False
+checktime :: OngoingGame -> IO Bool
+checktime gd = do
+    now <- getCurrentTime
+    return$ diffUTCTime now (_lastAction gd) > realToFrac 10
 
 addGame :: Text -> GMap -> IO ()
 addGame gName games = do
@@ -218,6 +222,7 @@ playMove = do
             game <- getGame
             doErr (handle (Left r) game) (\ state -> do
               modify (setState state)
+              liftIO getCurrentTime >>= modify . setTime
               --liftIO (putStrLn (show (_players state)))
               game' <- getGame
               doErr (view p game') (\ v ->

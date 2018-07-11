@@ -3,11 +3,13 @@
 -- | Sanitisation of user input and check that rules behave well.
 module ServerInterface(
    handle, view,
-   addRule, addRule', addViewRule, setState,
+   addRule, addRule', addViewRule, setState, setTime,
    OngoingGame(..), MError, readError, initialGame,
    Rule, GameState, timeoutReq)
  where
 
+
+import Data.Time
 
 import Control.Lens ((^?),(^.),(.~),(%~), (&),_Just,at,contains,ix,makeLenses)
 import Control.Monad (ap,when)
@@ -37,7 +39,8 @@ data OngoingGame = OG {
     _gameState :: GameState ,
     _rules :: [(String,Rule)] ,
     _viewRules :: [(String,ViewRule)],
-    _seats :: [(Name,Token)]
+    _seats :: [(Name,Token)],
+    _lastAction :: UTCTime
     --TODO(toby) figure out datetimes _lastEvent :: DateTime
 }
 makeLenses ''OngoingGame
@@ -48,7 +51,9 @@ instance Show OngoingGame where
 --TODO(angus): make sure rules can't stop players being added
 
 initialGame :: IO OngoingGame
-initialGame = return$ OG (newGame []) (defaultRulesNamed++[("base",id)]) [("base",id)] []
+initialGame = do
+    t <- getCurrentTime
+    return$ OG (newGame []) (defaultRulesNamed++[("base",id)]) [("base",id)] [] t
 -- initialGame = return$ addRule' "Snap" gSnap (OG (newGame []) [] [])
 
 readError :: MError a -> Either String (a, Maybe OngoingGame)
@@ -140,6 +145,9 @@ getView p og = let (v,gs') = foldr (\(n,vr) (v,gs') ->
 
 setState :: GameState -> OngoingGame -> OngoingGame
 setState s = gameState .~ s
+
+setTime :: UTCTime -> OngoingGame -> OngoingGame
+setTime t = lastAction .~ t
 
 addRule' :: String -> Rule' -> OngoingGame -> OngoingGame
 addRule' n (r,vr) = (rules /\ viewRules) %~ (((n,r):) *** ((n,vr):))
