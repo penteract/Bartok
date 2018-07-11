@@ -5,7 +5,7 @@ module ServerInterface(
    handle, view,
    addRule, addRule', addViewRule, setState,
    OngoingGame(..), MError, readError, initialGame,
-   Rule, GameState)
+   Rule, GameState, timeoutReq)
  where
 
 
@@ -38,6 +38,7 @@ data OngoingGame = OG {
     _rules :: [(String,Rule)] ,
     _viewRules :: [(String,ViewRule)],
     _seats :: [(Name,Token)]
+    --TODO(toby) figure out datetimes _lastEvent :: DateTime
 }
 makeLenses ''OngoingGame
 
@@ -54,7 +55,11 @@ readError :: MError a -> Either String (a, Maybe OngoingGame)
 readError s = runStateT s Nothing
 
 -- data Event = Action PlayerIndex Action String | Timeout | PlayerJoin Name deriving (Show,Eq)
-handle :: ActionReq -> OngoingGame -> MError GameState
+
+timeoutReq :: Either ActionReq Event
+timeoutReq = Right Timeout
+
+handle :: Either ActionReq Event -> OngoingGame -> MError GameState
 handle ar og =
    let nameCheck p = unless (nameExists p og)
           (throwError $ "Player "++p++" is not a member of this game.")
@@ -62,17 +67,19 @@ handle ar og =
           (throwError $ "Token given does not match that of player "++p++".")
        checks p t = nameCheck p >> tokenCheck p t in
    case ar of
-      ReqPlay p t i m -> do
+      Left (ReqPlay p t i m) -> do
         checks p t
         case og^?gameState.hands.at p._Just.ix i of
             Just c -> carryOut (Action p (Play c) m) og
             Nothing -> throwError $ "Player "++p++" does not have "++show (i+1)++" card(s) in hand."
-      ReqDraw p t n m -> do
+      Left (ReqDraw p t n m) -> do
         checks p t
         carryOut (Action p (Draw n) m) og
-      ReqJoin n tok -> if nameExists n og then return (og^.gameState) -- (throwError $ "Player "++n++" is already a member of this game.")
+      Left (ReqJoin n tok) -> if nameExists n og then return (og^.gameState) -- (throwError $ "Player "++n++" is already a member of this game.")
                        else let neighbs = case map fst (og^.seats) of l@(x:xs) -> Just (x,last l); _ -> Nothing in
                             put (Just $ og & seats %~ ((n,tok):)) >> carryOut (PlayerJoin n neighbs) og
+      Right Timeout -> carryOut Timeout og
+      Right _ -> error "shold only send timeouts"
   -- return $ foldr ($) baseAct (og^.rules) e (og^.gameState)
 
 -- Remove rules left to admin

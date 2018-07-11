@@ -16,6 +16,7 @@ import Network.HTTP.Types.Status
 
 import qualified Control.Concurrent.Map as CMap
 import Control.Concurrent.MVar
+import Control.Concurrent
 --import Control.Monad.Trans.State
 import Control.Monad.State
 import Control.Monad.Reader
@@ -30,7 +31,50 @@ type GMap = CMap.Map Text (OngoingGame,MVar ())
 
 
 html = (hContentType,"text/html")
-initialStoredGame = liftM2 (,) initialGame  (newMVar ())
+--initialStoredGame = liftM2 (,) initialGame  (newMVar ())
+
+
+-- | returns True if it has been more than 10 seconds since the last player action
+checktime gd = return False
+
+addGame :: Text -> GMap -> IO ()
+addGame gName games = do
+    og <- liftM2 (,) initialGame  (newMVar ())
+    b <- CMap.insertIfAbsent gName og games
+    forkIO (sendTimeouts gName games)
+    return ()
+    --use the code below if we can update the version of CMap
+    --if b then forkIO (sendTimeouts gName games) >> return ()
+    --    else return ()
+
+sendTimeouts :: Text -> GMap -> IO ()
+sendTimeouts gName games = do
+    threadDelay (10*1000000) -- 10 seconds
+    mx <- CMap.lookup gName games
+    case mx of
+        Nothing -> return ()
+        Just (gd,mv) -> do
+            t <- checktime gd
+            if t then do -- check that it has been 10 seconds since the last move
+                _ <- takeMVar mv -- aquire lock
+                mx <- CMap.lookup gName games--need to read the data again now we hold the lock
+                case mx of --technically runs into some wierd prblems if the game can be deleted
+                    Nothing -> return ()
+                    Just (gd,_) -> do
+                        t <- checktime gd
+                        if t then do-- check that it has been 10 seconds since the last move
+                            g <- case readError (handle timeoutReq gd) of
+                                    Left err -> do
+                                        putMVar mv ()
+                                        error err
+                                    Right (x,Nothing) -> do
+                                         return$ setState x gd
+                                    Right (x,Just o) ->  return$ setState x o
+                            CMap.insert gName (g,mv) games
+                            putMVar mv () -- release lock
+                        else return ()
+            else return ()
+    sendTimeouts gName games
 
 cannonisepath :: Middleware
 cannonisepath app req resp =
@@ -73,10 +117,7 @@ playPage gameName games req resp = do
     --putStrLn$ show$ gameName
     mx <- CMap.lookup gameName games
     case mx of
-        Nothing -> do
-            og <- initialStoredGame
-            CMap.insertIfAbsent gameName og games
-            return ()
+        Nothing -> addGame gameName games
         Just a -> return ()
     resp$ responseFile ok200 [] "play.html" Nothing
 
@@ -85,10 +126,7 @@ newRulePage gameName games req resp= do
     --putStrLn$ show$ gameName
     mx <- CMap.lookup gameName games
     case mx of
-        Nothing -> do
-            og <- initialStoredGame
-            CMap.insertIfAbsent gameName og games
-            return ()
+        Nothing -> addGame gameName games
         Just a -> return ()
     resp$ responseFile ok200 [] "newRule.html" Nothing
 
@@ -103,22 +141,26 @@ doWithGame wg games gname req resp = do
     mx <- CMap.lookup gname games
     case mx of
         Nothing -> resp$ responseLBS badRequest400 [] ""
-        Just (gd,mv) -> do
-            _ <- takeMVar mv
+        Just (_,mv) -> do
+            _ <- takeMVar mv -- aquire lock
             rb <- lazyRequestBody req
             -- putStrLn "Request Body:"
             -- print$ rb
-            (r,gd') <- runStateT (runReaderT wg (req,rb)) gd
-            CMap.insert gname (gd',mv) games
-            putMVar mv ()
-            resp$ r
+            mx <- CMap.lookup gname games--need to read the data again now we hold the lock
+            case mx of --technically runs into some wierd prblems if the game can be deleted
+                Nothing -> resp$ responseLBS badRequest400 [] ""  --don't bother releasing the lock if the game has been deleted?
+                Just (gd,_) -> do
+                    (r,gd') <- runStateT (runReaderT wg (req,rb)) gd
+                    CMap.insert gname (gd',mv) games
+                    putMVar mv () -- release lock
+                    resp$ r
 
 doSafeWithGame :: WithGame Response -> GMap -> Text -> Application
 doSafeWithGame wg games gname req resp = do
     mx <- CMap.lookup gname games
     case mx of
         Nothing -> resp$ responseLBS badRequest400 [] ""
-        Just (gd,mv) -> do
+        Just (gd,_) -> do
             rb <- lazyRequestBody req
             (r,gd') <- runStateT (runReaderT wg (req,rb)) gd
             resp$ r
@@ -174,7 +216,7 @@ playMove = do
             liftIO (putStrLn (show r))
             let p = getName r
             game <- getGame
-            doErr (handle r game) (\ state -> do
+            doErr (handle (Left r) game) (\ state -> do
               modify (setState state)
               --liftIO (putStrLn (show (_players state)))
               game' <- getGame
@@ -188,7 +230,7 @@ newRule = do
     b <- getBody
     liftIO$ putStrLn "New Rule: "
     liftIO$ putStrLn (L.unpack b)
-    f <- liftIO$ runInterpreter$ setImports ["Lib","DataTypes","Prelude"] >>(interpret (L.unpack b) (as::Rule))
+    f <- liftIO$ runInterpreter$ setImports ["RuleHelpers","BaseGame","DataTypes","Prelude"] >>(interpret (L.unpack b) (as::Rule))
     case f of
         Left err -> do
             liftIO$ putStrLn$ fromErr err
