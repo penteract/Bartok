@@ -55,6 +55,7 @@ penalty n reason p =
 
 broadcastp :: PlayerIndex -> String -> Step
 broadcastp p m = if'' (not $ null m) (broadcast (p++": "++m))
+
 sayAct :: Game
 sayAct e@(Action p a m) = broadcastp p m
 sayAct _ = id

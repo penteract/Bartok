@@ -112,7 +112,7 @@ penalty _ _ _ = id
 
 --illegal _ _ _ = id
 
-failmsg s = "failure to say: '{}'"%s
+failmsg s = "failure to say '{}'"%s
 
 -- | penalise if `s` is not said
 mustSay s = when (not_$ said s) (doBefore (penalty 1 (failmsg s)))
@@ -179,6 +179,7 @@ unnec s act e@(Action p a m) gs =
 unnec _ act e gs = act e gs
 
 
+-- | Apply a function to `rest` and `x` for each possible `x` in a list where rest is the list with `x` removed
 withoutEach :: ([a] -> a -> b) -> [a] -> [b]
 withoutEach f [] = []
 withoutEach f (x:xs) = withoutEach' f ([],x,xs)
