@@ -92,7 +92,7 @@ r7' =  onAction (\(p,a,m) act e gs ->
              veries = concat $ replicate count7 " very"
              veries' = concat $ replicate (count7-1) " very"
              bidm = ("Have a" ++ veries ++ " nice day")
-             thankm = "Thank you" ++ veries' ++ if count7 > 0 then " much" else ""
+             thankm = "Thank you" ++ veries' ++ if count7 > 1 then " much" else ""
              i = fst $ removeAllN "(Have a( very)* nice day)|(Thank you( very)*( very much)?)" m
              bePolite :: Maybe String -> Step
              bePolite c = let pens = i - fromEnum (isJust c) in

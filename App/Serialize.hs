@@ -1,7 +1,7 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE DeriveGeneric, StandaloneDeriving #-}
 
-module Serialize(serialize, unserialize, getName, ActionReq(..),Token)
+module Serialize(serialize, unserialize, getName, ActionReq(..),Token,ClientPacket(..))
  where
 
 import GHC.Generics (Generic)
@@ -39,11 +39,14 @@ instance FromJSON Rank
 instance FromJSON Action
 instance FromJSON Event
 
-serialize :: GameView -> L.ByteString
+serialize :: ClientPacket -> L.ByteString
 serialize = encode . toJSON
 
 
 type Token = String
+
+data ClientPacket = CP Int GameView deriving (Show,Generic)
+instance ToJSON ClientPacket
 
 data ActionReq = ReqPlay PlayerIndex Token Int String
                | ReqDraw PlayerIndex Token Int String

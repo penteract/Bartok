@@ -40,8 +40,8 @@ data OngoingGame = OG {
     _rules :: [(String,Rule)] ,
     _viewRules :: [(String,ViewRule)],
     _seats :: [(Name,Token)],
-    _lastAction :: UTCTime
-    --TODO(toby) figure out datetimes _lastEvent :: DateTime
+    _lastAction :: UTCTime ,
+    _counter :: Int
 }
 makeLenses ''OngoingGame
 
@@ -53,7 +53,7 @@ instance Show OngoingGame where
 initialGame :: IO OngoingGame
 initialGame = do
     t <- getCurrentTime
-    return$ OG (newGame []) (defaultRulesNamed++[("base",id)]) [("base",id)] [] t
+    return$ OG (newGame []) (defaultRulesNamed++[("base",id)]) [("base",id)] [] t 0
 -- initialGame = return$ addRule' "Snap" gSnap (OG (newGame []) [] [])
 
 readError :: MError a -> Either String (a, Maybe OngoingGame)
@@ -123,12 +123,14 @@ checkGSokay og =let gs = og ^. gameState in
 checkGVokay :: GameView -> OngoingGame -> Bool
 checkGVokay gv og = Set.fromList (map fst $ gv^.handsV) == Set.fromList (map fst $ og^.seats)
 
-view :: PlayerIndex -> OngoingGame -> MError GameView
+view :: PlayerIndex -> OngoingGame -> MError ClientPacket
 view p og = do
   unless (nameExists p og)
       (throwError $ "Player "++p++" is not a member of this game.")
-  v <- getView p og -- still need to reorder it to seats
-  return $ v & handsV %~ (\hs -> uncurry (flip (++)) . span ((p/=).fst) $ foldr ((:) . ap (,) (fromJust . flip lookup hs) . fst) [] (og^.seats))
+  v <- getView p og
+  let inOrder hs = foldr ((:) . ap (,) (fromJust . flip lookup hs) . fst) [] (og^.seats) -- put hands in seat order
+  let newHands =  uncurry (flip (++)) . span ((p/=).fst) -- cycle so that p is at the front
+  return $ CP (og^.counter) (v & handsV %~ newHands . inOrder)
 
 -- can still run into problems if views do weird things to the messages!
 -- because the "malfunction" messages are passed in at the end and
@@ -144,7 +146,7 @@ getView p og = let (v,gs') = foldr (\(n,vr) (v,gs') ->
                 put (Just$ (gameState .~ gs') og) >> return (v p gs')
 
 setState :: GameState -> OngoingGame -> OngoingGame
-setState s = gameState .~ s
+setState s = (gameState .~ s) . (counter %~ (+1))
 
 setTime :: UTCTime -> OngoingGame -> OngoingGame
 setTime t = lastAction .~ t

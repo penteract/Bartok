@@ -208,7 +208,7 @@ viewGame = do
     e <- getBody
     let p = L.unpack e
     game <- getGame
-    doErr (view p game) (\ v ->
+    doErr (view p game) (\v ->
        return$ jsonResp (serialize v))
 
 playMove :: WithGame Response
