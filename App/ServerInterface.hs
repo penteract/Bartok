@@ -48,7 +48,7 @@ instance Show OngoingGame where
 --TODO(angus): make sure rules can't stop players being added
 
 initialGame :: IO OngoingGame
-initialGame = return$ OG (newGame []) (defaultRulesNamed++[("base",id)]) [("base",id)] []
+initialGame = return$ addRule' "rBlind" rBlind'$ addRule' "rPM" rPM' $ OG (newGame []) (defaultRulesNamed++[("base",id)]) [("base",id)] []
 -- initialGame = return$ addRule' "Snap" gSnap (OG (newGame []) [] [])
 
 readError :: MError a -> Either String (a, Maybe OngoingGame)
