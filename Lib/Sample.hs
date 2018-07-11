@@ -13,7 +13,7 @@ import Control.Arrow (first,second)
 import qualified Data.Map.Lazy as Map (assocs,lookup,map,insertWith,toList,keys,lookup,findWithDefault,foldrWithKey)
 import Data.Maybe (fromJust,isJust,isNothing)
 import Text.Regex(matchRegex,mkRegexWithOpts)
-import Data.List ((\\))
+import Data.List ((\\),intercalate)
 import Data.Char (isSpace)
 
 --all definitions work*
@@ -207,24 +207,26 @@ r6 = nextTurnDo "r6"
 
 rPM :: Rule
 rPM = onAction (\_ act e@(Action p a m) gs ->
-                   let (pms,m') = removeAll ("@"++drop 1 (foldr (\a b->"("++a++")|"++b) "" (gs^.players))++":") m
+                   let (pms,m') = removeAll ("@"++'(':intercalate "|" (gs^.players)++"):.*") m
                        pms' = map (dropWhile isSpace) pms in -- strip leading whitespace
                    ((messages %~ flip (foldr ((:) . (p ++))) pms') $ act (Action p a m') gs))
 rPMV :: ViewRule
-rPMV v p gs = let otherPlayersRegex = (drop 1 (foldr (\a b->"("++a++")|"++b) "" (filter (/=p) (gs^.players))))
-                  allPlayersRegex = otherPlayersRegex++"|("++p++")"++"|()"
-                  pmRegex = "^[[:space:]]*"++allPlayersRegex++"@"++otherPlayersRegex++":"
+rPMV v p gs = let otherPlayersRegex = '(':intercalate "|" (filter (/=p) (gs^.players))++")"
+                  --allPlayersRegex = otherPlayersRegex++"|("++p++")"++"|()"
+                  pmRegex = '^':otherPlayersRegex++"*@"++otherPlayersRegex++":"
                   pmRegex' = mkRegexWithOpts pmRegex True False in
-                  (v p gs) & messagesV %~ filter (isNothing . matchRegex pmRegex')
+                  v p gs & messagesV %~ filter (isNothing . matchRegex pmRegex')
+                  --(v p gs) & messagesV %~ map (\m->show (fromEnum . isJust $ matchRegex pmRegex' m)++":("++pmRegex++"):"++m)
+
 
 rPM' :: Rule'
 rPM' = (rPM,rPMV)
 
 rBlind :: Rule
 rBlind act e gs = (messages /\ hands %~
-                      (\(ms,hs)-> let newCards p = liftM2 (\\) (hs^.at p) (gs^.hands.at p) in
+                      (\(ms,hs)-> let newCards p = liftM2 (\\) (hs^.at p) (case gs^.hands.at p of Nothing -> Just []; x -> x) in
                           (Map.foldrWithKey (\p h ms'-> case newCards p of
-                                                            Just l@(_:_) -> ("@"++p++": you acquired cards "++map uniCard l):ms'
+                                                            Just l@(_:l') -> ("@"++p++": you acquired card"++(if null l' then [] else "s")++": "++map uniCard l):ms'
                                                             _ -> ms' )
                                             ms
                                             hs
