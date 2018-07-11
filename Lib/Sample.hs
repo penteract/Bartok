@@ -14,6 +14,7 @@ import qualified Data.Map.Lazy as Map (assocs,lookup,map,insertWith,toList,keys,
 import Data.Maybe (fromJust,isJust,isNothing)
 import Text.Regex(matchRegex,mkRegexWithOpts)
 import Data.List ((\\))
+import Data.Char (isSpace)
 
 --all definitions work*
 r8 :: Rule
@@ -206,8 +207,9 @@ r6 = nextTurnDo "r6"
 
 rPM :: Rule
 rPM = onAction (\_ act e@(Action p a m) gs ->
-                   let (pms,m') = removeAll ("@"++drop 1 (foldr (\a b->"("++a++")|"++b) "" (gs^.players))++":") m in
-                   ((messages %~ flip (foldr ((:) . (p ++))) pms) $ act (Action p a m') gs))
+                   let (pms,m') = removeAll ("@"++drop 1 (foldr (\a b->"("++a++")|"++b) "" (gs^.players))++":") m
+                       pms' = map (dropWhile isSpace) pms in -- strip leading whitespace
+                   ((messages %~ flip (foldr ((:) . (p ++))) pms') $ act (Action p a m') gs))
 rPMV :: ViewRule
 rPMV v p gs = let otherPlayersRegex = (drop 1 (foldr (\a b->"("++a++")|"++b) "" (filter (/=p) (gs^.players))))
                   allPlayersRegex = otherPlayersRegex++"|("++p++")"++"|()"
