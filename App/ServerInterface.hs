@@ -16,8 +16,8 @@ import Control.Monad.Trans.State (StateT,gets,put,runStateT,modify)
 
 import Control.Arrow((***))
 import Data.List (intercalate,nub,permutations)
-import qualified Data.Map as Map (keysSet,member)
-import Data.Maybe (isJust)
+import qualified Data.Map as Map (keysSet,lookup,member)
+import Data.Maybe (isJust,fromJust)
 import qualified Data.Set as Set (empty,fromList,insert,notMember)
 import Data.Set (Set)
 
@@ -26,6 +26,7 @@ import BaseGame hiding (when)
 import Views
 import Serialize
 import Rules
+import Sample
 
 type Error = String
 --type MError a = Either Error a
@@ -46,7 +47,7 @@ instance Show OngoingGame where
 --TODO(angus): make sure rules can't stop players being added
 
 initialGame :: IO OngoingGame
-initialGame = return$ OG (newGame []) (defaultRulesNamed++[("base",id)]) [("base",id)] []
+initialGame = return$ addRule "rPM" rPM $ OG (newGame []) (defaultRulesNamed++[("base",id)]) [("base",id)] []
 -- initialGame = return$ addRule' "Snap" gSnap (OG (newGame []) [] [])
 
 readError :: MError a -> Either String (a, Maybe OngoingGame)
@@ -108,13 +109,14 @@ checkGSokay og =let gs = og ^. gameState in
 
 --only restriction on GameViews is that they can't misrepresent the # of players
 checkGVokay :: GameView -> OngoingGame -> Bool
-checkGVokay gv og = Map.keysSet (gv^.handsV) == Set.fromList (map fst $ og^.seats)
+checkGVokay gv og = Set.fromList (map fst $ gv^.handsV) == Set.fromList (map fst $ og^.seats)
 
 view :: PlayerIndex -> OngoingGame -> MError GameView
 view p og = do
   unless (nameExists p og)
       (throwError $ "Player "++p++" is not a member of this game.")
-  getView p og
+  v <- getView p og -- still need to reorder it to seats
+  return $ v & handsV %~ (\hs -> uncurry (flip (++)) . span ((p/=).fst) $ foldr ((:) . ap (,) (fromJust . flip lookup hs) . fst) [] (og^.seats))
 
 -- can still run into problems if views do weird things to the messages!
 -- because the "malfunction" messages are passed in at the end and

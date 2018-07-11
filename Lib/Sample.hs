@@ -10,7 +10,7 @@ import Control.Lens
 import qualified Data.List.NonEmpty as NE
 import Control.Monad
 import Control.Arrow (first,second)
-import qualified Data.Map.Lazy as Map (lookup,map,insertWith,toList,keys,lookup,findWithDefault,foldrWithKey)
+import qualified Data.Map.Lazy as Map (assocs,lookup,map,insertWith,toList,keys,lookup,findWithDefault,foldrWithKey)
 import Data.Maybe (fromJust,isJust,isNothing)
 import Text.Regex(matchRegex,mkRegexWithOpts)
 import Data.List ((\\))
@@ -167,7 +167,7 @@ gSnap = (
                         else pickUpDeck p "playing out of turn" gs )
          ,
          (\v p gs -> GV {
-             _handsV = Map.map (map (const CardBack)) (gs^.hands) ,
+             _handsV = map (second $ map (const CardBack)) (Map.assocs $ gs^.hands) ,
              _pileV = [CardBack] ,
              _deckV = case gs^.deck of
                           [] -> []
@@ -206,14 +206,17 @@ r6 = nextTurnDo "r6"
 
 rPM :: Rule
 rPM = onAction (\_ act e@(Action p a m) gs ->
-                   let (pms,m') = removeAll ("@"++tail(foldr (\a b->"("++a++")|"++b) "" (gs^.players))++":") m in
+                   let (pms,m') = removeAll ("@"++drop 1 (foldr (\a b->"("++a++")|"++b) "" (gs^.players))++":") m in
                    ((messages %~ flip (foldr ((:) . (p ++))) pms) $ act (Action p a m') gs))
 rPMV :: ViewRule
-rPMV v p gs = let otherPlayersRegex = (tail(foldr (\a b->"("++a++")|"++b) "" (filter (/=p) (gs^.players))))
+rPMV v p gs = let otherPlayersRegex = (drop 1 (foldr (\a b->"("++a++")|"++b) "" (filter (/=p) (gs^.players))))
                   allPlayersRegex = otherPlayersRegex++"|("++p++")"++"|()"
                   pmRegex = "^[[:space:]]*"++allPlayersRegex++"@"++otherPlayersRegex++":"
                   pmRegex' = mkRegexWithOpts pmRegex True False in
                   (v p gs) & messagesV %~ filter (isNothing . matchRegex pmRegex')
+
+rPM' :: Rule'
+rPM' = (rPM,rPMV)
 
 rBlind :: Rule
 rBlind act e gs = (messages /\ hands %~
@@ -226,10 +229,10 @@ rBlind act e gs = (messages /\ hands %~
                           ,hs)))
                   $ act e gs
 rBlindV :: ViewRule
-rBlindV v p gs = v p gs & handsV.at p %~ fmap (map (const CardBack))
+rBlindV v p = mapOwnHand p (map (const CardBack)) v p
 
 rBlind' :: Rule'
-rBlind' = (rPM.rBlind,rPMV.rBlindV)
+rBlind' = (rBlind,rBlindV)
 
 run7 :: Int -> Rule
 run7 = undefined

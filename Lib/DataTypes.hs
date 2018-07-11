@@ -102,7 +102,7 @@ data CardView = CardFace Card | CardBack deriving (Show)
 
 -- | The structure describing data seen by players
 data GameView = GV {
-    _handsV :: Map Name [CardView] ,
+    _handsV :: [(Name,[CardView])] ,
     _pileV :: [CardView] ,
     _deckV :: [CardView] ,
     _messagesV :: [String]

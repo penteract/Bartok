@@ -5,7 +5,7 @@ module Views where
 import Control.Arrow (second)
 import Control.Lens ((%~),(^.))
 import Control.Monad (ap,join)
-import qualified Data.Map as Map (adjust,findWithDefault,map,mapWithKey)
+import qualified Data.Map as Map (adjust,assocs,findWithDefault,map,mapWithKey)
 import Data.Map (Map)
 import Data.List.NonEmpty (NonEmpty((:|)))
 
@@ -14,17 +14,20 @@ import DataTypes hiding (_hands,_pile,_deck,_messages)
 makeViewTransformer :: (GameView -> GameView) -> ViewRule
 makeViewTransformer = (.) . (.)
 
-modifyHandMap :: (Map Name [CardView] -> Map Name [CardView]) -> ViewRule
+modifyHandMap :: ([(Name,[CardView])] -> [(Name,[CardView])]) -> ViewRule
 modifyHandMap = makeViewTransformer . (handsV %~)
 
 mapHands :: ([CardView]->[CardView]) -> ViewRule
-mapHands f = modifyHandMap (Map.map f)
+mapHands f = modifyHandMap (map (second f))
+--mapHands f = modifyHandMap (Map.map f)
 
 mapOwnHand :: PlayerIndex -> ([CardView]->[CardView]) -> ViewRule
-mapOwnHand p f = modifyHandMap (Map.adjust f p)
+mapOwnHand p f = modifyHandMap (map (join (ap (if'.(p==).fst) (second f)))) -- (\l -> [if x == p then (x,f y) else (x,y) | (x,y) <- l])
+-- mapOwnHand p f = modifyHandMap (Map.adjust f p)
 
 mapOtherHands :: PlayerIndex -> ([CardView]->[CardView]) -> ViewRule
-mapOtherHands p f = modifyHandMap (Map.mapWithKey (join . (. f) . if' . (p /=)))
+mapOtherHands p f = modifyHandMap (map (join (ap (if'.(p/=).fst) (second f))))
+-- mapOtherHands p f = modifyHandMap (Map.mapWithKey (join . (. f) . if' . (p /=)))
 
 baseViewer :: Viewer
 baseViewer p gs = GV {
@@ -34,7 +37,7 @@ baseViewer p gs = GV {
               -- . splitAt 1 -- treat the viewer's hand separately (they can see their own hand if not last card)
                 -- liftM2 (:) head (takeWhile ((/=p).fst)) . dropWhile ((/=p).fst) . cycle -- starting with the viewer
                 -- uncurry (flip (++)) . span ((/=p).fst) -- put p to the front
-                Map.map (map CardFace) (gs^.hands) ,
+                map (second $ map CardFace) (Map.assocs $ gs^.hands) ,
     _pileV = (\(c:|cs) -> (CardFace c:map (const CardBack) cs)) (gs^.pile) ,
     _deckV = map (const CardBack) (gs^.deck) ,
     _messagesV = gs^.messages }
