@@ -1,24 +1,49 @@
-<!--TODO(anne): please -->
 <html>
-<title> Bartok </title>
 <head>
+    <meta charset="utf-8">
+    <title> Add a New Rule </title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+    <style>
+#prog{
+    width:600px;
+    height:600px
+}
+    </style>
 
 </head>
 <body>
 
 <textarea id="prog">
-    rule = onLegalCard (\card event -> if (rank card == Eight) then nextTurn else doNothing)
+    onLegalCard (\card event -> if (rank card == Eight) then nextTurn else doNothing)
 </textarea>
 <button onclick="submit()">Submit Rule</button>
+<div id = "errors">
+</div>
 
 <script>
-console.log()
+
+function getParameterByName(name, url) {
+    if (!url) url = window.location.href;
+    var name = name.replace(/[\[\]]/g, "\\$&");
+    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, " "));
+}
+
+function process(dat){
+    console.log(dat)
+    if (dat.tag == "Error") $("#errors".html(dat.contents))
+    else if (dat.tag == "Redirect") location.assign("../?name="+name)
+}
+
+name = getParameterByName("name")
+
 function submit(){
     console.log("hi")
-    $.post("",$.post("",
-    $("#prog").val(),
-    (data => console.log(data)), "json"))
+    $.post("",$("#prog").val(),
+        (data => console.log(data)), "json")
 }
 </script>
 </body>

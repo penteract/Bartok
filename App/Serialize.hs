@@ -45,7 +45,7 @@ serialize = encode . toJSON
 
 type Token = String
 
-data ClientPacket = CP Int GameView deriving (Show,Generic)
+data ClientPacket = NewData Int GameView | NoNewData | Redirect String deriving (Show,Generic)
 instance ToJSON ClientPacket
 
 data ActionReq = ReqPlay PlayerIndex Token Int String

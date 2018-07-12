@@ -3,7 +3,8 @@
 -- | Sanitisation of user input and check that rules behave well.
 module ServerInterface(
    handle, view,
-   addRule, addRule', addViewRule, setState, setTime,
+   addRule, addRule', addViewRule,restartWithNewRule,
+   setState, setTime, getWinner,
    OngoingGame(..), MError, readError, initialGame,
    Rule, GameState, timeoutReq)
  where
@@ -127,10 +128,14 @@ view :: PlayerIndex -> OngoingGame -> MError ClientPacket
 view p og = do
   unless (nameExists p og)
       (throwError $ "Player "++p++" is not a member of this game.")
-  v <- getView p og
-  let inOrder hs = foldr ((:) . ap (,) (fromJust . flip lookup hs) . fst) [] (og^.seats) -- put hands in seat order
-  let newHands =  uncurry (flip (++)) . span ((p/=).fst) -- cycle so that p is at the front
-  return $ CP (og^.counter) (v & handsV %~ newHands . inOrder)
+  case og ^. gameState . winner of
+      Nothing -> do
+          v <- getView p og
+          let inOrder hs = foldr ((:) . ap (,) (fromJust . flip lookup hs) . fst) [] (og^.seats) -- put hands in seat order
+          let newHands =  uncurry (flip (++)) . span ((p/=).fst) -- cycle so that p is at the front
+          return $ NewData (og^.counter) (v & handsV %~ newHands . inOrder)
+      Just q -> if q==p then return$ Redirect ("newRule/?name="++p)
+          else return$ Redirect ("wait/?name="++p)
 
 -- can still run into problems if views do weird things to the messages!
 -- because the "malfunction" messages are passed in at the end and
@@ -151,11 +156,23 @@ setState s = (gameState .~ s) . (counter %~ (+1))
 setTime :: UTCTime -> OngoingGame -> OngoingGame
 setTime t = lastAction .~ t
 
+getWinner :: OngoingGame -> Maybe PlayerIndex
+getWinner = (^. gameState . winner)
+
 addRule' :: String -> Rule' -> OngoingGame -> OngoingGame
 addRule' n (r,vr) = (rules /\ viewRules) %~ (((n,r):) *** ((n,vr):))
 
 addRule :: String -> Rule -> OngoingGame -> OngoingGame
 addRule n r = rules %~ ((n,r):)
+
+restartWithNewRule :: String -> Rule -> OngoingGame -> OngoingGame
+restartWithNewRule n r = (rules %~ ((n,r):))
+                       . (gameState .~ newGame [])
+                       . (seats .~ [])
+                       . (counter .~ 0)
+                       -- if more stuff is added to OngoingGame,
+                       -- think about resetting it here
+
 
 addViewRule :: String -> ViewRule -> OngoingGame -> OngoingGame
 addViewRule n vr = viewRules %~ ((n,vr):)

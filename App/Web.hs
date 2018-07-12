@@ -59,14 +59,14 @@ sendTimeouts gName games = do
         Nothing -> return ()
         Just (gd,mv) -> do
             t <- checktime gd
-            if t then do -- check that it has been 10 seconds since the last move
+            when t (do -- check that it has been 10 seconds since the last move
                 _ <- takeMVar mv -- aquire lock
                 mx <- CMap.lookup gName games--need to read the data again now we hold the lock
                 case mx of --technically runs into some wierd prblems if the game can be deleted
                     Nothing -> return ()
                     Just (gd,_) -> do
                         t <- checktime gd
-                        if t then do-- check that it has been 10 seconds since the last move
+                        when t (do-- check that it has been 10 seconds since the last move
                             g <- case readError (handle timeoutReq gd) of
                                     Left err -> do
                                         putMVar mv ()
@@ -75,9 +75,7 @@ sendTimeouts gName games = do
                                          return$ setState x gd
                                     Right (x,Just o) ->  return$ setState x o
                             CMap.insert gName (g,mv) games
-                            putMVar mv () -- release lock
-                        else return ()
-            else return ()
+                            putMVar mv ())) -- release lock
     sendTimeouts gName games
 
 cannonisepath :: Middleware
@@ -103,13 +101,16 @@ onGet games req resp = do
         --     ["/",unpack gname,"/",B.unpack (rawQueryString req)])
         ["static",x] -> load x req resp
         [gname,"newRule"] -> newRulePage gname games req resp
+        [gname,"wait"] -> waitPage gname games req resp
         _ -> resp $ err404
 
 load :: Text -> Application
 load p req resp = resp$ responseFile ok200 [(hContentType,getContentType p)] (unpack p) Nothing
 
 getContentType :: Text ->  B.ByteString
-getContentType p = fromMaybe "text/html" (lookup p [("dejavupc","font/woff")])
+getContentType p = fromMaybe "text/html" (lookup p
+    [("dejavupc","font/woff"),--Should this be .woff
+    ("star.js","text/javascript")])
 --GET handlers
 
 -- homepage :: GMap -> Application
@@ -123,7 +124,7 @@ playPage gameName games req resp = do
     case mx of
         Nothing -> addGame gameName games
         Just a -> return ()
-    resp$ responseFile ok200 [] "play.html" Nothing
+    resp$ responseFile ok200 [html] "play.html" Nothing
 
 newRulePage :: Text -> GMap -> Application
 newRulePage gameName games req resp= do
@@ -132,10 +133,12 @@ newRulePage gameName games req resp= do
     case mx of
         Nothing -> addGame gameName games
         Just a -> return ()
-    resp$ responseFile ok200 [] "newRule.html" Nothing
+    resp$ responseFile ok200 [html] "newRule.html" Nothing
 
-
-
+waitPage :: Text -> GMap -> Application
+waitPage gameName games req resp = do
+    --mx <- CMap.lookup gameName games
+    load "wait.html" req resp
 --WithGame Monad
 
 type WithGame a = ReaderT (Request,L.ByteString) (StateT OngoingGame IO) a
@@ -199,10 +202,13 @@ onPost games req resp = do
         [gname] -> doWithGame playMove games gname req resp
         [gname, "newRule"] -> doWithGame newRule games gname req resp
         [gname, "poll"] -> doSafeWithGame viewGame games gname req resp
+        [gname, "wait"] -> checkStatus gname games req resp
         _ -> resp$ err404
 
 -- POST handlers
 
+
+-- | Handle poll requests
 viewGame :: WithGame Response
 viewGame = do
     e <- getBody
@@ -235,14 +241,27 @@ newRule = do
     b <- getBody
     liftIO$ putStrLn "New Rule: "
     liftIO$ putStrLn (L.unpack b)
-    f <- liftIO$ runInterpreter$ setImports ["RuleHelpers","BaseGame","DataTypes","Prelude"] >>(interpret (L.unpack b) (as::Rule))
+    f <- liftIO$ runInterpreter$ do
+                   setImports ["RuleHelpers","BaseGame","DataTypes","Prelude"]
+                   (interpret (L.unpack b) (as::Rule))
     case f of
         Left err -> do
-            liftIO$ putStrLn$ fromErr err
-            return$ err422 (show err)
+            liftIO$ putStrLn$ show err
+            return$ jsonResp$ L.pack("{\"tag\":\"Error\",\"contents\":"++show (fromErr err)++"}")
         Right r -> do
-            modify$ addRule "" r
-            return$ jsonResp "{}"
+
+            modify$ restartWithNewRule "" r
+
+            return$ jsonResp "{\"tag\":\"Redirect\"}"
+
+checkStatus :: Text -> GMap -> Application
+checkStatus gameName games req resp = do
+    mx <- CMap.lookup gameName games
+    resp$ textResp$ case mx of
+        Nothing -> "home"
+        Just (og,_) -> case getWinner og of
+            Just p -> "unfinished"
+            Nothing ->  "resume"
 
 
 fromErr (WontCompile errs) = Prelude.unlines (map frghc errs)
@@ -263,6 +282,8 @@ main = do
 
 
 redirect308 url = responseLBS permanentRedirect308 [] (L.pack url)
+
+textResp txt = responseLBS ok200 [(hContentType,"text/plain")] (L.pack txt)
 
 err422 err = responseLBS unprocessableEntity422 [] (L.pack err)
 

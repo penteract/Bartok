@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title> Bartok </title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="/static/star.js"></script>
+</head>
+<body>
+<h1> Waiting for the winner to add a rule </h1>
+<script>
+
+//console.log(display)
+
+
+name = getParameterByName("name")
+
+
+function redir(dat){
+    if (dat == "home") {location.assign("/")}
+    else if (dat == "resume") {location.assign("../?name="+name)}
+    else if (dat == "unfinished") {}
+    else {console.log("unexpected response")}
+}
+
+poller = setInterval(() => $.post("",name,
+  redir, "text")
+    ,1000)
+
+</script>
+</body>
+</html>

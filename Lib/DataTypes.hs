@@ -71,7 +71,7 @@ data GameState = GS {
 
        _randg :: StdGen,
 
-       _winner :: Maybe Name,
+       _winner :: Maybe PlayerIndex,
 
        _varMap :: Map String Int
      } deriving Show
