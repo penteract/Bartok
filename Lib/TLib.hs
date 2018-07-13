@@ -1,5 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
-module TLib where
+module TLib(module TLib,
+    Rule,GameState,Step,Event(..),Action(..),
+    PlayerIndex, Card, CardView(..),GameView(..),
+    Viewer, ViewRule,
+    readVar,setVar,modifyVar,
+    suit,rank,Suit(..),Rank(..),
+    nextTurn,draw,broadcast,(%))
+ where
 
 import DataTypes
 import Control.Applicative
@@ -131,25 +138,10 @@ mustDo act whenDone = when isAction$
       whenDone
       (doOnly$ illegal 1 ("failure to {}"%show act))
 
-
-r8 :: Rule
-r8 = when (isLegal ~&~ cardIs ((==Eight) . rank)) (doAfter nextTurn)
-
 modifyPlayers :: ([Name] ->[Name])-> Step
 modifyPlayers f g = g{_players = f (_players g)}
 
-reverseDirection :: GameState -> GameState
-reverseDirection = modifyPlayers (\(c:cs) ->c:reverse cs)
 
---rq = when (isLegal ~&~ cardIs ((==Queen) . rank)) (doBefore reverseDirection)
-
--- | This seems better - it does not check if the move is legal before reversing direction
-rq :: Rule
-rq = when (cardIs ((==Queen) . rank))
-      (doBefore reverseDirection
-        . when (not_ isLegal) (doAfter reverseDirection))
-
-rSpade = flip (foldr ($))  [sometimesSay ("{} of Spades"%show c) (cardIs (==(c,Spades)))  | c <- [Ace .. King]]
 
 -- | abbreviation for \ _ _ _ ->
 __ :: a -> GEGSto a
@@ -166,6 +158,15 @@ state _ _ gs = gs
 
 checkMatch pattern input = isJust$ matchRegex (mkRegexWithOpts pattern True False) input
 
+
+-- | Apply a function to `rest` and `x` for each possible `x` in a list where rest is the list with `x` removed
+withoutEach :: ([a] -> a -> b) -> [a] -> [b]
+withoutEach f [] = []
+withoutEach f (x:xs) = withoutEach' f ([],x,xs)
+    where
+        withoutEach' f t@(xs,x,[]) = [f (reverse xs) x]
+        withoutEach' f t@(xs,x,y:ys) = f (reverse xs ++ ys) x : withoutEach' f (x:xs,y,ys)
+
 -- | penalize for unnecessarily saying something
 unnec :: String -> Rule
 unnec s act e@(Action p a m) gs =
@@ -177,34 +178,3 @@ unnec s act e@(Action p a m) gs =
                   (doBefore$ penalty 1 ("unnecessarily saying '{}'"%x))) ms)
               act e gs
 unnec _ act e gs = act e gs
-
-
--- | Apply a function to `rest` and `x` for each possible `x` in a list where rest is the list with `x` removed
-withoutEach :: ([a] -> a -> b) -> [a] -> [b]
-withoutEach f [] = []
-withoutEach f (x:xs) = withoutEach' f ([],x,xs)
-
-withoutEach' :: ([a] -> a -> b)-> ([a],a,[a]) -> [b]
-withoutEach' f t@(xs,x,[]) = [f (reverse xs) x]
-withoutEach' f t@(xs,x,y:ys) = f (reverse xs ++ ys) x : withoutEach' f (x:xs,y,ys)
-
-
-a >|< b = "(" ++ a ++")|(" ++ b ++ ")"
-
-r7 :: Rule
-r7 = unnec ("thank you(( very)* very much)?" >|< "have a( very)* nice day")
-   . with (getVar "r7") (\nsevens ->
-       when (isLegal ~&~ isSeven) (
-           doAfter (modifyVar "r7" (+1))
-         . mustSay ("have a{} nice day"%veries nsevens) )
-       . when (boolVar "r7" ~&~ isTurn ~&~ not_ isSeven) (mustDo (Draw (2*nsevens)) (
-           doAfter (setVar "r7" 0)
-         . mustSay (thanks nsevens)))
-     )
-     where isSeven = cardIs ((==Seven) . rank)
-           thanks 1 = "thank you"
-           thanks n = "thank you{} much"%veries (n-1)
-           veries n = concat$ replicate n " very"
-
-
---r7 = when (isLegal ~&~ cardIs ((==Seven) . rank))  onSeven . when (boolVar "r7" ~&~ isTurn)
