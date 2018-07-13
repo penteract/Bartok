@@ -1,7 +1,58 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TemplateHaskell, ScopedTypeVariables #-}
+{-|
+Module      : DataTypes
+Description : Data types used for dealing with games
 
-module DataTypes where
+Datatypes for cards, game state and game view alongside some basic functions to process them.
+-}
+module DataTypes(
+    -- *Cards
+    Hand, Card,
+    Suit(..),Rank(..), suit, rank,
+    -- **Printing
+    uniCard,
+    -- **Parsing
+    runParser,parseSuit,parseRank,parseCard,
+
+    -- *Basic Rules
+    Step,Game, Rule,
+    -- **Structures
+    Name, PlayerIndex,
+    Action(..), Event(..), GameState(..),
+    newGame,
+    -- ** Variables
+    setVar,readVar,modifyVar,
+    shuffleDeck,eventPlayer,
+
+    -- * View Rules
+    Viewer, ViewRule, CardView(..),
+    -- **Structure
+    GameView(..),
+
+    -- * Combined Rules
+    Rule',
+
+    -- *Angus needs to get rid of these
+    if',(/\),
+    -- **lenses
+    players,
+    hands,
+    deck,
+    pile,
+    messages,
+    lastMoveLegal,
+    randg,
+    winner,
+    varMap,
+    handsV,
+    pileV,
+    deckV,
+    messagesV,
+
+
+)
+ where
 
 import Control.Lens ((^.),(%~),makeLenses, (%%~),(&),Lens'(..),Lens)
 import Control.Monad (ap,liftM2)
@@ -29,7 +80,11 @@ data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten |
 -- data Suit = Clubs | .. | Trumps | Black | Red | White
 -- data Rank = Ace .. King | Joker | Fool ... Collective
 -- data Card = SCard Rank Suit | Trump Rank' | Joker JColour deriving (Show,Eq)
+
+-- | A single playing card
 type Card = (Rank,Suit)
+
+-- | An ordered collection of cards forming a player's hand
 type Hand = [Card]
 
 type Name = String

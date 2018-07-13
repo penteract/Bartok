@@ -129,6 +129,8 @@ sometimesSay :: String -> GEGSto Bool -> Rule
 sometimesSay s cond = whether cond (mustSay s)
                                    (when (said s) (doBefore$ penalty 1 ("unnecessarily saying '{}'"%s)))
 
+--sometimesSay s cond = unnec s . when cond (mustSay s)
+
 
 -- | Any action except the specified one is an illegal move
 --   when the specified action occurs, run the second argument

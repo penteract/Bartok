@@ -1,5 +1,4 @@
 module TSample where
-
 import TLib
 
 
@@ -31,9 +30,8 @@ rq = when (cardIs ((==Queen) . rank))
       (doBefore reverseDirection
         . when (not_ isLegal) (doAfter reverseDirection))
 
-
+rSpade :: Rule
 rSpade = flip (foldr ($))  [sometimesSay ("{} of Spades"%show c) (cardIs (==(c,Spades)))  | c <- [Ace .. King]]
-
 
 
 r8 :: Rule

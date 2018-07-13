@@ -1,5 +1,10 @@
 {-# LANGUAGE Trustworthy #-}
+{-|
+Module      : Sample
+Description : Sample rules
 
+Look at the implementation of these to see examples of how to write rules
+-}
 module Sample where
 
 import BaseGame
@@ -16,7 +21,7 @@ import Text.Regex(matchRegex,mkRegexWithOpts)
 import Data.List ((\\),intercalate)
 import Data.Char (isSpace)
 
---all definitions work*
+-- | When an 8 is played, skip the following player's turn
 r8 :: Rule
 --r8 = onLegalCard$ when' ((==Eight).rank) (fromStep nextTurn)
 --r8 = onLegalCard (\card event gs -> if (rank card == Eight) then nextTurn gs else gs)
@@ -26,20 +31,24 @@ r8 = onLegalCard (\card event ->
 
 --r8 = onLegalCard$ when ((==Eight).rank) nextTurn
 
-rbase = const baseAct
+--rbase = const baseAct
 
-ruleset = r8 (rq baseAct)
-
+--ruleset = r8 (rq baseAct)
 
 reverseDirection :: Step
 reverseDirection = players %~ reverse
 
-rq :: Rule --reverse direction on q, may have problems if reversing direction makes a move become illegal
 -- rq act e gs = (onLegalCard$ when' ((==Queen).rank)
 --                   (\e' gs' -> act e (reverseDirection gs))) act e gs
+
+
+-- |Reverse direction when a Queen is played
+rq :: Rule
 rq act e gs = onLegalCard (\ card event gs'->
                 if (rank card == Queen)
                     then act e (reverseDirection gs)
+                    -- We can't use `reverseDirection gs'` aka `reverseDirection (act e gs)`
+                    -- since the turn would have already advanced and be in the wrong place.
                     else gs'
                 ) act e gs
 
@@ -60,6 +69,11 @@ mustdo7 n f = with (const$ head .(^.players)) (\p ->
 count7s :: GameState -> Int
 count7s = readVar "sevens"
 
+
+-- | When a seven is played, the player must say 'have a nice day'.
+-- The following player must either play another seven, saying 'have a very nice day' or say 'thank you' and draw 2 cards.
+-- If futher sevens are played (each such player must add another 'very'),
+-- the first player who cannot play one must say 'thank you very{n} much' and draw 2n cards.
 r7 :: Rule
 r7 = with (const count7s) (\n -> if  n > 0
     then onDraw (\_->(mustdo7 n) (when' id (const$setVar "sevens" 0)))
