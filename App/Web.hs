@@ -94,20 +94,20 @@ app games req resp = do
         _ -> resp$ responseLBS methodNotAllowed405 [(hAllow,"GET, POST")] ""
 
 onGet :: GMap -> Application
-onGet games req resp = do
+onGet games req = do
     --print (pathInfo req)
     case pathInfo req of
-        [] -> load "home.html" req resp
-        [gname] -> playPage gname games req resp
+        [] -> load "home.html"
+        [gname] -> playPage gname games req
         -- [gname] -> resp$redirect308 (concat
         --     ["/",unpack gname,"/",B.unpack (rawQueryString req)])
-        ["static",x] -> load x req resp
-        [gname,"newRule"] -> newRulePage gname games req resp
-        [gname,"wait"] -> waitPage gname games req resp
-        _ -> resp $ err404
+        ["static",x] -> load x
+        [gname,"newRule"] -> newRulePage gname games req
+        [gname,"wait"] -> waitPage gname games req
+        _ -> ($ err404)
 
-load :: Text -> Application
-load p req resp = resp$ responseFile ok200 [(hContentType,getContentType p)] (unpack p) Nothing
+load :: Text -> (Response -> a) -> a
+load p resp = resp$ responseFile ok200 [(hContentType,getContentType p)] ("static/"++unpack p) Nothing
 
 getContentType :: Text ->  B.ByteString
 getContentType p = fromMaybe "text/html" (lookup p
@@ -126,7 +126,7 @@ playPage gameName games req resp = do
     case mx of
         Nothing -> addGame gameName games
         Just a -> return ()
-    resp$ responseFile ok200 [html] "play.html" Nothing
+    load "play.html" resp
 
 newRulePage :: Text -> GMap -> Application
 newRulePage gameName games req resp= do
@@ -135,12 +135,12 @@ newRulePage gameName games req resp= do
     case mx of
         Nothing -> addGame gameName games
         Just a -> return ()
-    resp$ responseFile ok200 [html] "newRule.html" Nothing
+    load "newRule.html" resp
 
 waitPage :: Text -> GMap -> Application
 waitPage gameName games req resp = do
     --mx <- CMap.lookup gameName games
-    load "wait.html" req resp
+    load "wait.html" resp
 --WithGame Monad
 
 type WithGame a = ReaderT (Request,L.ByteString) (StateT OngoingGame IO) a
