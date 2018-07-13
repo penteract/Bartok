@@ -114,10 +114,10 @@ penalty _ _ _ = id
 
 failmsg s = "failure to say '{}'"%s
 
--- | penalise if `s` is not said
+-- | penalize if `s` is not said
 mustSay s = when (not_$ said s) (doBefore (penalty 1 (failmsg s)))
 
--- | If the condition holds, require that they say  the message; otherwise, penalise them if they say it
+-- | If the condition holds, require that they say  the message; otherwise, penalize them if they say it
 sometimesSay :: String -> GEGSto Bool -> Rule
 sometimesSay s cond = whether cond (mustSay s)
                                    (when (said s) (doBefore$ penalty 1 ("unnecessarily saying '{}'"%s)))
@@ -166,7 +166,7 @@ state _ _ gs = gs
 
 checkMatch pattern input = isJust$ matchRegex (mkRegexWithOpts pattern True False) input
 
--- | penalise for unnecessarily saying something
+-- | penalize for unnecessarily saying something
 unnec :: String -> Rule
 unnec s act e@(Action p a m) gs =
             let ms = split m

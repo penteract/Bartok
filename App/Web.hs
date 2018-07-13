@@ -5,6 +5,8 @@ import System.Environment
 import Data.Text(Text,intercalate,unpack)
 import Data.Maybe
 
+import Data.Aeson
+
 import Data.Time(getCurrentTime,diffUTCTime)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -213,8 +215,9 @@ viewGame :: WithGame Response
 viewGame = do
     e <- getBody
     let p = L.unpack e
+    let (name,tok) = span (/='\n') p
     game <- getGame
-    doErr (view p game) (\v ->
+    doErr (view name (drop 1 tok) game) (\v ->
        return$ jsonResp (serialize v))
 
 playMove :: WithGame Response
@@ -231,7 +234,7 @@ playMove = do
               liftIO getCurrentTime >>= modify . setTime
               --liftIO (putStrLn (show (_players state)))
               game' <- getGame
-              doErr (view p game') (\ v ->
+              doErr (view p (getTok r) game') (\ v ->
                 return$ jsonResp (serialize v)))
 
         Nothing -> return err404
@@ -247,11 +250,9 @@ newRule = do
     case f of
         Left err -> do
             liftIO$ putStrLn$ show err
-            return$ jsonResp$ L.pack("{\"tag\":\"Error\",\"contents\":"++show (fromErr err)++"}")
+            return$ jsonResp$ "{\"tag\":\"Error\",\"contents\":"`L.append`(encode.toJSON$ fromErr err) `L.append`"}"
         Right r -> do
-
             modify$ restartWithNewRule "" r
-
             return$ jsonResp "{\"tag\":\"Redirect\"}"
 
 checkStatus :: Text -> GMap -> Application

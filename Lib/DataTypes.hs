@@ -32,9 +32,6 @@ data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten |
 type Card = (Rank,Suit)
 type Hand = [Card]
 
-
---type CardIndex = Int
-
 type Name = String
 type PlayerIndex = Name
 data Action = Draw Int | Play Card deriving (Show,Eq)

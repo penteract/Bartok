@@ -3,19 +3,35 @@
     <meta charset="utf-8">
     <title> Add a New Rule </title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.3.3/ace.js" type="text/javascript" charset="utf-8"></script>
     <style>
 #prog{
     width:600px;
     height:600px
 }
+    #editor {
+        /*position: absolute;*/
+        /*top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;*/
+        height:600px;
+    }
     </style>
 
 </head>
-<body>
 
-<textarea id="prog">
-    onLegalCard (\card event -> if (rank card == Eight) then nextTurn else doNothing)
-</textarea>
+<body>
+<div id="editor"> onLegalCard (\c -> if rank c == Eight
+    then nextTurn
+    else doNothing)
+</div>
+
+<script>
+    var editor = ace.edit("editor");
+    editor.setTheme("ace/theme/monokai");
+    editor.session.setMode("ace/mode/haskell");
+</script>
 <button onclick="submit()">Submit Rule</button>
 <div id = "errors">
 </div>
@@ -34,7 +50,7 @@ function getParameterByName(name, url) {
 
 function process(dat){
     console.log(dat)
-    if (dat.tag == "Error") $("#errors".html(dat.contents))
+    if (dat.tag == "Error") $("#errors").html(dat.contents)
     else if (dat.tag == "Redirect") location.assign("../?name="+name)
 }
 
@@ -42,8 +58,8 @@ name = getParameterByName("name")
 
 function submit(){
     console.log("hi")
-    $.post("",$("#prog").val(),
-        (data => console.log(data)), "json")
+    $.post("",editor.getValue(),
+        process, "json")
 }
 </script>
 </body>

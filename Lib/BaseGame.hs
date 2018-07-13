@@ -102,9 +102,10 @@ baseAct e@(Action p a m) gs
                                           else play p e c)
                      gs
     where inTurn = isTurn p gs
-baseAct Timeout gs = let activePlayer = head $ gs^.players in
-    ( broadcast ("Penalize "++activePlayer++" 1 card for failure to play within a reasonable amount of time")
-    . draw 1 activePlayer ) gs
+baseAct Timeout gs = case gs^.players of
+    [] -> gs -- If there aren't any players,don't penalize anyone for timeouts
+    (activePlayer:_) -> broadcast ("Penalize "++activePlayer++" 1 card for failure to play within a reasonable amount of time")
+        . draw 1 activePlayer $ gs
 baseAct (PlayerJoin n mps) gs = broadcast ("Player "++n++" joined the game!") . addPlayer n mps $ gs
 
 broadcast :: String -> Step

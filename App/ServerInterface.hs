@@ -65,21 +65,25 @@ readError s = runStateT s Nothing
 timeoutReq :: Either ActionReq Event
 timeoutReq = Right Timeout
 
+
+nameCheck p og = unless (nameExists p og)
+   (throwError $ "Player "++p++" is not a member of this game.")
+tokenCheck p t og = unless (tokenMatches p t og)
+   (throwError $ "Token given does not match that of player "++p++".")
+
+checks :: PlayerIndex -> Token -> OngoingGame -> MError ()
+checks p t og = nameCheck p og >> tokenCheck p t og
+
 handle :: Either ActionReq Event -> OngoingGame -> MError GameState
 handle ar og =
-   let nameCheck p = unless (nameExists p og)
-          (throwError $ "Player "++p++" is not a member of this game.")
-       tokenCheck p t = unless (tokenMatches p t og)
-          (throwError $ "Token given does not match that of player "++p++".")
-       checks p t = nameCheck p >> tokenCheck p t in
    case ar of
       Left (ReqPlay p t i m) -> do
-        checks p t
+        checks p t og
         case og^?gameState.hands.at p._Just.ix i of
             Just c -> carryOut (Action p (Play c) m) og
             Nothing -> throwError $ "Player "++p++" does not have "++show (i+1)++" card(s) in hand."
       Left (ReqDraw p t n m) -> do
-        checks p t
+        checks p t og
         carryOut (Action p (Draw n) m) og
       Left (ReqJoin n tok) -> if nameExists n og then return (og^.gameState) -- (throwError $ "Player "++n++" is already a member of this game.")
                        else let neighbs = case map fst (og^.seats) of l@(x:xs) -> Just (x,last l); _ -> Nothing in
@@ -124,18 +128,17 @@ checkGSokay og =let gs = og ^. gameState in
 checkGVokay :: GameView -> OngoingGame -> Bool
 checkGVokay gv og = Set.fromList (map fst $ gv^.handsV) == Set.fromList (map fst $ og^.seats)
 
-view :: PlayerIndex -> OngoingGame -> MError ClientPacket
-view p og = do
-  unless (nameExists p og)
-      (throwError $ "Player "++p++" is not a member of this game.")
-  case og ^. gameState . winner of
-      Nothing -> do
-          v <- getView p og
-          let inOrder hs = foldr ((:) . ap (,) (fromJust . flip lookup hs) . fst) [] (og^.seats) -- put hands in seat order
-          let newHands =  uncurry (flip (++)) . span ((p/=).fst) -- cycle so that p is at the front
-          return $ NewData (og^.counter) (v & handsV %~ newHands . inOrder)
-      Just q -> if q==p then return$ Redirect ("newRule/?name="++p)
-          else return$ Redirect ("wait/?name="++p)
+view :: PlayerIndex -> Token -> OngoingGame -> MError ClientPacket
+view p t og = do
+    checks p t og
+    case og ^. gameState . winner of
+        Nothing -> do
+            v <- getView p og
+            let inOrder hs = foldr ((:) . ap (,) (fromJust . flip lookup hs) . fst) [] (og^.seats) -- put hands in seat order
+            let newHands =  uncurry (flip (++)) . span ((p/=).fst) -- cycle so that p is at the front
+            return $ NewData (og^.counter) (v & handsV %~ newHands . inOrder)
+        Just q -> if q==p then return$ Redirect ("newRule/?name="++p)
+            else return$ Redirect ("wait/?name="++p)
 
 -- can still run into problems if views do weird things to the messages!
 -- because the "malfunction" messages are passed in at the end and

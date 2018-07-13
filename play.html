@@ -120,7 +120,7 @@ $.post("",JSON.stringify(
   display, "json")
 
 
-poller = setInterval(() => $.post("./poll",name,//TODO(toby) send tokens
+poller = setInterval(() => $.post("./poll",name+"\n"+tok,//TODO(toby) send tokens
   display, "json")
     ,1000)
 

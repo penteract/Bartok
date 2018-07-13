@@ -87,7 +87,7 @@ removeAll' :: Regex -> ([String],[String]) -> [String] -> ([String],[String])
 removeAll' r (ss,ss') [] = (reverse ss,reverse ss')
 removeAll' r (ss,ss') (s:ss'') = if isJust $ matchRegex r s then removeAll' r (s:ss,ss') ss'' else removeAll' r (ss,s:ss') ss''
 
---happens on legal move; not penalised afterwards
+--happens on legal move; not penalized afterwards
 mustSay :: String -> Game
 mustSay s (Action p a m) = if s `findInMs` m then doNothing else penalty 1 ("failure to say: '{}'"%s) p
 mustSay s _ = doNothing

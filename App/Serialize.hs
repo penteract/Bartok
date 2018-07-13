@@ -1,7 +1,9 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE DeriveGeneric, StandaloneDeriving #-}
 
-module Serialize(serialize, unserialize, getName, ActionReq(..),Token,ClientPacket(..))
+module Serialize(serialize, unserialize,
+        ActionReq(..),Token,ClientPacket(..),
+        getName,getTok)
  where
 
 import GHC.Generics (Generic)
@@ -39,16 +41,17 @@ instance FromJSON Rank
 instance FromJSON Action
 instance FromJSON Event
 
+data ClientPacket = NewData Int GameView | NoNewData | Redirect String deriving (Show,Generic)
+instance ToJSON ClientPacket
+
 serialize :: ClientPacket -> L.ByteString
 serialize = encode . toJSON
 
 
 type Token = String
 
-data ClientPacket = NewData Int GameView | NoNewData | Redirect String deriving (Show,Generic)
-instance ToJSON ClientPacket
-
-data ActionReq = ReqPlay PlayerIndex Token Int String
+type CardIndex = Int
+data ActionReq = ReqPlay PlayerIndex Token CardIndex String
                | ReqDraw PlayerIndex Token Int String
                | ReqJoin Name Token deriving (Show,Eq,Generic)
 instance ToJSON ActionReq where toEncoding = genericToEncoding defaultOptions
@@ -58,6 +61,11 @@ getName :: ActionReq -> PlayerIndex
 getName (ReqPlay p _ _ _) = p
 getName (ReqDraw p _ _ _) = p
 getName (ReqJoin p _) = p
+
+getTok :: ActionReq -> Token
+getTok (ReqPlay _ t _ _) = t
+getTok (ReqDraw _ t _ _) = t
+getTok (ReqJoin _ t) = t
 
 unserialize :: L.ByteString -> Maybe ActionReq
 unserialize = decode
