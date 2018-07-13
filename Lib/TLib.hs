@@ -1,10 +1,42 @@
 {-# LANGUAGE FlexibleInstances #-}
-module TLib(module TLib,
-    Rule,GameState,Step,Event(..),Action(..),
-    PlayerIndex, Card, CardView(..),GameView(..),
+{-|
+Module      : TLib
+Description : An alternative to RuleHelpers; uses more higher order functions and fewer lenses
+
+This approaches monads, but we aren't using those.
+This presents operations with
+-}
+module TLib(
+    -- * The fundamental type
+    GEGSto,
+    -- *users
+    -- These functions give access to the arguments in a composable manner
+    withAction,withMessage,with,
+
+    -- *Operators
+    when, whether, onNextTurn, uponDoUntil,
+    (.:),__,
+    -- * Tests
+    isAction,isLegal,isTurn,
+    actionIs,cardIs,boolVar,said,
+    (~&~),not_,
+    -- * getters
+    getVar,state,
+    -- *Helper Functions
+    --  These should help with common patterns
+    unnec,mustSay,mustDo,sometimesSay,
+    modifyPlayers,
+    -- * class
+    Ruleable(..),
+    -- * From DataTypes:
+    Step,Game,Rule,
+    GameState,Event(..),Action(..),
+    PlayerIndex,
+    -- ** cards
+    Card, CardView(..),GameView(..),
+    suit,rank,Suit(..),Rank(..),
     Viewer, ViewRule,
     readVar,setVar,modifyVar,
-    suit,rank,Suit(..),Rank(..),
     nextTurn,draw,broadcast,(%))
  where
 
@@ -15,15 +47,20 @@ import BaseGame(nextTurn,draw,broadcast,(%),illegal)
 import RuleHelpers(findInMs,split,regexProcess,reconstitute)
 import Text.Regex(matchRegexAll,matchRegex, mkRegexWithOpts)
 
-import qualified BaseGame
+--import qualified BaseGame
 
-type VarName = String
-type GEGSto a = Game -> Event -> GameState -> a
+type GEGSto a =
+       Game -- ^ The inner ruleset
+    -> Event -- ^ The event under consideration
+    -> GameState -- ^ The previous state of the game
+    -> a
 
+-- | A class for types that are 'smaller' than `Rule` so that there are different options for how to convert.
 class Ruleable a where
-    doAfter :: a -> Rule
-    doBefore :: a -> Rule
-    doOnly :: a -> Rule
+    doAfter :: a -> Rule -- ^ Perform an action after the inner ruleset.
+    doBefore :: a -> Rule -- ^ Perform an action before the inner ruleset.
+    doOnly :: a -> Rule -- ^ Perform an action and ignore the inner ruleset.
+                        --   This should be used rarely.
 
 instance Ruleable Step where
     doAfter s act e gs  = s $ act e gs
@@ -35,18 +72,23 @@ instance Ruleable Game where
     doBefore act1 act2 e = act2 e . act1 e
     doOnly = const
 
-cardIs :: (Card -> Bool) -> Game -> Event -> GameState -> Bool
-cardIs f _ (Action _ (Play c) _) _= f c
-cardIs _ _ _ _ = False
-
-isLegal :: Game -> Event -> GameState -> Bool
-isLegal act e gs = isAction act e gs && (_lastMoveLegal (act e gs))
-
-isAction :: Game -> Event -> GameState -> Bool
+-- | returns True if the event is an Action
+isAction :: GEGSto Bool
 isAction _ (Action _ _ _) _ = True
 isAction _ _ _ = False
 
-actionIs :: (Action -> Bool) -> Game -> Event -> GameState -> Bool
+-- | returns True if the event is a Play action and the card satisfies the condition
+cardIs :: (Card -> Bool) -- ^The condition
+            -> GEGSto Bool
+cardIs f _ (Action _ (Play c) _) _= f c
+cardIs _ _ _ _ = False
+
+-- | returns True if the event is an action and is legal under the inner ruleset
+isLegal :: GEGSto Bool
+isLegal act e gs = isAction act e gs && (_lastMoveLegal (act e gs))
+
+
+actionIs :: (Action -> Bool) -> GEGSto Bool
 actionIs q _ (Action _ a _) _ = q a
 actionIs _ _ _ _ = False
 
@@ -66,24 +108,28 @@ not_ = fmap$fmap$fmap not
 (^^^&^^^) :: (Applicative f1,Applicative f2, Applicative f3) => f1 (f2 (f3 Bool)) -> f1 (f2 (f3 Bool)) -> f1 (f2 (f3 Bool))
 (^^^&^^^) = liftA2(liftA2(liftA2 (&&)))
 
-when :: (Game -> Event -> GameState -> Bool) -> Rule -> Rule
+when :: (GEGSto Bool) -> Rule -> Rule
 when f r act e gs = if f act e gs then r act e gs else act e gs
 -- when f r = whether f r id
 
 
-whether :: (Game -> Event -> GameState -> Bool) -> Rule -> Rule -> Rule
+whether :: (GEGSto Bool) -> Rule -> Rule -> Rule
 whether f r1 r2 act e gs = if f act e gs then r1 act e gs else r2 act e gs
 
 -- whether = liftA2$liftA2$liftA2$ if'
 
-onNextTurn :: VarName -> (Game -> Event -> GameState -> Bool) -> Rule -> Rule
+-- | Given a fresh variable name, when a condition is met, run an action on the following turn
+onNextTurn :: VarName -- ^ a fresh varName
+          -> (GEGSto Bool) -- ^ the condition which must be met
+          -> Rule -- ^ what to do on the next turn
+          -> Rule
 onNextTurn v f r = when f (doAfter$ setVar v 1)
                  . when (isTurn ~&~ boolVar v) ((doAfter (setVar v 0)) . r)
 
-
-uponDoUntil :: VarName -> GEGSto Bool -> Rule -> GEGSto (Bool) -> Rule
+-- Upon a condition being satisfied, implement a rule until a second condition is satisfied
+uponDoUntil :: VarName -> GEGSto Bool -> Rule -> GEGSto Bool -> Rule
 uponDoUntil v upon r untl =  when upon (doAfter$ setVar v 1)
-                 . when untl (doAfter$ setVar v 1)
+                 . when untl (doAfter$ setVar v 0)
                  . when (boolVar v) r
 
 -- testPlayer :: (String -> Bool) -> GEGSto Bool
@@ -93,10 +139,12 @@ uponDoUntil v upon r untl =  when upon (doAfter$ setVar v 1)
 --
 -- withPlayer :: GEGSto (Maybe String)
 
+-- | When an action happens, do something with it
 withAction :: (Action -> Rule) -> Rule
 withAction f act e@(Action _ a _) gs = f a act e gs
 withAction f act e gs = act e gs
 
+-- | When an action happens, do something with the message that gets sent
 withMessage :: (String -> Rule) -> Rule
 withMessage f act e@(Action _ _ m) gs = f m act e gs
 withMessage f act e gs = act e gs
@@ -149,11 +197,13 @@ modifyPlayers f g = g{_players = f (_players g)}
 __ :: a -> GEGSto a
 __ = const.const.const
 
+-- |
 state :: GEGSto GameState
 state _ _ gs = gs
 
 
 -- could try Control.DotDotDot
+-- | lift an action
 (.:) :: (a -> b) -> GEGSto a -> GEGSto b
 (.:) f g a b c = f (g a b c)
 
