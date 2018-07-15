@@ -108,22 +108,22 @@ data Event =
     | Timeout -- ^If no player has made an action for 10 seconds, this event will be sent
     deriving (Show,Eq)
 
--- | The type of gameState  transformation of gam
+-- | The type of transformations of game state
 type Step = GameState -> GameState
 
--- I'd call a function playmove or runevent. the problem is that it's used too much
---the type could almost be called Game
+-- I'd call a function playmove or runevent. the problem is that it's used more than once
+
 -- | This is the type of games (meaning a ruleset, rather than a specific instance of a game).
--- given an event such as a player action, and a game state, it returns the resulting state
+-- Given an event such as a player action, and a game state, it returns the resulting state
 type Game = Event -> Step
 
 -- | The type of rules - a rule is added by function composition forming a chain
--- 'such as r3 (r1 (r2 baseAct))' .
--- Most rules should call the first argument under most circumstances.
-type Rule = Game -> Game --this type is named correctly
--- Game -> Game == (Event -> GameState -> GameState) -> Event -> GameState -> GameState
+-- such as 'r3 (r1 (r2 baseAct))' .
+-- Most rules should call the first argument under most circumstances and usually without changing the event.
+type Rule = Game -> Game
+-- ^ Game -> Game == (Event -> GameState -> GameState) -> Event -> GameState -> GameState
 
-
+-- \ Identifiers for variables
 type VarName = String
 
 --TODO: make the documentation true (messages and lastMoveLegal)
@@ -171,10 +171,11 @@ data CardView = CardFace Card | CardBack deriving (Show)
 
 -- | The structure describing data seen by players
 data GameView = GV {
-    _handsV :: [(Name,[CardView])] ,
-    _pileV :: [CardView] ,
-    _deckV :: [CardView] ,
-    _messagesV :: [String]
+    _handsV :: [(Name,[CardView])] , -- ^ The players and the information a particular player will have about each hand.
+    -- By default, this is a `CardFace`s for the viewing player and a number of `CardBack`s for others.
+    _pileV :: [CardView] , -- ^ What should be seen of the pile. By default, only the top card is visible.
+    _deckV :: [CardView] , -- ^ What should be seen of the pile. By default, none are visible.
+    _messagesV :: [String] -- ^ The messages a player can see. By default, this is all messages that have been sent
 } deriving Show
 makeLenses ''GameView
 -- handsV :: Lens' GameView [(Name,[CardView])]
@@ -250,12 +251,15 @@ suitChar s = case s of
   Hearts -> 'H'
   Spades -> 'S'
 
+-- | Get the suit of a card.
 suit :: Card -> Suit
 suit = snd
 
+-- | Get the rank of a card.
 rank :: Card -> Rank
 rank = fst
 
+-- | One character corresponding to the rank (A1..9TJCQK)
 rankChar :: Rank -> Char
 rankChar r = (['A'] ++ [head $ show i | i <- [2..9]::[Int] ] ++ ['T','J','C','Q','K'])!!(fromEnum r - 1) -- UNSAFE
 
@@ -299,6 +303,8 @@ parseCard = do
   s <- parseSuit
   return (r,s)
 
+
+-- | Get the playeer if an event
 eventPlayer :: Event -> Maybe PlayerIndex
 eventPlayer (Action p _ _) = Just p
 eventPlayer (PlayerJoin p _) = Just p
@@ -313,11 +319,13 @@ setVar s i = varMap %~ Map.insert s i
 modifyVar :: VarName -> (Int -> Int) -> Step
 modifyVar s f gs = setVar s (f $ readVar s gs) gs
 
+-- | Shuffle the deck (does not touch the pile or hands) using the random seed contained in GameState.
 shuffleDeck :: Step
 shuffleDeck = uncurry ((deck%~).flip (ap shuffle' length)) . (randg %%~ split)
 -- shuffleDeck = (deck /\ randg) %~ ap ((`ap` snd) . ((,) .) . (. fst) . liftM2 shuffle' fst (length . fst)) (split . snd)
 -- shuffleDeck = (deck /\ randg) %~ (\(d,r) -> let (r1,r2) = split r in (shuffle' d (length d) r1,r2))
 
+-- | Construct a new game from a list of player names.
 newGame :: [String] -> GameState
 newGame pls =  ((pile /\ deck) %~ (\(_,y:ys) -> (y:|[],ys))) . shuffleDeck $ -- UNSAFE
            GS { _deck = [ minBound.. ]

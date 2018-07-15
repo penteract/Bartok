@@ -1,4 +1,11 @@
-module TSample where
+{-|
+Module      : TSample
+Description : Sample rules using Tlib.
+
+Looking at the source code is reccomended
+-}
+module TSample(r7,r8,rq,rSpade)
+ where
 import TLib
 
 

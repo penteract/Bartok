@@ -24,7 +24,7 @@ module TLib(
     getVar,state,
     -- *Helper Functions
     --  These should help with common patterns
-    unnec,mustSay,mustDo,sometimesSay,
+    failmsg,mustSay,unnec,sometimesSay,mustDo,
     modifyPlayers,
     -- * class
     Ruleable(..),
@@ -72,53 +72,66 @@ instance Ruleable Game where
     doBefore act1 act2 e = act2 e . act1 e
     doOnly = const
 
--- | returns True if the event is an Action
+-- | Returns True if the event is an Action.
 isAction :: GEGSto Bool
 isAction _ (Action _ _ _) _ = True
 isAction _ _ _ = False
 
--- | returns True if the event is a Play action and the card satisfies the condition
+-- | Returns True if the event is a Play action and the card satisfies the condition.
 cardIs :: (Card -> Bool) -- ^The condition
             -> GEGSto Bool
 cardIs f _ (Action _ (Play c) _) _= f c
 cardIs _ _ _ _ = False
 
--- | returns True if the event is an action and is legal under the inner ruleset
+-- | Returns True if the event is an action and is legal under the inner ruleset.
 isLegal :: GEGSto Bool
 isLegal act e gs = isAction act e gs && (_lastMoveLegal (act e gs))
 
-
+-- | Returns True if the event is an action which satisfies the condition.
 actionIs :: (Action -> Bool) -> GEGSto Bool
 actionIs q _ (Action _ a _) _ = q a
 actionIs _ _ _ _ = False
 
+-- | Returns True if the event is an action and the next Turn should be taken by the player submitting it.
 isTurn :: GEGSto Bool
 isTurn act (Action p a m) gs = p == head (_players gs)
 isTurn _ _ _ = False
 
+-- | Returns True if the value of the named variable is not 0.
 boolVar :: VarName -> GEGSto Bool
 boolVar v act e gs = readVar v gs /= 0
 
+-- | Combines 2 tests. Returns True if both do.
 (~&~) :: GEGSto Bool -> GEGSto Bool -> GEGSto Bool
 (~&~) = liftA2(liftA2(liftA2 (&&)))
 
+-- | Negates a test. Be aware that `(not_ (actionIs (==(Draw 2))))` is different from  `(actionIs (/=(Draw 2)))`.
+--   The first example would return True for events that are not actions.
 not_ :: GEGSto Bool -> GEGSto Bool
 not_ = fmap$fmap$fmap not
 
+-- Synonym for ~&~
 (^^^&^^^) :: (Applicative f1,Applicative f2, Applicative f3) => f1 (f2 (f3 Bool)) -> f1 (f2 (f3 Bool)) -> f1 (f2 (f3 Bool))
 (^^^&^^^) = liftA2(liftA2(liftA2 (&&)))
 
+--  Making this behave as the monadic version would require
+-- | Given a condition, implement a rule only when that condition holds.
 when :: (GEGSto Bool) -> Rule -> Rule
 when f r act e gs = if f act e gs then r act e gs else act e gs
--- when f r = whether f r id
+-- when f r = whether f r (\ _ _->id)
 
 
-whether :: (GEGSto Bool) -> Rule -> Rule -> Rule
+-- This could be given the more general type `(GEGSto Bool) -> GEGSto a -> GEGSto a -> GEGSto a`
+-- | Given a condition, do one thing when the condition holds and another when it doesn't.
+whether :: (GEGSto Bool) -- ^ `if`
+           -> Rule -- ^ `then`
+           -> Rule -- ^ `else`
+           -> Rule
 whether f r1 r2 act e gs = if f act e gs then r1 act e gs else r2 act e gs
 
 -- whether = liftA2$liftA2$liftA2$ if'
 
--- | Given a fresh variable name, when a condition is met, run an action on the following turn
+-- | Given a fresh variable name, when a condition is met, run an action on the following turn.
 onNextTurn :: VarName -- ^ a fresh varName
           -> (GEGSto Bool) -- ^ the condition which must be met
           -> Rule -- ^ what to do on the next turn
@@ -126,7 +139,7 @@ onNextTurn :: VarName -- ^ a fresh varName
 onNextTurn v f r = when f (doAfter$ setVar v 1)
                  . when (isTurn ~&~ boolVar v) ((doAfter (setVar v 0)) . r)
 
--- Upon a condition being satisfied, implement a rule until a second condition is satisfied
+-- | Upon a condition being satisfied, implement a rule until a second condition is satisfied.
 uponDoUntil :: VarName -> GEGSto Bool -> Rule -> GEGSto Bool -> Rule
 uponDoUntil v upon r untl =  when upon (doAfter$ setVar v 1)
                  . when untl (doAfter$ setVar v 0)
@@ -149,24 +162,30 @@ withMessage :: (String -> Rule) -> Rule
 withMessage f act e@(Action _ _ m) gs = f m act e gs
 withMessage f act e gs = act e gs
 
-with :: GEGSto a -> (a -> GEGSto b) -> GEGSto b
+-- | Build a rule (or similar that depends on an extracted value (if you know monads, this is bind `(>>=)`).
+--  e.g. `with (getVar "n") (\ n -> doSomethingInvolvingN)`
+with :: GEGSto a -- ^ The extractor
+        -> (a -> GEGSto b) -- ^ The thing to do with the value
+        -> GEGSto b
 with getter f act e gs = f (getter act e gs) act e gs
 
+-- | Retrive a variable from the GameState.
 getVar :: String -> GEGSto Int
 getVar s act e gs = readVar s gs
 
+-- | Tests if a player said something matching a given regex (case insenstive).
+--  Like most string processing functions in this project, this separates input messages based on semicolons.
 said :: String -> GEGSto Bool
 said s act (Action _ _ m) gs = s `findInMs` m
 said _ _ _ _ = False
 
--- | Award a penalty to a player without preventing their action
+-- | Award a penalty to a player without preventing their action.
 penalty :: Int -> String -> Game
 penalty n reason (Action p a m) = draw n p . broadcast ("{} receives penalty {}: {}"%p%show n%reason)
 penalty _ _ _ = id
 
-
---illegal _ _ _ = id
-
+-- | The penalty message produced by `mustSay s`
+failmsg :: String -> String
 failmsg s = "failure to say '{}'"%s
 
 -- | penalize if `s` is not said
@@ -180,30 +199,32 @@ sometimesSay s cond = whether cond (mustSay s)
 --sometimesSay s cond = unnec s . when cond (mustSay s)
 
 
--- | Any action except the specified one is an illegal move
---   when the specified action occurs, run the second argument
+-- | Any action except the specified one is an illegal move.
+--   When the specified action occurs, run the second argument.
 mustDo :: Action -> Rule -> Rule
 mustDo act whenDone = when isAction$
     whether (actionIs (==act))
       whenDone
       (doOnly$ illegal 1 ("failure to {}"%show act))
 
+
+-- | Transform the list of players (affects turn order).
 modifyPlayers :: ([Name] ->[Name])-> Step
 modifyPlayers f g = g{_players = f (_players g)}
 
 
-
--- | abbreviation for \ _ _ _ ->
+-- (monadic `return`)
+-- | Abbreviation for \ _ _ _ ->
 __ :: a -> GEGSto a
 __ = const.const.const
 
--- |
+-- | Extract the state argument.
 state :: GEGSto GameState
 state _ _ gs = gs
 
 
 -- could try Control.DotDotDot
--- | lift an action
+-- | lift an action (monadic `fmap`)
 (.:) :: (a -> b) -> GEGSto a -> GEGSto b
 (.:) f g a b c = f (g a b c)
 
@@ -219,7 +240,9 @@ withoutEach f (x:xs) = withoutEach' f ([],x,xs)
         withoutEach' f t@(xs,x,[]) = [f (reverse xs) x]
         withoutEach' f t@(xs,x,y:ys) = f (reverse xs ++ ys) x : withoutEach' f (x:xs,y,ys)
 
--- | penalize for unnecessarily saying something
+-- | Penalize for unnecessarily saying something.
+--   This works by testing if the absence of any matching component of a player's message would cause a penalty containing `failmsg`.
+--   If not, the component is assumed to be unnecessary.
 unnec :: String -> Rule
 unnec s act e@(Action p a m) gs =
             let ms = split m
