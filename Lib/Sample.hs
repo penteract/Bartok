@@ -12,11 +12,11 @@ import RuleHelpers
 import DataTypes
 import Views
 import Control.Lens
-import qualified Data.List.NonEmpty as NE
+--import qualified Data.List.NonEmpty as NE
 import Control.Monad
 import Control.Arrow (first,second)
-import qualified Data.Map.Lazy as Map (assocs,lookup,map,insertWith,toList,keys,lookup,findWithDefault,foldrWithKey)
-import Data.Maybe (fromJust,isJust,isNothing)
+import qualified Data.Map.Lazy as Map --(assocs,lookup,map,insertWith,toList,keys,lookup,findWithDefault,foldrWithKey)
+import Data.Maybe --(fromJust,isJust,isNothing)
 import Text.Regex(matchRegex,mkRegexWithOpts)
 import Data.List ((\\),intercalate)
 import Data.Char (isSpace)
@@ -247,7 +247,7 @@ rBlind act e gs = (messages /\ hands %~
                           ,hs)))
                   $ act e gs
 rBlindV :: ViewRule
-rBlindV v p = mapOwnHand p (map (const CardBack)) v p
+rBlindV = mapOwnHand (map (const CardBack))
 
 rBlind' :: Rule'
 rBlind' = (rBlind,rBlindV)

@@ -51,13 +51,15 @@ serialize = encode . toJSON
 type Token = String
 
 type CardIndex = Int
-data ActionReq = ReqPlay PlayerIndex Token CardIndex String
-               | ReqDraw PlayerIndex Token Int String
+
+-- TODO: Consider adding some validation to player join requests (eg name can't contain silly characters)
+data ActionReq = ReqPlay Name Token CardIndex String
+               | ReqDraw Name Token Int String
                | ReqJoin Name Token deriving (Show,Eq,Generic)
 instance ToJSON ActionReq where toEncoding = genericToEncoding defaultOptions
 instance FromJSON ActionReq
 
-getName :: ActionReq -> PlayerIndex
+getName :: ActionReq -> Name
 getName (ReqPlay p _ _ _) = p
 getName (ReqDraw p _ _ _) = p
 getName (ReqJoin p _) = p

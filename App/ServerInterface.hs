@@ -60,7 +60,7 @@ initialGame = do
 readError :: MError a -> Either String (a, Maybe OngoingGame)
 readError s = runStateT s Nothing
 
--- data Event = Action PlayerIndex Action String | Timeout | PlayerJoin Name deriving (Show,Eq)
+-- data Event = Action Name Action String | Timeout | PlayerJoin Name deriving (Show,Eq)
 
 timeoutReq :: Either ActionReq Event
 timeoutReq = Right Timeout
@@ -71,7 +71,7 @@ nameCheck p og = unless (nameExists p og)
 tokenCheck p t og = unless (tokenMatches p t og)
    (throwError $ "Token given does not match that of player "++p++".")
 
-checks :: PlayerIndex -> Token -> OngoingGame -> MError ()
+checks :: Name -> Token -> OngoingGame -> MError ()
 checks p t og = nameCheck p og >> tokenCheck p t og
 
 handle :: Either ActionReq Event -> OngoingGame -> MError GameState
@@ -128,7 +128,7 @@ checkGSokay og =let gs = og ^. gameState in
 checkGVokay :: GameView -> OngoingGame -> Bool
 checkGVokay gv og = Set.fromList (map fst $ gv^.handsV) == Set.fromList (map fst $ og^.seats)
 
-view :: PlayerIndex -> Token -> OngoingGame -> MError ClientPacket
+view :: Name -> Token -> OngoingGame -> MError ClientPacket
 view p t og = do
     checks p t og
     case og ^. gameState . winner of
@@ -143,7 +143,7 @@ view p t og = do
 -- can still run into problems if views do weird things to the messages!
 -- because the "malfunction" messages are passed in at the end and
 -- we don't check whether these cause further malfunctions in the other viewRules
-getView :: PlayerIndex -> OngoingGame -> MError GameView
+getView :: Name -> OngoingGame -> MError GameView
 getView p og = let (v,gs') = foldr (\(n,vr) (v,gs') ->
                                       let gv = vr v p (og^.gameState)
                                       in if checkGVokay gv (og & gameState .~ gs')
@@ -159,7 +159,7 @@ setState s = (gameState .~ s) . (counter %~ (+1))
 setTime :: UTCTime -> OngoingGame -> OngoingGame
 setTime t = lastAction .~ t
 
-getWinner :: OngoingGame -> Maybe PlayerIndex
+getWinner :: OngoingGame -> Maybe Name
 getWinner = (^. gameState . winner)
 
 addRule' :: String -> Rule' -> OngoingGame -> OngoingGame

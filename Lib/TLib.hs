@@ -31,7 +31,7 @@ module TLib(
     -- * From DataTypes:
     Step,Game,Rule,
     GameState,Event(..),Action(..),
-    PlayerIndex,
+    Name,
     -- ** cards
     Card, CardView(..),GameView(..),
     suit,rank,Suit(..),Rank(..),
@@ -49,13 +49,14 @@ import Text.Regex(matchRegexAll,matchRegex, mkRegexWithOpts)
 
 --import qualified BaseGame
 
+-- | Avoids extremely long types. Almost a Monad.
 type GEGSto a =
        Game -- ^ The inner ruleset
     -> Event -- ^ The event under consideration
     -> GameState -- ^ The previous state of the game
     -> a
 
--- | A class for types that are 'smaller' than `Rule` so that there are different options for how to convert.
+-- | A class for types that are 'smaller' than 'Rule' so that there are different options for how to convert.
 class Ruleable a where
     doAfter :: a -> Rule -- ^ Perform an action after the inner ruleset.
     doBefore :: a -> Rule -- ^ Perform an action before the inner ruleset.
@@ -105,7 +106,7 @@ boolVar v act e gs = readVar v gs /= 0
 (~&~) :: GEGSto Bool -> GEGSto Bool -> GEGSto Bool
 (~&~) = liftA2(liftA2(liftA2 (&&)))
 
--- | Negates a test. Be aware that `(not_ (actionIs (==(Draw 2))))` is different from  `(actionIs (/=(Draw 2)))`.
+-- | Negates a test. Be aware that @(not_ (actionIs (==(Draw 2))))@ is different from  @(actionIs (/=(Draw 2)))@.
 --   The first example would return True for events that are not actions.
 not_ :: GEGSto Bool -> GEGSto Bool
 not_ = fmap$fmap$fmap not
@@ -121,11 +122,11 @@ when f r act e gs = if f act e gs then r act e gs else act e gs
 -- when f r = whether f r (\ _ _->id)
 
 
--- This could be given the more general type `(GEGSto Bool) -> GEGSto a -> GEGSto a -> GEGSto a`
+-- This could be given the more general type @(GEGSto Bool) -> GEGSto a -> GEGSto a -> GEGSto a@
 -- | Given a condition, do one thing when the condition holds and another when it doesn't.
-whether :: (GEGSto Bool) -- ^ `if`
-           -> Rule -- ^ `then`
-           -> Rule -- ^ `else`
+whether :: (GEGSto Bool) -- ^ @if@
+           -> Rule -- ^ @then@
+           -> Rule -- ^ @else@
            -> Rule
 whether f r1 r2 act e gs = if f act e gs then r1 act e gs else r2 act e gs
 
@@ -162,8 +163,12 @@ withMessage :: (String -> Rule) -> Rule
 withMessage f act e@(Action _ _ m) gs = f m act e gs
 withMessage f act e gs = act e gs
 
--- | Build a rule (or similar that depends on an extracted value (if you know monads, this is bind `(>>=)`).
---  e.g. `with (getVar "n") (\ n -> doSomethingInvolvingN)`
+-- | Build a rule (or similar that depends on an extracted value (if you know monads, this is bind @(>>=)@).
+--
+--  e.g. @with ('getVar' "n") (\ n -> doSomethingInvolvingN)@
+--
+--  e.g.
+-- > with ('getVar' "n") (\ n -> doSomethingInvolvingN)
 with :: GEGSto a -- ^ The extractor
         -> (a -> GEGSto b) -- ^ The thing to do with the value
         -> GEGSto b
@@ -184,11 +189,11 @@ penalty :: Int -> String -> Game
 penalty n reason (Action p a m) = draw n p . broadcast ("{} receives penalty {}: {}"%p%show n%reason)
 penalty _ _ _ = id
 
--- | The penalty message produced by `mustSay s`
+-- | The penalty message produced by @mustSay s@
 failmsg :: String -> String
 failmsg s = "failure to say '{}'"%s
 
--- | penalize if `s` is not said
+-- | penalize if 's' is not said
 mustSay s = when (not_$ said s) (doBefore (penalty 1 (failmsg s)))
 
 -- | If the condition holds, require that they say  the message; otherwise, penalize them if they say it
@@ -213,7 +218,7 @@ modifyPlayers :: ([Name] ->[Name])-> Step
 modifyPlayers f g = g{_players = f (_players g)}
 
 
--- (monadic `return`)
+-- (monadic 'return')
 -- | Abbreviation for \ _ _ _ ->
 __ :: a -> GEGSto a
 __ = const.const.const
@@ -224,7 +229,7 @@ state _ _ gs = gs
 
 
 -- could try Control.DotDotDot
--- | lift an action (monadic `fmap`)
+-- | lift an action (monadic 'fmap')
 (.:) :: (a -> b) -> GEGSto a -> GEGSto b
 (.:) f g a b c = f (g a b c)
 
@@ -232,7 +237,7 @@ state _ _ gs = gs
 checkMatch pattern input = isJust$ matchRegex (mkRegexWithOpts pattern True False) input
 
 
--- | Apply a function to `rest` and `x` for each possible `x` in a list where rest is the list with `x` removed
+-- | Apply a function to 'rest' and 'x' for each possible 'x' in a list where rest is the list with 'x' removed
 withoutEach :: ([a] -> a -> b) -> [a] -> [b]
 withoutEach f [] = []
 withoutEach f (x:xs) = withoutEach' f ([],x,xs)
@@ -241,7 +246,7 @@ withoutEach f (x:xs) = withoutEach' f ([],x,xs)
         withoutEach' f t@(xs,x,y:ys) = f (reverse xs ++ ys) x : withoutEach' f (x:xs,y,ys)
 
 -- | Penalize for unnecessarily saying something.
---   This works by testing if the absence of any matching component of a player's message would cause a penalty containing `failmsg`.
+--   This works by testing if the absence of any matching component of a player's message would cause a penalty containing 'failmsg'.
 --   If not, the component is assumed to be unnecessary.
 unnec :: String -> Rule
 unnec s act e@(Action p a m) gs =

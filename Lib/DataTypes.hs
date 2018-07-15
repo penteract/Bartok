@@ -11,7 +11,7 @@ module DataTypes(
     -- *Basic Rules
     Step,Game, Rule,
     -- **Structures
-    Name, PlayerIndex,
+    Name,
     Action(..), Event(..), GameState(..),
     newGame,
 
@@ -95,16 +95,16 @@ type Card = (Rank,Suit)
 -- | An ordered collection of cards forming a player's hand
 type Hand = [Card]
 
+-- | Names of players.
 type Name = String
-type PlayerIndex = Name
 
 -- | At any point, a player can attempt to take one of these actions
 data Action = Draw Int | Play Card deriving (Show,Eq)
 
 -- | Events that rules should be able to deal with
 data Event =
-      PlayerJoin Name (Maybe (PlayerIndex,PlayerIndex))  -- ^A player requesting to join the game. This is not limited to the start
-    | Action PlayerIndex Action String -- ^A player performing one of the above actions and sending a message.
+      PlayerJoin Name (Maybe (Name,Name))  -- ^A player requesting to join the game. This is not limited to the start
+    | Action Name Action String -- ^A player performing one of the above actions and sending a message.
     | Timeout -- ^If no player has made an action for 10 seconds, this event will be sent
     deriving (Show,Eq)
 
@@ -141,7 +141,7 @@ data GameState = GS {
        --_prevGS :: Maybe (GameState,Action),
 
        _randg :: StdGen, -- ^ A seeded random number generator so that you can
-       _winner :: Maybe PlayerIndex, -- ^ `Nothing` until a player p wins at which point it becomes `Just p`
+       _winner :: Maybe Name, -- ^ `Nothing` until a player p wins at which point it becomes `Just p`
        _varMap :: Map VarName Int -- ^ A store of named variables that rules may use to keep track of state between events.
      } deriving Show
 makeLenses ''GameState
@@ -188,7 +188,7 @@ makeLenses ''GameView
 -- messagesV f gv@GV{_messagesV = m} = (\m' -> gv{_messagesV = m'}) <$> f m
 
 -- | Functions to tell a player what they should see
-type Viewer = PlayerIndex -> GameState -> GameView
+type Viewer = Name -> GameState -> GameView
 
 -- | Rules that modify what players see without affecting the game state
 type ViewRule = Viewer -> Viewer
@@ -305,7 +305,7 @@ parseCard = do
 
 
 -- | Get the playeer if an event
-eventPlayer :: Event -> Maybe PlayerIndex
+eventPlayer :: Event -> Maybe Name
 eventPlayer (Action p _ _) = Just p
 eventPlayer (PlayerJoin p _) = Just p
 eventPlayer Timeout = Nothing

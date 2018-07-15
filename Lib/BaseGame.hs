@@ -39,7 +39,7 @@ if'' b a = if' b a id
 (%%) s = (s%) . (:[]). uniCard
 
 -- | Returns a game where the move has not occured and a penalty has been given.
--- Should be used with `doOnly`
+-- Should be used with 'doOnly'
 illegal ::Int -> String -> Game
 illegal n reason e@(Action p a m) =
     draw n p .
@@ -52,7 +52,7 @@ illegal n reason e@(Action p a m) =
 
 
 -- | A penalty which does not end the turn
-penalty ::Int -> String -> PlayerIndex -> Step
+penalty ::Int -> String -> Name -> Step
 penalty n reason p =
     if n > 0 then
         (winner %~ (\mw -> if mw == Just p then Nothing else mw))
@@ -61,7 +61,7 @@ penalty n reason p =
     else doNothing
 
 -- | Broadcast a message while identifying the player it came from.
-broadcastp :: PlayerIndex -> String -> Step
+broadcastp :: Name -> String -> Step
 broadcastp p m = if'' (not $ null m) (broadcast (p++": "++m))
 
 -- | Broadcast the message a player sent with their action.
@@ -70,10 +70,10 @@ sayAct e@(Action p a m) = broadcastp p m
 sayAct _ = id
 
 -- | Add a player to the game
-addPlayer :: Name -> Maybe (PlayerIndex,PlayerIndex) -> Step
+addPlayer :: Name -> Maybe (Name,Name) -> Step
 addPlayer n mps = draw 5 n . (hands %~ Map.insert n [])
                   . (players %~ addToSeat n mps)
-addToSeat :: Name -> Maybe (PlayerIndex,PlayerIndex) -> [PlayerIndex] -> [PlayerIndex]
+addToSeat :: Name -> Maybe (Name,Name) -> [Name] -> [Name]
 addToSeat n mps ps = case mps of
                          Just (pl,pr) | ps /= [pl] -> (\(a,b:bs)->a++b:n:bs) (break (liftM2 (||) (==pl) (==pr)) ps)
                          _ -> n:ps
@@ -86,7 +86,7 @@ addToSeat n mps ps = case mps of
 
 
 -- | Play a move and tidy up the game state.
-play::PlayerIndex -> Event -> Card -> Step
+play::Name -> Event -> Card -> Step
 play p e c = (\ gs -> if getHand p gs == Just [] then win p gs else gs ) -- check for winning
     . sayAct e
     . broadcast ("{} plays {}"%p%%c)
@@ -127,17 +127,17 @@ broadcast :: String -> Step
 broadcast = (messages %~).(:)
 
 -- | Move n cards from the deck to a player's hand
-draw :: Int -> PlayerIndex -> Step
+draw :: Int -> Name -> Step
 draw n p = foldl (.) id (replicate n (draw1 p))
 
 -- | Get the hand of the current player.
-getHand :: PlayerIndex -> GameState -> Maybe Hand
+getHand :: Name -> GameState -> Maybe Hand
 getHand p gs = gs^.hands.at p
 
 
 -- a card will "disappear" if the player isn't valid
 -- | Move a single card from the deck to a player's hand.
-draw1 :: PlayerIndex -> Step
+draw1 :: Name -> Step
 --draw1 p = uncurry (((hands . at p) %~) . fmap . (:)) . cardFromDeck
 draw1 p = (\(c,gs) -> ((hands . at p) %~ fmap (c:)) gs) . cardFromDeck
   -- uncurry ((ix p %~) . (:)) . cardFromDeck  -- withHand p (\h -> first (:h) $ cardFromDeck gs) gs
@@ -173,11 +173,11 @@ cardToPile :: Card -> Step
 cardToPile c = pile %~ (c NE.<|)
 
 -- | Remove a card from a players hand.
-cardFromHand' :: PlayerIndex -> Card -> Step
+cardFromHand' :: Name -> Card -> Step
 cardFromHand' p c = hands %~ Map.adjust (delete c) p
 
 -- | Test if it is a player's turn.
-isTurn :: PlayerIndex -> GameState -> Bool
+isTurn :: Name -> GameState -> Bool
 isTurn p gs = p == (gs^.players.ix 0)
 
 -- precond: requires at least one player
@@ -186,6 +186,6 @@ nextTurn :: Step -- perhaps nextTurn should also set lastMoveLegal .~ True
 nextTurn = players %~ (\(x:xs)->xs++[x])
 
 -- | incomplete?
-win :: PlayerIndex -> Step
+win :: Name -> Step
 win p = -- broadcast (p++" wins the game!") .
         (winner .~ Just p)

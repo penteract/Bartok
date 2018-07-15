@@ -7,7 +7,8 @@ Assuming you have Stack, The following commands should get it running:
 ```
 git clone https://github.com/penteract/Bartok.git
 cd Bartok
-./serve ```
+./serve
+```
 
 (`serve` just does `stack build && stack exec server`)
 

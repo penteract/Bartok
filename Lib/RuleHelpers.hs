@@ -110,13 +110,13 @@ said = findInMs
 -- banPhrase n pm s = banPhrase' n pm (\m e gs -> s `findInMs` m)
 
 -- tests "on the way out" if you said the phrase
-banPhrase :: Int -> String -> ((PlayerIndex,Action,String) -> GameState -> Bool) -> Rule
+banPhrase :: Int -> String -> ((Name,Action,String) -> GameState -> Bool) -> Rule
 --banPhrase n pm f = onAction (\t@(p,_,_) -> ((join (ap (if' . f t) (penalty n pm p)) .) .))
 banPhrase n pm f = onAction (\t@(p,_,_) act e gs-> if f t (act e gs) then penalty n pm p (act e gs) else act e gs )
 
 
 -- possibly a mustSay component could be extracted
-require :: (PlayerIndex, Action, String) -> (Bool -> Game) -> Rule
+require :: (Name, Action, String) -> (Bool -> Game) -> Rule
 require (p, a, m) f = onAction (\(p',a',m') -> if p==p'
     then if a == a' && (m `findInMs` m') then (doAfter (f True))
       else doAfter (f False) . (doOnly$ illegal 1 ("failure to {}{}"%show a%(if null m then "" else " and say '{}'"%m)))
@@ -131,11 +131,11 @@ onLegalCard f act e@(Action p (Play c) m) s = let s' = act e s in
     if s' ^. lastMoveLegal then f c e s' else s'
 onLegalCard f act a s = act a s
 
-onAction :: ((PlayerIndex,Action,String) -> Rule) -> Rule
+onAction :: ((Name,Action,String) -> Rule) -> Rule
 onAction f act e@(Action p a m) = f (p,a,m) act e
 onAction f act e = act e
 
-onDraw :: ((PlayerIndex,Int) -> Rule)-> Rule
+onDraw :: ((Name,Int) -> Rule)-> Rule
 onDraw f = onAction (\e -> case e of
     (p,Draw n,m) -> f (p,n)
     _ -> id)

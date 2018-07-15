@@ -24,9 +24,9 @@ type Hand = [Card]
 
 -- these aren't too bad
 type Name = String
-type PlayerIndex = Name
+type Name = Name
 data Action = Draw Int | Play Card
-data Event = Action PlayerIndex Action String | Timeout
+data Event = Action Name Action String | Timeout
 
 type Transformation a = a -> a
 

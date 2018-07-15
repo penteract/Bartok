@@ -2,7 +2,7 @@
 Module      : TSample
 Description : Sample rules using Tlib.
 
-Looking at the source code is reccomended
+Looking at the source code is recommended
 -}
 module TSample(r7,r8,rq,rSpade)
  where
@@ -31,7 +31,7 @@ reverseDirection :: GameState -> GameState
 reverseDirection = modifyPlayers (\(c:cs) ->c:reverse cs)
 
 
--- | This seems better - it does not check if the move is legal before reversing direction
+-- This seems better - it does not check if the move is legal before reversing direction
 rq :: Rule
 rq = when (cardIs ((==Queen) . rank))
       (doBefore reverseDirection

@@ -4,8 +4,19 @@
 name:                bartok
 version:             0.0.0.1
 -- synopsis:
--- description:
--- homepage:            http://tdcb.me eventually?
+description:
+  Bartok is a card game where it is possible to change the rules.
+  .
+  This library contains functions to allow players to build their own rules.
+  .
+  When implementing rules, they should be well behaved, and interact well with other well behaved rules:
+  .
+      The set of players must not be modified (except on 'PlayerJoin'). They may be rearranged, which will affect turn order but not seating order (so a change to turn order is not immediately obvious to players).
+      .
+      A rule should call either the inner ruleset or 'illegal' with the event it was passed and a potentially modified GameState
+      .
+      If a rule awards penalty cards, this must occur before invoking the inner rules. A rule is allowed to call the inner rules multiple times to work out whether a penatly should be awarded, but should add penalty cards to the original state, then call the inner rule again before returning.
+-- homepage:            http://3dox.uk eventually?
 license:             BSD3
 license-file:        LICENSE
 author:              Toby Cathcart Burn
