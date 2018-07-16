@@ -47,7 +47,7 @@ rq :: Rule
 rq act e gs = onLegalCard (\ card event gs'->
                 if (rank card == Queen)
                     then act e (reverseDirection gs)
-                    -- We can't use `reverseDirection gs'` aka `reverseDirection (act e gs)`
+                    -- We can't use @reverseDirection gs'@ aka @reverseDirection (act e gs)@
                     -- since the turn would have already advanced and be in the wrong place.
                     else gs'
                 ) act e gs

@@ -141,7 +141,7 @@ data GameState = GS {
        --_prevGS :: Maybe (GameState,Action),
 
        _randg :: StdGen, -- ^ A seeded random number generator so that you can
-       _winner :: Maybe Name, -- ^ `Nothing` until a player p wins at which point it becomes `Just p`
+       _winner :: Maybe Name, -- ^ @Nothing@ until a player p wins at which point it becomes @Just p@
        _varMap :: Map VarName Int -- ^ A store of named variables that rules may use to keep track of state between events.
      } deriving Show
 makeLenses ''GameState
@@ -172,7 +172,7 @@ data CardView = CardFace Card | CardBack deriving (Show)
 -- | The structure describing data seen by players
 data GameView = GV {
     _handsV :: [(Name,[CardView])] , -- ^ The players and the information a particular player will have about each hand.
-    -- By default, this is a `CardFace`s for the viewing player and a number of `CardBack`s for others.
+    -- By default, this is a 'CardFace's for the viewing player and a number of 'CardBack's for others.
     _pileV :: [CardView] , -- ^ What should be seen of the pile. By default, only the top card is visible.
     _deckV :: [CardView] , -- ^ What should be seen of the pile. By default, none are visible.
     _messagesV :: [String] -- ^ The messages a player can see. By default, this is all messages that have been sent
