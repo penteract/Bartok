@@ -98,16 +98,22 @@ onGet games req = do
     --print (pathInfo req)
     case pathInfo req of
         [] -> load "home.html"
+        ["doc"] -> ($ redirect308 "/doc/index.html")
+        ["static"] -> ($ redirect308 "/")
         [gname] -> playPage gname games req
         -- [gname] -> resp$redirect308 (concat
         --     ["/",unpack gname,"/",B.unpack (rawQueryString req)])
         ["static",x] -> load x
+        ("doc":path) -> loaddoc (intercalate "/" path)
         [gname,"newRule"] -> newRulePage gname games req
         [gname,"wait"] -> waitPage gname games req
         _ -> ($ err404)
 
 load :: Text -> (Response -> a) -> a
 load p resp = resp$ responseFile ok200 [(hContentType,getContentType p)] ("static/"++unpack p) Nothing
+
+loaddoc :: Text -> (Response -> a) -> a
+loaddoc p resp = resp$ responseFile ok200 [] ("doc/"++unpack p) Nothing
 
 getContentType :: Text ->  B.ByteString
 getContentType p = fromMaybe "text/html" (lookup p
