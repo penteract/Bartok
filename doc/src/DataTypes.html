@@ -1,0 +1,365 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE Trustworthy #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE TemplateHaskell, ScopedTypeVariables #-}</span><span>
+</span><a name="line-3"></a><span class="hs-comment">{-|
+Module      : DataTypes
+Description : Data types used for dealing with games
+
+Datatypes for cards, game state and game view alongside some basic functions to process them.
+-}</span><span>
+</span><a name="line-9"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">DataTypes</span><span class="hs-special">(</span><span>
+</span><a name="line-10"></a><span>
+</span><a name="line-11"></a><span>    </span><span class="hs-comment">-- *Basic Rules</span><span>
+</span><a name="line-12"></a><span>    </span><a href="DataTypes.html#Step"><span class="hs-identifier hs-type">Step</span></a><span class="hs-special">,</span><a href="DataTypes.html#Game"><span class="hs-identifier hs-type">Game</span></a><span class="hs-special">,</span><span> </span><a href="DataTypes.html#Rule"><span class="hs-identifier hs-type">Rule</span></a><span class="hs-special">,</span><span>
+</span><a name="line-13"></a><span>    </span><span class="hs-comment">-- **Structures</span><span>
+</span><a name="line-14"></a><span>    </span><a href="DataTypes.html#Name"><span class="hs-identifier hs-type">Name</span></a><span class="hs-special">,</span><span>
+</span><a name="line-15"></a><span>    </span><a href="DataTypes.html#Action"><span class="hs-identifier hs-type">Action</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><a href="DataTypes.html#Event"><span class="hs-identifier hs-type">Event</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><a href="DataTypes.html#GameState"><span class="hs-identifier hs-type">GameState</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-16"></a><span>    </span><a href="DataTypes.html#newGame"><span class="hs-identifier hs-var">newGame</span></a><span class="hs-special">,</span><span>
+</span><a name="line-17"></a><span>
+</span><a name="line-18"></a><span>    </span><span class="hs-comment">-- **Cards</span><span>
+</span><a name="line-19"></a><span>    </span><a href="DataTypes.html#Hand"><span class="hs-identifier hs-type">Hand</span></a><span class="hs-special">,</span><span> </span><a href="DataTypes.html#Card"><span class="hs-identifier hs-type">Card</span></a><span class="hs-special">,</span><span>
+</span><a name="line-20"></a><span>    </span><a href="DataTypes.html#Suit"><span class="hs-identifier hs-type">Suit</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><a href="DataTypes.html#Rank"><span class="hs-identifier hs-type">Rank</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><a href="DataTypes.html#suit"><span class="hs-identifier hs-var">suit</span></a><span class="hs-special">,</span><span> </span><a href="DataTypes.html#rank"><span class="hs-identifier hs-var">rank</span></a><span class="hs-special">,</span><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-comment">-- ** Variables</span><span>
+</span><a name="line-22"></a><span>    </span><span class="hs-comment">-- Game states may store named variables that can be read and written to by rules</span><span>
+</span><a name="line-23"></a><span>    </span><a href="DataTypes.html#VarName"><span class="hs-identifier hs-type">VarName</span></a><span class="hs-special">,</span><a href="DataTypes.html#setVar"><span class="hs-identifier hs-var">setVar</span></a><span class="hs-special">,</span><a href="DataTypes.html#readVar"><span class="hs-identifier hs-var">readVar</span></a><span class="hs-special">,</span><a href="DataTypes.html#modifyVar"><span class="hs-identifier hs-var">modifyVar</span></a><span class="hs-special">,</span><span>
+</span><a name="line-24"></a><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-comment">-- **other functions</span><span>
+</span><a name="line-26"></a><span>    </span><a href="DataTypes.html#shuffleDeck"><span class="hs-identifier hs-var">shuffleDeck</span></a><span class="hs-special">,</span><a href="DataTypes.html#eventPlayer"><span class="hs-identifier hs-var">eventPlayer</span></a><span class="hs-special">,</span><span>
+</span><a name="line-27"></a><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-comment">-- * View Rules</span><span>
+</span><a name="line-29"></a><span>    </span><a href="DataTypes.html#Viewer"><span class="hs-identifier hs-type">Viewer</span></a><span class="hs-special">,</span><span> </span><a href="DataTypes.html#ViewRule"><span class="hs-identifier hs-type">ViewRule</span></a><span class="hs-special">,</span><span> </span><a href="DataTypes.html#CardView"><span class="hs-identifier hs-type">CardView</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-30"></a><span>    </span><span class="hs-comment">-- **Structure</span><span>
+</span><a name="line-31"></a><span>    </span><a href="DataTypes.html#GameView"><span class="hs-identifier hs-type">GameView</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-32"></a><span>
+</span><a name="line-33"></a><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-comment">-- * Combined Rules</span><span>
+</span><a name="line-35"></a><span>    </span><a href="DataTypes.html#Rule%27"><span class="hs-identifier hs-type">Rule'</span></a><span class="hs-special">,</span><span>
+</span><a name="line-36"></a><span>
+</span><a name="line-37"></a><span>    </span><span class="hs-comment">-- *Cards</span><span>
+</span><a name="line-38"></a><span>    </span><span class="hs-comment">-- **Printing</span><span>
+</span><a name="line-39"></a><span>    </span><a href="DataTypes.html#uniCard"><span class="hs-identifier hs-var">uniCard</span></a><span class="hs-special">,</span><span>
+</span><a name="line-40"></a><span>    </span><span class="hs-comment">-- **Parsing</span><span>
+</span><a name="line-41"></a><span>    </span><span class="hs-comment">-- these don't matter too much</span><span>
+</span><a name="line-42"></a><span>    </span><a href="DataTypes.html#Parser"><span class="hs-identifier hs-type">Parser</span></a><span class="hs-special">,</span><a href="DataTypes.html#runParser"><span class="hs-identifier hs-var">runParser</span></a><span class="hs-special">,</span><a href="DataTypes.html#parseSuit"><span class="hs-identifier hs-var">parseSuit</span></a><span class="hs-special">,</span><a href="DataTypes.html#parseRank"><span class="hs-identifier hs-var">parseRank</span></a><span class="hs-special">,</span><a href="DataTypes.html#parseCard"><span class="hs-identifier hs-var">parseCard</span></a><span class="hs-special">,</span><span>
+</span><a name="line-43"></a><span>
+</span><a name="line-44"></a><span>    </span><span class="hs-comment">-- *Angus needs to get rid of these</span><span>
+</span><a name="line-45"></a><span>    </span><a href="DataTypes.html#if%27"><span class="hs-identifier hs-var">if'</span></a><span class="hs-special">,</span><span class="hs-special">(</span><a href="DataTypes.html#%2F%5C"><span class="hs-operator hs-var">/\</span></a><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-46"></a><span>    </span><span class="hs-comment">-- **lenses</span><span>
+</span><a name="line-47"></a><span>    </span><a href="DataTypes.html#players"><span class="hs-identifier hs-var">players</span></a><span class="hs-special">,</span><span>
+</span><a name="line-48"></a><span>    </span><a href="DataTypes.html#hands"><span class="hs-identifier hs-var">hands</span></a><span class="hs-special">,</span><span>
+</span><a name="line-49"></a><span>    </span><a href="DataTypes.html#deck"><span class="hs-identifier hs-var">deck</span></a><span class="hs-special">,</span><span>
+</span><a name="line-50"></a><span>    </span><a href="DataTypes.html#pile"><span class="hs-identifier hs-var">pile</span></a><span class="hs-special">,</span><span>
+</span><a name="line-51"></a><span>    </span><a href="DataTypes.html#messages"><span class="hs-identifier hs-var">messages</span></a><span class="hs-special">,</span><span>
+</span><a name="line-52"></a><span>    </span><a href="DataTypes.html#lastMoveLegal"><span class="hs-identifier hs-var">lastMoveLegal</span></a><span class="hs-special">,</span><span>
+</span><a name="line-53"></a><span>    </span><a href="DataTypes.html#randg"><span class="hs-identifier hs-var">randg</span></a><span class="hs-special">,</span><span>
+</span><a name="line-54"></a><span>    </span><a href="DataTypes.html#winner"><span class="hs-identifier hs-var">winner</span></a><span class="hs-special">,</span><span>
+</span><a name="line-55"></a><span>    </span><a href="DataTypes.html#varMap"><span class="hs-identifier hs-var">varMap</span></a><span class="hs-special">,</span><span>
+</span><a name="line-56"></a><span>    </span><a href="DataTypes.html#handsV"><span class="hs-identifier hs-var">handsV</span></a><span class="hs-special">,</span><span>
+</span><a name="line-57"></a><span>    </span><a href="DataTypes.html#pileV"><span class="hs-identifier hs-var">pileV</span></a><span class="hs-special">,</span><span>
+</span><a name="line-58"></a><span>    </span><a href="DataTypes.html#deckV"><span class="hs-identifier hs-var">deckV</span></a><span class="hs-special">,</span><span>
+</span><a name="line-59"></a><span>    </span><a href="DataTypes.html#messagesV"><span class="hs-identifier hs-var">messagesV</span></a><span class="hs-special">,</span><span>
+</span><a name="line-60"></a><span>
+</span><a name="line-61"></a><span>
+</span><a name="line-62"></a><span class="hs-special">)</span><span>
+</span><a name="line-63"></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-64"></a><span>
+</span><a name="line-65"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control</span><span class="hs-operator">.</span><span class="hs-identifier">Lens</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-operator hs-var">^.</span><span class="hs-special">)</span><span class="hs-special">,</span><span class="hs-special">(</span><span class="hs-operator hs-var">%~</span><span class="hs-special">)</span><span class="hs-special">,</span><span class="hs-identifier hs-var">makeLenses</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-operator hs-var">%%~</span><span class="hs-special">)</span><span class="hs-special">,</span><span class="hs-special">(</span><span class="hs-operator hs-var">&amp;</span><span class="hs-special">)</span><span class="hs-special">,</span><span class="hs-identifier hs-type">Lens'</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span class="hs-identifier hs-type">Lens</span><span class="hs-special">)</span><span>
+</span><a name="line-66"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control</span><span class="hs-operator">.</span><span class="hs-identifier">Monad</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">ap</span><span class="hs-special">,</span><span class="hs-identifier hs-var">liftM2</span><span class="hs-special">)</span><span>
+</span><a name="line-67"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control</span><span class="hs-operator">.</span><span class="hs-identifier">Monad</span><span class="hs-operator">.</span><span class="hs-identifier">Trans</span><span class="hs-operator">.</span><span class="hs-identifier">State</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">StateT</span><span class="hs-special">(</span><span class="hs-identifier hs-var">StateT</span><span class="hs-special">)</span><span class="hs-special">,</span><span class="hs-identifier hs-var">evalStateT</span><span class="hs-special">,</span><span class="hs-identifier hs-var">runStateT</span><span class="hs-special">)</span><span>
+</span><a name="line-68"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Char</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">toLower</span><span class="hs-special">,</span><span class="hs-identifier hs-var">isSpace</span><span class="hs-special">)</span><span>
+</span><a name="line-69"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">List</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">isPrefixOf</span><span class="hs-special">,</span><span class="hs-identifier hs-var">stripPrefix</span><span class="hs-special">)</span><span>
+</span><a name="line-70"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">List</span><span class="hs-operator">.</span><span class="hs-identifier">NonEmpty</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">NE</span><span>
+</span><a name="line-71"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">List</span><span class="hs-operator">.</span><span class="hs-identifier">NonEmpty</span><span class="hs-special">(</span><span class="hs-identifier hs-type">NonEmpty</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-72"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Map</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Map</span><span class="hs-special">)</span><span>
+</span><a name="line-73"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Map</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Map</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">empty</span><span class="hs-special">,</span><span class="hs-identifier hs-var">findWithDefault</span><span class="hs-special">,</span><span class="hs-identifier hs-var">fromList</span><span class="hs-special">,</span><span class="hs-identifier hs-var">insert</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- (insert,findWithDefault,empty,fromList)</span><span>
+</span><a name="line-74"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Maybe</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">listToMaybe</span><span class="hs-special">)</span><span>
+</span><a name="line-75"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System</span><span class="hs-operator">.</span><span class="hs-identifier">Random</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">StdGen</span><span class="hs-special">,</span><span class="hs-identifier hs-var">mkStdGen</span><span class="hs-special">,</span><span class="hs-identifier hs-var">split</span><span class="hs-special">)</span><span>
+</span><a name="line-76"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System</span><span class="hs-operator">.</span><span class="hs-identifier">Random</span><span class="hs-operator">.</span><span class="hs-identifier">Shuffle</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">shuffle'</span><span class="hs-special">)</span><span>
+</span><a name="line-77"></a><span>
+</span><a name="line-78"></a><span class="hs-identifier">if'</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Bool</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-6989586621679077681"><span class="hs-identifier hs-type">a</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-6989586621679077681"><span class="hs-identifier hs-type">a</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-6989586621679077681"><span class="hs-identifier hs-type">a</span></a><span>
+</span><a name="line-79"></a><a name="if%27"><a href="DataTypes.html#if%27"><span class="hs-identifier">if'</span></a></a><span> </span><a name="local-6989586621679077682"><a href="#local-6989586621679077682"><span class="hs-identifier">b</span></a></a><span> </span><a name="local-6989586621679077683"><a href="#local-6989586621679077683"><span class="hs-identifier">a</span></a></a><span> </span><a name="local-6989586621679077684"><a href="#local-6989586621679077684"><span class="hs-identifier">c</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><a href="#local-6989586621679077682"><span class="hs-identifier hs-var">b</span></a><span> </span><span class="hs-keyword">then</span><span> </span><a href="#local-6989586621679077683"><span class="hs-identifier hs-var">a</span></a><span> </span><span class="hs-keyword">else</span><span> </span><a href="#local-6989586621679077684"><span class="hs-identifier hs-var">c</span></a><span>
+</span><a name="line-80"></a><span>
+</span><a name="line-81"></a><span class="hs-keyword">data</span><span> </span><a name="Suit"><a href="DataTypes.html#Suit"><span class="hs-identifier">Suit</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="Clubs"><a href="DataTypes.html#Clubs"><span class="hs-identifier">Clubs</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Diamonds"><a href="DataTypes.html#Diamonds"><span class="hs-identifier">Diamonds</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Hearts"><a href="DataTypes.html#Hearts"><span class="hs-identifier">Hearts</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Spades"><a href="DataTypes.html#Spades"><span class="hs-identifier">Spades</span></a></a><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">,</span><span class="hs-identifier hs-type">Enum</span><span class="hs-special">,</span><span class="hs-identifier hs-type">Bounded</span><span class="hs-special">,</span><span class="hs-identifier hs-type">Ord</span><span class="hs-special">)</span><span>
+</span><a name="line-82"></a><span class="hs-keyword">data</span><span> </span><a name="Rank"><a href="DataTypes.html#Rank"><span class="hs-identifier">Rank</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="Ace"><a href="DataTypes.html#Ace"><span class="hs-identifier">Ace</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Two"><a href="DataTypes.html#Two"><span class="hs-identifier">Two</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Three"><a href="DataTypes.html#Three"><span class="hs-identifier">Three</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Four"><a href="DataTypes.html#Four"><span class="hs-identifier">Four</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Five"><a href="DataTypes.html#Five"><span class="hs-identifier">Five</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Six"><a href="DataTypes.html#Six"><span class="hs-identifier">Six</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Seven"><a href="DataTypes.html#Seven"><span class="hs-identifier">Seven</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Eight"><a href="DataTypes.html#Eight"><span class="hs-identifier">Eight</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Nine"><a href="DataTypes.html#Nine"><span class="hs-identifier">Nine</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Ten"><a href="DataTypes.html#Ten"><span class="hs-identifier">Ten</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Jack"><a href="DataTypes.html#Jack"><span class="hs-identifier">Jack</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Knight"><a href="DataTypes.html#Knight"><span class="hs-identifier">Knight</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Queen"><a href="DataTypes.html#Queen"><span class="hs-identifier">Queen</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="King"><a href="DataTypes.html#King"><span class="hs-identifier">King</span></a></a><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">,</span><span class="hs-identifier hs-type">Bounded</span><span class="hs-special">,</span><span class="hs-identifier hs-type">Ord</span><span class="hs-special">)</span><span>
+</span><a name="line-83"></a><span class="hs-comment">-- data Rank' = Fool | Individual | Childhood | Youth | Maturity | OldAge | Morning | Afternoon</span><span>
+</span><a name="line-84"></a><span class="hs-comment">--            | Evening | Night | EarthAir | WaterFire | Dance | Shopping | OpenAir | VisualArts</span><span>
+</span><a name="line-85"></a><span class="hs-comment">--            | Spring | Summer | Autumn | Winter | TheGame | Collective deriving (Show,Eq,Enum,Bounded)</span><span>
+</span><a name="line-86"></a><span class="hs-comment">-- data JColour = Red | Black | White deriving (Show,Eq,Enum,Bounded)</span><span>
+</span><a name="line-87"></a><span class="hs-comment">--</span><span>
+</span><a name="line-88"></a><span class="hs-comment">-- data Suit = Clubs | .. | Trumps | Black | Red | White</span><span>
+</span><a name="line-89"></a><span class="hs-comment">-- data Rank = Ace .. King | Joker | Fool ... Collective</span><span>
+</span><a name="line-90"></a><span class="hs-comment">-- data Card = SCard Rank Suit | Trump Rank' | Joker JColour deriving (Show,Eq)</span><span>
+</span><a name="line-91"></a><span>
+</span><a name="line-92"></a><span class="hs-comment">-- | A single playing card</span><span>
+</span><a name="line-93"></a><span class="hs-keyword">type</span><span> </span><a name="Card"><a href="DataTypes.html#Card"><span class="hs-identifier">Card</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><a href="DataTypes.html#Rank"><span class="hs-identifier hs-type">Rank</span></a><span class="hs-special">,</span><a href="DataTypes.html#Suit"><span class="hs-identifier hs-type">Suit</span></a><span class="hs-special">)</span><span>
+</span><a name="line-94"></a><span>
+</span><a name="line-95"></a><span class="hs-comment">-- | An ordered collection of cards forming a player's hand</span><span>
+</span><a name="line-96"></a><span class="hs-keyword">type</span><span> </span><a name="Hand"><a href="DataTypes.html#Hand"><span class="hs-identifier">Hand</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><a href="DataTypes.html#Card"><span class="hs-identifier hs-type">Card</span></a><span class="hs-special">]</span><span>
+</span><a name="line-97"></a><span>
+</span><a name="line-98"></a><span class="hs-comment">-- | Names of players.</span><span>
+</span><a name="line-99"></a><span class="hs-keyword">type</span><span> </span><a name="Name"><a href="DataTypes.html#Name"><span class="hs-identifier">Name</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-type">String</span><span>
+</span><a name="line-100"></a><span>
+</span><a name="line-101"></a><span class="hs-comment">-- | At any point, a player can attempt to take one of these actions</span><span>
+</span><a name="line-102"></a><span class="hs-keyword">data</span><span> </span><a name="Action"><a href="DataTypes.html#Action"><span class="hs-identifier">Action</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="Draw"><a href="DataTypes.html#Draw"><span class="hs-identifier">Draw</span></a></a><span> </span><span class="hs-identifier hs-type">Int</span><span> </span><span class="hs-glyph">|</span><span> </span><a name="Play"><a href="DataTypes.html#Play"><span class="hs-identifier">Play</span></a></a><span> </span><a href="DataTypes.html#Card"><span class="hs-identifier hs-type">Card</span></a><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">)</span><span>
+</span><a name="line-103"></a><span>
+</span><a name="line-104"></a><span class="hs-comment">-- | Events that rules should be able to deal with</span><span>
+</span><a name="line-105"></a><span class="hs-keyword">data</span><span> </span><a name="Event"><a href="DataTypes.html#Event"><span class="hs-identifier">Event</span></a></a><span> </span><span class="hs-glyph">=</span><span>
+</span><a name="line-106"></a><span>      </span><a name="PlayerJoin"><a href="DataTypes.html#PlayerJoin"><span class="hs-identifier">PlayerJoin</span></a></a><span> </span><a href="DataTypes.html#Name"><span class="hs-identifier hs-type">Name</span></a><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Maybe</span><span> </span><span class="hs-special">(</span><a href="DataTypes.html#Name"><span class="hs-identifier hs-type">Name</span></a><span class="hs-special">,</span><a href="DataTypes.html#Name"><span class="hs-identifier hs-type">Name</span></a><span class="hs-special">)</span><span class="hs-special">)</span><span>  </span><span class="hs-comment">-- ^A player requesting to join the game. This is not limited to the start</span><span>
+</span><a name="line-107"></a><span>    </span><span class="hs-glyph">|</span><span> </span><a name="Action"><a href="DataTypes.html#Action"><span class="hs-identifier">Action</span></a></a><span> </span><a href="DataTypes.html#Name"><span class="hs-identifier hs-type">Name</span></a><span> </span><a href="DataTypes.html#Action"><span class="hs-identifier hs-type">Action</span></a><span> </span><span class="hs-identifier hs-type">String</span><span> </span><span class="hs-comment">-- ^A player performing one of the above actions and sending a message.</span><span>
+</span><a name="line-108"></a><span>    </span><span class="hs-glyph">|</span><span> </span><a name="Timeout"><a href="DataTypes.html#Timeout"><span class="hs-identifier">Timeout</span></a></a><span> </span><span class="hs-comment">-- ^If no player has made an action for 10 seconds, this event will be sent</span><span>
+</span><a name="line-109"></a><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">)</span><span>
+</span><a name="line-110"></a><span>
+</span><a name="line-111"></a><span class="hs-comment">-- | The type of transformations of game state</span><span>
+</span><a name="line-112"></a><span class="hs-keyword">type</span><span> </span><a name="Step"><a href="DataTypes.html#Step"><span class="hs-identifier">Step</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="DataTypes.html#GameState"><span class="hs-identifier hs-type">GameState</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="DataTypes.html#GameState"><span class="hs-identifier hs-type">GameState</span></a><span>
+</span><a name="line-113"></a><span>
+</span><a name="line-114"></a><span class="hs-comment">-- I'd call a function playmove or runevent. the problem is that it's used more than once</span><span>
+</span><a name="line-115"></a><span>
+</span><a name="line-116"></a><span class="hs-comment">-- | This is the type of games (meaning a ruleset, rather than a specific instance of a game).</span><span>
+</span><a name="line-117"></a><span class="hs-comment">-- Given an event such as a player action, and a game state, it returns the resulting state</span><span>
+</span><a name="line-118"></a><span class="hs-keyword">type</span><span> </span><a name="Game"><a href="DataTypes.html#Game"><span class="hs-identifier">Game</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="DataTypes.html#Event"><span class="hs-identifier hs-type">Event</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="DataTypes.html#Step"><span class="hs-identifier hs-type">Step</span></a><span>
+</span><a name="line-119"></a><span>
+</span><a name="line-120"></a><span class="hs-comment">-- | The type of rules - a rule is added by function composition forming a chain</span><span>
+</span><a name="line-121"></a><span class="hs-comment">-- such as 'r3 (r1 (r2 baseAct))' .</span><span>
+</span><a name="line-122"></a><span class="hs-comment">-- Most rules should call the first argument under most circumstances and usually without changing the event.</span><span>
+</span><a name="line-123"></a><span class="hs-keyword">type</span><span> </span><a name="Rule"><a href="DataTypes.html#Rule"><span class="hs-identifier">Rule</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="DataTypes.html#Game"><span class="hs-identifier hs-type">Game</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="DataTypes.html#Game"><span class="hs-identifier hs-type">Game</span></a><span>
+</span><a name="line-124"></a><span class="hs-comment">-- ^ Game -&gt; Game == (Event -&gt; GameState -&gt; GameState) -&gt; Event -&gt; GameState -&gt; GameState</span><span>
+</span><a name="line-125"></a><span>
+</span><a name="line-126"></a><span class="hs-comment">-- \ Identifiers for variables</span><span>
+</span><a name="line-127"></a><span class="hs-keyword">type</span><span> </span><a name="VarName"><a href="DataTypes.html#VarName"><span class="hs-identifier">VarName</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-type">String</span><span>
+</span><a name="line-128"></a><span>
+</span><a name="line-129"></a><span class="hs-comment">--TODO: make the documentation true (messages and lastMoveLegal)</span><span>
+</span><a name="line-130"></a><span class="hs-comment">-- | The state of a game in play</span><span>
+</span><a name="line-131"></a><span class="hs-keyword">data</span><span> </span><a name="GameState"><a href="DataTypes.html#GameState"><span class="hs-identifier">GameState</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="GS"><a href="DataTypes.html#GS"><span class="hs-identifier">GS</span></a></a><span> </span><span class="hs-special">{</span><span>
+</span><a name="line-132"></a><span>       </span><a name="_players"><a href="DataTypes.html#_players"><span class="hs-identifier">_players</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><a href="DataTypes.html#Name"><span class="hs-identifier hs-type">Name</span></a><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-comment">-- ^ The players curretly in the game. The player whose turn it is should be at head of list</span><span>
+</span><a name="line-133"></a><span>       </span><span class="hs-comment">-- and usually this advances forward by 1 each turn.</span><span>
+</span><a name="line-134"></a><span>       </span><a name="_hands"><a href="DataTypes.html#_hands"><span class="hs-identifier">_hands</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Map</span><span> </span><a href="DataTypes.html#Name"><span class="hs-identifier hs-type">Name</span></a><span> </span><a href="DataTypes.html#Hand"><span class="hs-identifier hs-type">Hand</span></a><span class="hs-special">,</span><span> </span><span class="hs-comment">-- ^ Stores the contents of each player's hand</span><span>
+</span><a name="line-135"></a><span>       </span><a name="_deck"><a href="DataTypes.html#_deck"><span class="hs-identifier">_deck</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><a href="DataTypes.html#Card"><span class="hs-identifier hs-type">Card</span></a><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-comment">-- ^ The deck from which cards are drawn</span><span>
+</span><a name="line-136"></a><span>       </span><a name="_pile"><a href="DataTypes.html#_pile"><span class="hs-identifier">_pile</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">NonEmpty</span><span> </span><a href="DataTypes.html#Card"><span class="hs-identifier hs-type">Card</span></a><span class="hs-special">,</span><span> </span><span class="hs-comment">-- ^ The cards that have been played -</span><span>
+</span><a name="line-137"></a><span>       </span><a name="_messages"><a href="DataTypes.html#_messages"><span class="hs-identifier">_messages</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">String</span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-comment">-- ^ The messages that .  Contains only those generated by the most recent event.</span><span>
+</span><a name="line-138"></a><span>       </span><a name="_lastMoveLegal"><a href="DataTypes.html#_lastMoveLegal"><span class="hs-identifier">_lastMoveLegal</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Bool</span><span class="hs-special">,</span><span> </span><span class="hs-comment">-- ^ Indicates if the last move was successful.</span><span>
+</span><a name="line-139"></a><span>           </span><span class="hs-comment">-- This should be true</span><span>
+</span><a name="line-140"></a><span>           </span><span class="hs-comment">-- When a new event happens, this is False until baseAct is called.</span><span>
+</span><a name="line-141"></a><span>       </span><span class="hs-comment">--_prevGS :: Maybe (GameState,Action),</span><span>
+</span><a name="line-142"></a><span>
+</span><a name="line-143"></a><span>       </span><a name="_randg"><a href="DataTypes.html#_randg"><span class="hs-identifier">_randg</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">StdGen</span><span class="hs-special">,</span><span> </span><span class="hs-comment">-- ^ A seeded random number generator so that you can</span><span>
+</span><a name="line-144"></a><span>       </span><a name="_winner"><a href="DataTypes.html#_winner"><span class="hs-identifier">_winner</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Maybe</span><span> </span><a href="DataTypes.html#Name"><span class="hs-identifier hs-type">Name</span></a><span class="hs-special">,</span><span> </span><span class="hs-comment">-- ^ @Nothing@ until a player p wins at which point it becomes @Just p@</span><span>
+</span><a name="line-145"></a><span>       </span><a name="_varMap"><a href="DataTypes.html#_varMap"><span class="hs-identifier">_varMap</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Map</span><span> </span><a href="DataTypes.html#VarName"><span class="hs-identifier hs-type">VarName</span></a><span> </span><span class="hs-identifier hs-type">Int</span><span> </span><span class="hs-comment">-- ^ A store of named variables that rules may use to keep track of state between events.</span><span>
+</span><a name="line-146"></a><span>     </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-identifier hs-type">Show</span><span>
+</span><a name="line-147"></a><span class="hs-identifier hs-var">makeLenses</span><span> </span><span class="hs-char">''GameState
+-- players :: Lens' GameState [Name]
+-- players f gs@GS{_players = p} = (\p' -&gt; gs{_players = p'}) &lt;$&gt; f p
+-- seats :: Lens' GameState [Name]
+-- seats f gs@GS{_seats = s} = (\s' -&gt; gs{_seats = s'}) &lt;$&gt; f s
+-- hands :: Lens' GameState (Map Name Hand)
+-- hands f gs@GS{_hands = h} = (\h' -&gt; gs{_hands = h'}) &lt;$&gt; f h
+-- deck :: Lens' GameState [Card]
+-- deck f gs@GS{_deck = d} = (\d' -&gt; gs{_deck = d'}) &lt;$&gt; f d
+-- pile :: Lens' GameState (NonEmpty Card)
+-- pile f gs@GS{_pile = p} = (\p' -&gt; gs{_pile = p'}) &lt;$&gt; f p
+-- messages :: Lens' GameState [String]
+-- messages f gs@GS{_messages = m} = (\m' -&gt; gs{_messages = m'}) &lt;$&gt; f m
+-- lastMoveLegal :: Lens' GameState Bool
+-- lastMoveLegal f gs@GS{_lastMoveLegal = b} = (\b' -&gt; gs{_lastMoveLegal = b'}) &lt;$&gt; f b
+-- randg :: Lens' GameState StdGen
+-- randg f gs@GS{_randg = r} = (\r' -&gt; gs{_randg = r'}) &lt;$&gt; f r
+-- winner :: Lens' GameState (Maybe Name)
+-- winner f gs@GS{_winner = w} = (\w' -&gt; gs{_winner = w'}) &lt;$&gt; f w
+-- varMap :: Lens' GameState (Map String Int)
+-- varMap f gs@GS{_varMap = v} = (\v' -&gt; gs{_varMap = v'}) &lt;$&gt; f v
+
+-- | A card as viewed - the type of cards sent to the client
+data CardView = CardFace Card | CardBack deriving (Show)
+
+-- | The structure describing data seen by players
+data GameView = GV {
+    _handsV :: [(Name,[CardView])] , -- ^ The players and the information a particular player will have about each hand.
+    -- By default, this is a 'CardFace's for the viewing player and a number of 'CardBack's for others.
+    _pileV :: [CardView] , -- ^ What should be seen of the pile. By default, only the top card is visible.
+    _deckV :: [CardView] , -- ^ What should be seen of the pile. By default, none are visible.
+    _messagesV :: [String] -- ^ The messages a player can see. By default, this is all messages that have been sent
+} deriving Show
+makeLenses ''GameView
+-- handsV :: Lens' GameView [(Name,[CardView])]
+-- handsV f gv@GV{_handsV = h} = (\h' -&gt; gv{_handsV = h'}) &lt;$&gt; f h
+-- deckV :: Lens' GameView  [CardView]
+-- deckV f gv@GV{_deckV = d} = (\d' -&gt; gv{_deckV = d'}) &lt;$&gt; f d
+-- pileV :: Lens' GameView  [CardView]
+-- pileV f gv@GV{_pileV = p} = (\p' -&gt; gv{_pileV = p'}) &lt;$&gt; f p
+-- messagesV :: Lens' GameView  [String]
+-- messagesV f gv@GV{_messagesV = m} = (\m' -&gt; gv{_messagesV = m'}) &lt;$&gt; f m
+
+-- | Functions to tell a player what they should see
+type Viewer = Name -&gt; GameState -&gt; GameView
+
+-- | Rules that modify what players see without affecting the game state
+type ViewRule = Viewer -&gt; Viewer
+
+-- | Complex rules
+type Rule' = (Rule,ViewRule)
+
+
+
+-- Enum instances
+
+instance Enum Rank where
+  toEnum i = case i of
+    1 -&gt; Ace
+    2 -&gt; Two
+    3 -&gt; Three
+    4 -&gt; Four
+    5 -&gt; Five
+    6 -&gt; Six
+    7 -&gt; Seven
+    8 -&gt; Eight
+    9 -&gt; Nine
+    10 -&gt; Ten
+    11 -&gt; Jack
+    12 -&gt; Knight
+    13 -&gt; Queen
+    14 -&gt; King
+  fromEnum r = case r of
+    Ace -&gt; 1
+    Two -&gt; 2
+    Three -&gt; 3
+    Four -&gt; 4
+    Five -&gt; 5
+    Six -&gt; 6
+    Seven -&gt; 7
+    Eight -&gt; 8
+    Nine -&gt; 9
+    Ten -&gt; 10
+    Jack -&gt; 11
+    Knight -&gt; 12
+    Queen -&gt; 13
+    King -&gt; 14
+  enumFrom n = map toEnum [fromEnum n..fromEnum (maxBound::Rank)]
+
+next :: (Enum a, Bounded a, Eq a) =&gt; a -&gt; a
+next a = if a == maxBound then minBound else succ a
+prev ::(Enum a, Bounded a, Eq a) =&gt;  a -&gt; a
+prev a = if a == minBound then maxBound else pred a
+
+
+instance (Enum a, Enum b, Bounded a, Bounded b, Eq a, Eq b) =&gt; Enum (a,b) where
+  toEnum i = (\(x,y) -&gt; (toEnum (x + fromEnum (minBound::a)),toEnum (y + fromEnum (minBound::b)))) $ i `divMod` (1+(fromEnum (maxBound::b) - fromEnum (minBound::b))) -- i `divMod` (fromEnum $ maxBound :: b)
+  fromEnum (r,s) = (fromEnum r - fromEnum (minBound::a)) * (1+fromEnum (maxBound::b)-fromEnum (minBound::b)) + (fromEnum s - fromEnum (minBound::b))
+  enumFrom c = c:(if c==maxBound then [] else enumFrom (succ c))
+
+suitChar :: Suit -&gt; Char
+suitChar s = case s of
+  Clubs -&gt; 'C'
+  Diamonds -&gt; 'D'
+  Hearts -&gt; 'H'
+  Spades -&gt; 'S'
+
+-- | Get the suit of a card.
+suit :: Card -&gt; Suit
+suit = snd
+
+-- | Get the rank of a card.
+rank :: Card -&gt; Rank
+rank = fst
+
+-- | One character corresponding to the rank (A1..9TJCQK)
+rankChar :: Rank -&gt; Char
+rankChar r = (['A'] ++ [head $ show i | i &lt;- [2..9]::[Int] ] ++ ['T','J','C','Q','K'])!!(fromEnum r - 1) -- UNSAFE
+
+-- | Get the unicode playing card character corresponding to some card
+uniCard :: Card -&gt; Char
+uniCard (r,s) = toEnum (0x1F0A0 + (fromEnum (maxBound::Suit) + fromEnum (minBound::Suit) - fromEnum s) * 16 + fromEnum r)
+
+--reading cards
+
+type Parser = StateT String Maybe
+-- | Given 2 parsers, tries the first, if it fails, try the second
+(&lt;|&gt;) :: Parser a -&gt; Parser a -&gt; Parser a
+a &lt;|&gt; b = StateT (\s -&gt; case runStateT a s of
+    Just (x,s') -&gt; Just (x,s')
+    Nothing -&gt; runStateT b s)--note that state is saved - Parsec does not do this for efficiency
+runParser :: Parser a -&gt; String -&gt; Maybe a
+runParser = evalStateT
+
+
+parseRank :: Parser Rank
+parseRank = StateT (\s -&gt;
+  fmap (\(r,c) -&gt; (r,drop (length c) s)) $ listToMaybe $
+    filter (\(_,c) -&gt; isPrefixOf (map toLower c) (map toLower s))
+      (map (\x -&gt; (x,show x)) (enumFrom minBound) ++ map (\x -&gt; (x,((:[]).rankChar) x)) (enumFrom minBound)))
+
+parseSuit :: Parser Suit
+parseSuit = StateT (\s -&gt;
+  fmap (\(r,c) -&gt; (r,drop (length c) s)) $ listToMaybe $
+    filter (\(_,c) -&gt; isPrefixOf (map toLower c) (map toLower s))
+      (map (\x -&gt; (x,show x)) (enumFrom minBound) ++ map (\x -&gt; (x,((:[]).suitChar) x)) (enumFrom minBound)))
+
+ignore :: String -&gt; Parser ()
+ignore s = StateT (\s' -&gt; let s'' = dropWhile isSpace s' in
+                            let s''' = stripPrefix s s'' in
+                              fmap ((,) () . dropWhile isSpace) s''')
+
+parseCard :: Parser Card
+parseCard = do
+  r &lt;- parseRank
+  ignore &quot;of&quot; -- and possibly spaces either side
+  s &lt;- parseSuit
+  return (r,s)
+
+
+-- | Get the playeer if an event
+eventPlayer :: Event -&gt; Maybe Name
+eventPlayer (Action p _ _) = Just p
+eventPlayer (PlayerJoin p _) = Just p
+eventPlayer Timeout = Nothing
+
+-- | variable processing
+
+readVar :: VarName -&gt; GameState -&gt; Int
+readVar s gs = Map.findWithDefault 0 s (gs^.varMap)
+setVar :: VarName -&gt; Int -&gt; Step
+setVar s i = varMap %~ Map.insert s i
+modifyVar :: VarName -&gt; (Int -&gt; Int) -&gt; Step
+modifyVar s f gs = setVar s (f $ readVar s gs) gs
+
+-- | Shuffle the deck (does not touch the pile or hands) using the random seed contained in GameState.
+shuffleDeck :: Step
+shuffleDeck = uncurry ((deck%~).flip (ap shuffle' length)) . (randg %%~ split)
+-- shuffleDeck = (deck /\ randg) %~ ap ((`ap` snd) . ((,) .) . (. fst) . liftM2 shuffle' fst (length . fst)) (split . snd)
+-- shuffleDeck = (deck /\ randg) %~ (\(d,r) -&gt; let (r1,r2) = split r in (shuffle' d (length d) r1,r2))
+
+-- | Construct a new game from a list of player names.
+newGame :: [String] -&gt; GameState
+newGame pls =  ((pile /\ deck) %~ (\(_,y:ys) -&gt; (y:|[],ys))) . shuffleDeck $ -- UNSAFE
+           GS { _deck = [ minBound.. ]
+              , _pile = undefined
+              , _messages = []
+              , _lastMoveLegal = True
+              , _randg = mkStdGen 0
+              , _varMap = Map.empty
+              , _players = pls  --[(&quot;Angus&quot;,[]),(&quot;Toby&quot;,[]),(&quot;Anne&quot;,[])]
+              -- , _seats = pls
+              , _hands = Map.fromList $ map (flip (,) []) (pls)
+              --, _prevGS = Nothing
+              , _winner = Nothing
+              }
+
+
+-- Thanks stack overflow
+(/\)
+    :: (Functor f)
+    =&gt; ((a -&gt; (a, a)) -&gt; (c -&gt; (a, c)))
+    -- ^ Lens' c a
+    -&gt; ((b -&gt; (b, b)) -&gt; (c -&gt; (b, c)))
+    -- ^ Lens' c b
+    -&gt; (((a, b) -&gt; f (a, b)) -&gt; (c -&gt; f c))
+    -- ^ Lens' c (a, b)
+(lens1 /\ lens2) f c0 =
+    let (a, _) = lens1 (\a_ -&gt; (a_, a_)) c0
+        (b, _) = lens2 (\b_ -&gt; (b_, b_)) c0
+        fab = f (a, b)
+    in fmap (\(a, b) -&gt;
+            let (_, c1) = lens1 (\a_ -&gt; (a_, a)) c0
+                (_, c2) = lens2 (\b_ -&gt; (b_, b)) c1
+            in c2
+            ) fab
+
+infixl 7 /\
+</span></pre></body></html>
