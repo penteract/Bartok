@@ -1,8 +1,8 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE DeriveGeneric, StandaloneDeriving #-}
 
-module Serialize(serialize, unserialize,
-        ActionReq(..),Token,ClientPacket(..),
+module Serialize(serialize, unserialize,readNewRule,
+        ActionReq(..),Token,ClientPacket(..),NewRuleReq(..),
         getName,getTok)
  where
 
@@ -58,6 +58,18 @@ data ActionReq = ReqPlay Name Token CardIndex String
                | ReqJoin Name Token deriving (Show,Eq,Generic)
 instance ToJSON ActionReq where toEncoding = genericToEncoding defaultOptions
 instance FromJSON ActionReq
+
+data NewRuleReq = NewRuleReq {
+    imports :: [String],
+    ruleType:: String,
+    code :: String
+} deriving(Show,Generic)
+
+instance ToJSON NewRuleReq where toEncoding = genericToEncoding defaultOptions
+instance FromJSON NewRuleReq
+
+readNewRule :: L.ByteString -> Maybe NewRuleReq
+readNewRule = decode
 
 getName :: ActionReq -> Name
 getName (ReqPlay p _ _ _) = p

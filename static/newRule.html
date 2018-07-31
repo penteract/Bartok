@@ -17,6 +17,9 @@
         left: 0;*/
         height:600px;
     }
+    .optionbox{
+        margin-left: 20px;
+    }
     </style>
 
 </head>
@@ -32,8 +35,21 @@
     editor.setTheme("ace/theme/monokai");
     editor.session.setMode("ace/mode/haskell");
 </script>
+<div id="imports">
+    <span class="optionbox cb"><input type="checkbox" value="BaseGame" checked> BaseGame</span>
+    <span class="optionbox cb"><input type="checkbox" value="DataTypes" checked> DataTypes</span>
+    <span class="optionbox cb"><input type="checkbox" value="RuleHelpers" checked> RuleHelpers</span>
+    <span class="optionbox cb"><input type="checkbox" value="Rules"> Rules</span>
+    <span class="optionbox cb"><input type="checkbox" value="TLib"> TLib</span>
+    <span class="optionbox cb"><input type="checkbox" value="Views"> Views</span>
+</div>
+<div id="submissiontypes">
+<span class="optionbox rb"> <input type="radio" name="ruleType" value="Rule" checked>Rule </span>
+<span class="optionbox rb"> <input type="radio" name="ruleType" value="ViewRule">View </span>
+<span class="optionbox rb"> <input type="radio" name="ruleType" value="Both">Both </span>
+</div>
 <button onclick="submit()">Submit Rule</button>
-<div id = "errors">
+<div id="errors">
 </div>
 
 <script>
@@ -58,8 +74,13 @@ name = getParameterByName("name")
 
 function submit(){
     console.log("hi")
-    $.post("",editor.getValue(),
-        process, "json")
+    data=JSON.stringify({
+        "imports":$('#imports :checked').map((_,y)=>y.value).toArray(),
+        "ruleType":$('#submissiontypes :checked').val(),
+        "code":editor.getValue()
+    })
+    console.log(data)
+    $.post("", data, process, "json")
 }
 </script>
 </body>

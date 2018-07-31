@@ -250,16 +250,26 @@ newRule = do
     b <- getBody
     liftIO$ putStrLn "New Rule: "
     liftIO$ putStrLn (L.unpack b)
-    f <- liftIO$ runInterpreter$ do
-                   setImports ["RuleHelpers","BaseGame","DataTypes","Prelude"]
-                   (interpret (L.unpack b) (as::Rule))
-    case f of
-        Left err -> do
-            liftIO$ putStrLn$ show err
-            return$ jsonResp$ "{\"tag\":\"Error\",\"contents\":"`L.append`(encode.toJSON$ fromErr err) `L.append`"}"
-        Right r -> do
-            modify$ restartWithNewRule "" r
-            return$ jsonResp "{\"tag\":\"Redirect\"}"
+    case readNewRule b of
+        Just nr -> do
+            let imps = ["Prelude"]++[i | i <- imports nr , i `elem`
+                    ["RuleHelpers","BaseGame","DataTypes","Rules", "TLib","Views"]]
+            liftIO$ print$ imps
+            liftIO$ putStrLn$ code nr
+            f <- liftIO$ runInterpreter$ do
+                           setImports imps
+                           case ruleType nr of
+                               "ViewRule" -> (,) id <$> interpret (code nr) (as::ViewRule)
+                               "Both" -> interpret (code nr) (as::Rule')
+                               _ -> flip (,) id <$> interpret (code nr) (as::Rule)
+            case f of
+                Left err -> do
+                    liftIO$ putStrLn$ show err
+                    return$ jsonResp$ "{\"tag\":\"Error\",\"contents\":"`L.append`(encode.toJSON$ fromErr err) `L.append`"}"
+                Right r -> do
+                    modify$ restartWithNewRule "" r
+                    return$ jsonResp "{\"tag\":\"Redirect\"}"
+        Nothing -> return err400
 
 checkStatus :: Text -> GMap -> Application
 checkStatus gameName games req resp = do

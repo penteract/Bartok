@@ -6,7 +6,8 @@ module ServerInterface(
    addRule, addRule', addViewRule,restartWithNewRule,
    setState, setTime, getWinner,
    OngoingGame(..), MError, readError, initialGame,
-   Rule, GameState, timeoutReq)
+   Rule, ViewRule, Rule',
+   GameState, timeoutReq)
  where
 
 
@@ -168,8 +169,8 @@ addRule' n (r,vr) = (rules /\ viewRules) %~ (((n,r):) *** ((n,vr):))
 addRule :: String -> Rule -> OngoingGame -> OngoingGame
 addRule n r = rules %~ ((n,r):)
 
-restartWithNewRule :: String -> Rule -> OngoingGame -> OngoingGame
-restartWithNewRule n r = (rules %~ ((n,r):))
+restartWithNewRule :: String -> Rule' -> OngoingGame -> OngoingGame
+restartWithNewRule n r = addRule' n r
                        . (gameState .~ newGame [])
                        . (seats .~ [])
                        . (counter .~ 0)
