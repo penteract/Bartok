@@ -254,3 +254,8 @@ rBlind' = (rBlind,rBlindV)
 
 run7 :: Int -> Rule
 run7 = undefined
+
+-- | When a four is played, toggle complete visibility
+rFourShow :: Rule'
+rFourShow = ( onLegalCard (\ c _ -> if rank c==Four then modifyVar "rfours" (1 -) else id) ,
+    \ v n s -> (\ vw -> if readVar "rfours" s /= 0 then vw{_handsV = _handsV$ baseViewer n s} else vw)(v n s)  )
