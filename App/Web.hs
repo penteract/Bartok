@@ -43,6 +43,12 @@ checktime gd = do
     now <- getCurrentTime
     return$ diffUTCTime now (_lastAction gd) > realToFrac 10
 
+-- | Returns true if it has been more than an hour
+checklongtime :: OngoingGame -> IO Bool
+checklongtime gd = do
+    now <- getCurrentTime
+    return$ diffUTCTime now (_lastAction gd) > realToFrac (60*60)
+
 addGame :: Text -> GMap -> IO ()
 addGame gName games = do
     og <- liftM2 (,) initialGame  (newMVar ())
@@ -69,15 +75,22 @@ sendTimeouts gName games = do
                     Just (gd,_) -> do
                         t <- checktime gd
                         when t (do-- check that it has been 10 seconds since the last move
-                            g <- case readError (handle timeoutReq gd) of
-                                    Left err -> do
-                                        putMVar mv ()
-                                        error err
-                                    Right (x,Nothing) -> do
-                                         return$ setState x gd
-                                    Right (x,Just o) ->  return$ setState x o
-                            CMap.insert gName (g,mv) games
-                            putMVar mv ())) -- release lock
+                            lt <- checklongtime gd
+                            if not lt then do
+                                g <- case readError (handle timeoutReq gd) of
+                                        Left err -> do
+                                            putMVar mv ()
+                                            error err
+                                        Right (x,Nothing) -> do
+                                             return$ setState x gd
+                                        Right (x,Just o) ->  return$ setState x o
+                                CMap.insert gName (g,mv) games
+                                putMVar mv () -- release lock
+                            else do
+                                CMap.delete gName games -- delete the game if it's boring (nothing for an hour)
+                                putMVar mv () -- Now I technically should do insertIfPresent everywhere
+                                myThreadId >>= killThread
+                            ))
     sendTimeouts gName games
 
 cannonisepath :: Middleware
