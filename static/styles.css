@@ -1,0 +1,72 @@
+#prog{
+    width:600px;
+    height:600px
+}
+#editor {
+    /*position: absolute;*/
+    /*top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;*/
+    height:600px;
+}
+.optionbox{
+    margin-left: 20px;
+}
+
+@font-face {
+font-family: dejavupc;
+src: url(/static/dejavupc.woff);
+}
+body{
+    font-family: serif,sans,dejavupc;
+}
+.hand{
+    font-size: 200%;
+    width: 140px;
+    text-align: center;
+}
+#self .hand{
+    width: 40%;
+}
+.hand p{
+    margin-top: 0;
+    /*margin-bottom: ;*/
+}
+#drawN{
+    width:3em;
+    font-size: inherit;
+}
+#piles{
+    font-size: 2em;
+    padding: 8px;
+    /*transform: scale(2);
+    transform-origin: left;*/
+    /*position: absolute;*/
+}
+#deck{
+    border: 2px;
+    border-color: black;
+    border-radius: 4px;
+    border-style: solid;
+    padding: 2px;
+}
+#others {
+    width:90%;
+    height: 10%;
+    border:1px;
+    display: flex;
+    flex-flow:row wrap;
+}
+.Hearts {
+    color: red
+}
+.Diamonds {
+    color: orange
+}
+.Clubs {
+    color: brown
+}
+.Spades{
+    color: black;
+}

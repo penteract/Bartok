@@ -2,29 +2,80 @@
 <head>
     <meta charset="utf-8">
     <title> Add a New Rule </title>
+    <script src="/static/star.js"></script>
     <script src="/static/jquery.min.js"></script>
     <script src="/static/ace.js" type="text/javascript" charset="utf-8"></script>
-    <style>
-#prog{
-    width:600px;
-    height:600px
-}
-    #editor {
-        /*position: absolute;*/
-        /*top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;*/
-        height:600px;
-    }
-    .optionbox{
-        margin-left: 20px;
-    }
-    </style>
-
+    <link href="/static/styles.css" rel="stylesheet" type="text/css"> </style>
 </head>
 
 <body>
+
+<div style="float:right; width:50%;">
+<script>
+function display(obj){
+    console.log(obj)
+    if (obj.tag=="NewData"){
+        lastm = obj.contents[0]
+        obj = obj.contents[1]
+        $("#deck").html(joincards(obj._deckV))
+        $("#pile").html(joincards(obj._pileV))
+        $("#msg").html(obj._messagesV.join("<br />"))
+        first=true
+        $("#others").html("")
+        for (h of obj._handsV){
+            if(first){
+                $("#self").html(displayOwnHand(h))
+                name = h[0]
+                first=false
+            }
+            else{
+                $("#others").append(displayHand(h))
+            }
+        }
+    }
+    else if (obj.tag=="Redirect") location.assign(obj.contents)
+}
+</script>
+
+<div id=others>
+</div>
+<div id=piles>
+    <span id=deck onclick="draw()">
+    </span>
+    <input min=0 max=56 type="number" id="drawN" value="1" />
+    <span id=pile>
+    </span>
+</div>
+<div id=self>
+</div>
+<div ><input type="text" id="mmsg"/></div>
+<div id=msg>
+</div>
+
+<script>
+
+//console.log(display)
+
+lastm=-1
+
+tok = randstr(10)
+name = getParameterByName("name")
+$.post("",JSON.stringify(
+    {tag:'ReqJoin',contents:[name,tok]}),
+  display, "json")
+
+
+poller = setInterval(() => $.post("./poll",name+"\n"+tok,//TODO(toby) send tokens
+  display, "json")
+    ,1000)
+
+</script>
+</div>
+
+
+
+
+<div style="float:left; width:50%;">
 <div id="editor"> onLegalCard (\c e -> if rank c == Eight
     then nextTurn
     else doNothing)
@@ -67,7 +118,9 @@ function getParameterByName(name, url) {
 function process(dat){
     console.log(dat)
     if (dat.tag == "Error") $("#errors").html(dat.contents)
-    else if (dat.tag == "Redirect") location.assign("../?name="+name)
+    else if (dat.tag == "Redirect") {$.post("",JSON.stringify(
+        {tag:'ReqJoin',contents:[name,tok]}),
+      display, "json")}
 }
 
 name = getParameterByName("name")
@@ -80,8 +133,9 @@ function submit(){
         "code":editor.getValue()
     })
     console.log(data)
-    $.post("", data, process, "json")
+    $.post("newRule", data, process, "json")
 }
 </script>
+</div>
 </body>
 </html>

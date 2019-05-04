@@ -131,11 +131,18 @@ loaddoc p resp = resp$ responseFile ok200 [] ("doc/"++unpack p) Nothing
 getContentType :: Text ->  B.ByteString
 getContentType p = fromMaybe "text/html" (lookup p
     [("dejavupc","font/woff"),--Should this be .woff
-    ("star.js","text/javascript")])
+    ("star.js","text/javascript"),
+    ("jquery.min.js","text/javascript"),
+    ("ace.js","text/javascript"),
+    ("styles.css","text/css")])
 --GET handlers
 
 -- homepage :: GMap -> Application
 -- homepage games req resp = resp$ responseFile ok200 [html] "home.html" Nothing
+
+istest :: String -> Bool
+istest ('T':'S':'T':x) = True
+istest _ = False
 
 playPage :: Text -> GMap -> Application
 playPage gameName games req resp = do
@@ -145,7 +152,9 @@ playPage gameName games req resp = do
     case mx of
         Nothing -> addGame gameName games
         Just a -> return ()
-    load "play.html" resp
+    if istest (unpack gameName)
+      then load "Testing.html" resp
+      else load "play.html" resp
 
 newRulePage :: Text -> GMap -> Application
 newRulePage gameName games req resp= do
@@ -203,7 +212,7 @@ doErr :: MError a -> (a -> WithGame Response) -> WithGame Response
 doErr e f = do
     case readError e of
         Left err -> do
-            --liftIO (print err)
+            liftIO (print err)
             return$ err422 err
         Right (x,Nothing) -> do
             --liftIO$ print "fine"
