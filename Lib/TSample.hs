@@ -7,6 +7,7 @@ Looking at the source code is recommended
 module TSample(r7,r8,rq,rSpade)
  where
 import TLib
+import Views(mapHands)
 
 
 a >|< b = "(" ++ a ++"|" ++ b ++ ")"
@@ -39,6 +40,20 @@ rq = when (cardIs ((==Queen) . rank))
 
 rSpade :: Rule
 rSpade = flip (foldr ($))  [sometimesSay ("{} of Spades"%show c) (cardIs (==(c,Spades)))  | c <- [Ace .. King]]
+
+
+r3 :: Rule
+r3 = when (isLegal ~&~ cardIs ((==Three) . rank))
+    (withCard (\(r,s) -> doAfter (modifyVar (show s) (+1) .
+                              mapAllCards (\(r',s') -> (if s == s' then toEnum ((fromEnum r' `mod` 14) + 1) else r', s')) )))
+
+r3V :: ViewRule
+r3V = (\ v n gs ->
+  let f (CardFace (r,s)) = CardFace (toEnum (((fromEnum r + readVar (show s) gs) `mod` 14) + 1), s)
+      f x = x in
+    case (v n gs) of
+      GV hs p d m -> mapHands (map f) (const $ const (GV hs (map f p) (map f d) m)) undefined undefined
+    )
 
 
 r8 :: Rule

@@ -14,10 +14,10 @@ import Control.Lens ((.~),(%~),(%%~),(^.),(^?),(&),(<>~),_1,at,each,ix)
 import Control.Monad (liftM2,liftM3)
 import Data.List (delete)
 import qualified Data.List.NonEmpty as NE ((<|),head)
-import Data.List.NonEmpty (NonEmpty((:|)))
-import qualified Data.Map as Map (adjust,insert,mapAccum)
+--import Data.List.NonEmpty (NonEmpty((:|)))
+import qualified Data.Map as Map (adjust,insert,mapAccum,delete,lookup)
 import Data.Text (pack,unpack,strip)
-import Data.Maybe (fromJust,isJust)
+import Data.Maybe (fromJust,isJust,fromMaybe)
 
 import DataTypes
 
@@ -38,6 +38,8 @@ if'' b a = if' b a id
 
 (%%) s = (s%) . (:[]). uniCard
 
+appendl :: NonEmpty a -> [a] -> NonEmpty a
+appendl (x :| xs) l = x :| (xs ++ l)
 -- | Returns a game where the move has not occured and a penalty has been given.
 -- Should be used with 'doOnly'
 illegal ::Int -> String -> Game
@@ -73,11 +75,15 @@ sayAct _ = id
 addPlayer :: Name -> Maybe (Name,Name) -> Step
 addPlayer n mps = draw 5 n . (hands %~ Map.insert n [])
                   . (players %~ addToSeat n mps)
+
 addToSeat :: Name -> Maybe (Name,Name) -> [Name] -> [Name]
 addToSeat n mps ps = case mps of
                          Just (pl,pr) | ps /= [pl] -> (\(a,b:bs)->a++b:n:bs) (break (liftM2 (||) (==pl) (==pr)) ps)
                          _ -> n:ps
 
+remPlayer :: Name -> Step
+remPlayer n =   (hands %~ Map.delete n) .  (players %~ filter (/=n)) .
+    (\ k -> (pile %~ flip appendl (fromMaybe [] $ Map.lookup n (k ^. hands))) k)
 -- addToSeat n (ps,ss) = if length ss>1 then
 --     (ps++[n],
 --         (\(a,b:bs)->a++b:n:bs)
@@ -121,6 +127,7 @@ baseAct Timeout gs = case gs^.players of
     (activePlayer:_) -> broadcast ("Penalize "++activePlayer++" 1 card for failure to play within a reasonable amount of time")
         . draw 1 activePlayer $ gs
 baseAct (PlayerJoin n mps) gs = broadcast ("Player "++n++" joined the game!") . addPlayer n mps $ gs
+baseAct (PlayerLeave n) gs = broadcast ("Player "++n++" left the game!") . remPlayer n $ gs
 
 -- | Add a message to the list of messages. Will be seen by all players by default.
 broadcast :: String -> Step

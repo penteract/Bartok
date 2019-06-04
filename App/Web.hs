@@ -23,6 +23,7 @@ import Control.Concurrent
 --import Control.Monad.Trans.State
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Arrow(second)
 
 import Language.Haskell.Interpreter hiding (get)
 
@@ -47,7 +48,7 @@ checktime gd = do
 checklongtime :: OngoingGame -> IO Bool
 checklongtime gd = do
     now <- getCurrentTime
-    return$ diffUTCTime now (_lastAction gd) > realToFrac (60*60)
+    return$ diffUTCTime now (_lastAction gd) > realToFrac (60*60*60)
 
 addGame :: Text -> GMap -> IO ()
 addGame gName games = do
@@ -70,7 +71,7 @@ sendTimeouts gName games = do
             when t (do -- check that it has been 10 seconds since the last move
                 _ <- takeMVar mv -- aquire lock
                 mx <- CMap.lookup gName games--need to read the data again now we hold the lock
-                case mx of --technically runs into some wierd prblems if the game can be deleted
+                case mx of --technically runs into some weird problems if the game can be deleted
                     Nothing -> return ()
                     Just (gd,_) -> do
                         t <- checktime gd
@@ -107,7 +108,7 @@ app games req resp = do
         _ -> resp$ responseLBS methodNotAllowed405 [(hAllow,"GET, POST")] ""
 
 onGet :: GMap -> Application
-onGet games req = do
+onGet games req =
     --print (pathInfo req)
     case pathInfo req of
         [] -> load "home.html"
@@ -274,12 +275,20 @@ newRule = do
     liftIO$ putStrLn (L.unpack b)
     case readNewRule b of
         Just nr -> do
-            let imps = ["Prelude"]++[i | i <- imports nr , i `elem`
-                    ["RuleHelpers","BaseGame","DataTypes","Rules", "TLib","Views"]]
+            let available = ["Prelude", "RuleHelpers", "BaseGame", "DataTypes", "Rules", "TLib", "Views"]
+                imps = ["Prelude"]++[i | i <- imports nr , i `elem`
+                    available]
+                qimps = (zip imps $ repeat Nothing) ++ map (second Just) ([
+                    ("Data.Map", "Map"),
+                    ("Control.Arrow","Arrow"),
+                    ("Data.List.NonEmpty","NE"),
+                    ("Control.Monad","Monad"),
+                    ("Control.Applicative","Applicative")
+                    ] ++ map (\a -> (a,a)) available)
             liftIO$ print$ imps
             liftIO$ putStrLn$ code nr
             f <- liftIO$ runInterpreter$ do
-                           setImports imps
+                           setImportsQ qimps
                            case ruleType nr of
                                "ViewRule" -> (,) id <$> interpret (code nr) (as::ViewRule)
                                "Both" -> interpret (code nr) (as::Rule')

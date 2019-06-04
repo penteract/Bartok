@@ -55,7 +55,8 @@ type CardIndex = Int
 -- TODO: Consider adding some validation to player join requests (eg name can't contain silly characters)
 data ActionReq = ReqPlay Name Token CardIndex String
                | ReqDraw Name Token Int String
-               | ReqJoin Name Token deriving (Show,Eq,Generic)
+               | ReqJoin Name Token
+               | ReqLeave Name Token deriving (Show,Eq,Generic)
 instance ToJSON ActionReq where toEncoding = genericToEncoding defaultOptions
 instance FromJSON ActionReq
 
@@ -75,11 +76,13 @@ getName :: ActionReq -> Name
 getName (ReqPlay p _ _ _) = p
 getName (ReqDraw p _ _ _) = p
 getName (ReqJoin p _) = p
+getName (ReqLeave p _) = p
 
 getTok :: ActionReq -> Token
 getTok (ReqPlay _ t _ _) = t
 getTok (ReqDraw _ t _ _) = t
 getTok (ReqJoin _ t) = t
+getTok (ReqLeave _ t) = t
 
 unserialize :: L.ByteString -> Maybe ActionReq
 unserialize = decode

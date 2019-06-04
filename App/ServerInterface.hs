@@ -89,6 +89,9 @@ handle ar og =
       Left (ReqJoin n tok) -> if nameExists n og then return (og^.gameState) -- (throwError $ "Player "++n++" is already a member of this game.")
                        else let neighbs = case map fst (og^.seats) of l@(x:xs) -> Just (x,last l); _ -> Nothing in
                             put (Just $ og & seats %~ ((n,tok):)) >> carryOut (PlayerJoin n neighbs) og
+      Left (ReqLeave n tok) -> if nameExists n og
+                                  then put (Just $ og & seats %~ (filter ((/=n).fst))) >> carryOut (PlayerLeave n) og
+                                  else return (og^.gameState)
       Right Timeout -> carryOut Timeout og
       Right _ -> error "shold only send timeouts"
   -- return $ foldr ($) baseAct (og^.rules) e (og^.gameState)

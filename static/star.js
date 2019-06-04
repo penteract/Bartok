@@ -54,6 +54,15 @@ function sendMove(type,dat){
     $("#mmsg").val("")
 }
 
+
+function sendLeave(){
+    $.post("",JSON.stringify({
+        tag:"ReqLeave",
+        contents:[name,tok]
+    }),display,"json")
+    $("#mmsg").val("you have left")
+}
+
 function showCard(c){
     if (c.tag=="CardBack") return String.fromCodePoint(0x1f0a0)
     else if (c.tag=="CardFace") return "<span class="+c.contents[1]+">"+String.fromCodePoint(
