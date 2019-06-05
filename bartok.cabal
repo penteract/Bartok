@@ -47,7 +47,7 @@ executable server
                          lens, transformers, mtl,
                          containers, random, text,
                          time
-    other-modules:       Serialize, ServerInterface
+    other-modules:       Serialize, ServerInterface, Whitelist
     default-language:    Haskell2010
 
 

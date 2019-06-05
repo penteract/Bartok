@@ -4,6 +4,7 @@
 import System.Environment
 import Data.Text(Text,intercalate,unpack)
 import Data.Maybe
+import Data.List(isSuffixOf)
 
 import Data.Aeson
 
@@ -29,6 +30,7 @@ import Language.Haskell.Interpreter hiding (get)
 
 import Serialize
 import ServerInterface
+import Whitelist(allowed)
 
 --type GData = (GameState,Game,Viewer)
 type GMap = CMap.Map Text (OngoingGame,MVar ())
@@ -111,32 +113,38 @@ onGet :: GMap -> Application
 onGet games req =
     --print (pathInfo req)
     case pathInfo req of
-        [] -> load "home.html"
+        [] -> load "static/home.html"
         ["doc"] -> ($ redirect308 "/doc/index.html")
         ["static"] -> ($ redirect308 "/")
         [gname] -> playPage gname games req
         -- [gname] -> resp$redirect308 (concat
         --     ["/",unpack gname,"/",B.unpack (rawQueryString req)])
-        ["static",x] -> load x
+        ["static",x] -> loadstatic x
         ("doc":path) -> loaddoc (intercalate "/" path)
         [gname,"newRule"] -> newRulePage gname games req
         [gname,"wait"] -> waitPage gname games req
         _ -> ($ err404)
 
-load :: Text -> (Response -> a) -> a
-load p resp = resp$ responseFile ok200 [(hContentType,getContentType p)] ("static/"++unpack p) Nothing
+
+load :: String -> (Response -> a) -> a
+load p resp = if allowed p
+  then resp$ responseFile ok200 [(hContentType,getContentType p)] p Nothing
+  else resp$ err404
 
 loaddoc :: Text -> (Response -> a) -> a
-loaddoc p resp = resp$ responseFile ok200 [] ("doc/"++unpack p) Nothing
+loaddoc p  = load ("doc/"++unpack p)
 
-getContentType :: Text ->  B.ByteString
-getContentType p = fromMaybe "text/html" (lookup p
-    [("dejavupc","font/woff"),--Should this be .woff
-    ("star.js","text/javascript"),
-    ("jquery.min.js","text/javascript"),
-    ("ace.js","text/javascript"),
-    ("styles.css","text/css")])
---GET handlers
+loadstatic :: Text -> (Response -> a) -> a
+loadstatic p = load ("static/"++unpack p)
+
+getContentType :: String ->  B.ByteString
+getContentType p
+  | endsWith ".js"   =  "text/javascript"
+  | endsWith ".css"  = "text/css"
+  | endsWith ".woff" = "font/woff"
+  | endsWith ".html" = "text/html"
+  | otherwise        = "text/html"
+    where endsWith = (`isSuffixOf` p)
 
 -- homepage :: GMap -> Application
 -- homepage games req resp = resp$ responseFile ok200 [html] "home.html" Nothing
@@ -154,8 +162,8 @@ playPage gameName games req resp = do
         Nothing -> addGame gameName games
         Just a -> return ()
     if istest (unpack gameName)
-      then load "Testing.html" resp
-      else load "play.html" resp
+      then loadstatic "Testing.html" resp
+      else loadstatic "play.html" resp
 
 newRulePage :: Text -> GMap -> Application
 newRulePage gameName games req resp= do
@@ -164,12 +172,12 @@ newRulePage gameName games req resp= do
     case mx of
         Nothing -> addGame gameName games
         Just a -> return ()
-    load "newRule.html" resp
+    loadstatic "newRule.html" resp
 
 waitPage :: Text -> GMap -> Application
 waitPage gameName games req resp = do
     --mx <- CMap.lookup gameName games
-    load "wait.html" resp
+    loadstatic "wait.html" resp
 --WithGame Monad
 
 type WithGame a = ReaderT (Request,L.ByteString) (StateT OngoingGame IO) a
@@ -227,14 +235,16 @@ doErr e f = do
 
 onPost :: GMap -> Application
 onPost games req resp = do
-    print$ pathInfo req
+    --
     let gameName = intercalate "/" (pathInfo req)
     case pathInfo req of
         [gname] -> doWithGame playMove games gname req resp
         [gname, "newRule"] -> doWithGame newRule games gname req resp
         [gname, "poll"] -> doSafeWithGame viewGame games gname req resp
         [gname, "wait"] -> checkStatus gname games req resp
-        _ -> resp$ err404
+        _ -> do
+          print$ pathInfo req
+          resp$ err404
 
 -- POST handlers
 
@@ -328,6 +338,12 @@ main = do
     putStrLn ("server running at http://localhost:"++show port)
     run port (cannonisepath (app games))
 
+{-
+allowedFiles :: IO (String -> Bool)
+allowedFiles = do
+  docs <- readProcess "find" ["doc", "-type", "f"] ""
+  statics <- readProcess "find" ["static", "-type", "f"] ""
+  return$ (`elem` lines docs ++ lines statics)-}
 
 redirect308 url = responseLBS permanentRedirect308 [] (L.pack url)
 

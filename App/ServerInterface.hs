@@ -93,7 +93,7 @@ handle ar og =
                                   then put (Just $ og & seats %~ (filter ((/=n).fst))) >> carryOut (PlayerLeave n) og
                                   else return (og^.gameState)
       Right Timeout -> carryOut Timeout og
-      Right _ -> error "shold only send timeouts"
+      Right _ -> error "should only send timeouts"
   -- return $ foldr ($) baseAct (og^.rules) e (og^.gameState)
 
 -- Remove rules left to admin
@@ -107,8 +107,6 @@ carryOut e og = return . snd $
                           (baseAct, og^.gameState)
                           (og^.rules)
 
-timeout :: OngoingGame -> MError GameState
-timeout = carryOut Timeout
 
 nameExists :: Name -> OngoingGame -> Bool
 nameExists n og = n `elem` map fst (og^.seats)
