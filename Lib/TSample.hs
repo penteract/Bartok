@@ -49,7 +49,7 @@ r3 = when (isLegal ~&~ cardIs ((==Three) . rank))
 
 r3V :: ViewRule
 r3V = (\ v n gs ->
-  let f (CardFace (r,s)) = CardFace (toEnum (((fromEnum r + readVar (show s) gs) `mod` 14) + 1), s)
+  let f (CardFace (r,s)) = CardFace (toEnum (((fromEnum r - 1 - readVar (show s) gs) `mod` 14) + 1), s)
       f x = x in
     case (v n gs) of
       GV hs p d m -> mapHands (map f) (const $ const (GV hs (map f p) (map f d) m)) undefined undefined

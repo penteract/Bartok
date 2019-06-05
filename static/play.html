@@ -5,93 +5,11 @@
     <title> Bartok </title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="/static/star.js"></script>
-    <style>
-    @font-face {
-    font-family: dejavupc;
-    src: url(/static/dejavupc.woff);
-    }
-    body{
-        font-family: serif,sans,dejavupc;
-    }
-    .hand{
-        font-size: 200%;
-        width: 140px;
-        text-align: center;
-    }
-    #self .hand{
-        width: 40%;
-    }
-    .hand p{
-        margin-top: 0;
-        /*margin-bottom: ;*/
-    }
-    #drawN{
-        width:3em;
-        font-size: inherit;
-    }
-    #piles{
-        font-size: 2em;
-        padding: 8px;
-        /*transform: scale(2);
-        transform-origin: left;*/
-        /*position: absolute;*/
-    }
-    #deck{
-        border: 2px;
-        border-color: black;
-        border-radius: 4px;
-        border-style: solid;
-        padding: 2px;
-    }
-    #others {
-        width:90%;
-        height: 10%;
-        border:1px;
-        display: flex;
-        flex-flow:row wrap;
-    }
-    .Hearts {
-        color: red
-    }
-    .Diamonds {
-        color: orange
-    }
-    .Clubs {
-        color: brown
-    }
-    .Spades{
-        color: black;
-    }
-    </style>
-<script>
-function display(obj){
-    console.log(obj)
-    if (obj.tag=="NewData"){
-        lastm = obj.contents[0]
-        obj = obj.contents[1]
-        $("#deck").html(joincards(obj._deckV))
-        $("#pile").html(joincards(obj._pileV))
-        $("#msg").html(obj._messagesV.join("<br />"))
-        first=true
-        $("#others").html("")
-        for (h of obj._handsV){
-            if(first){
-                $("#self").html(displayOwnHand(h))
-                name = h[0]
-                first=false
-            }
-            else{
-                $("#others").append(displayHand(h))
-            }
-        }
-    }
-    else if (obj.tag=="Redirect") location.assign(obj.contents)
-}
-</script>
-
+    <link href="/static/styles.css" rel="stylesheet" type="text/css"> </style>
 </head>
+
 <body>
-<div id=leave style="top:0;right:0;position:absolute">
+<div id=leave>
   <button onclick="sendLeave()" >leave </button>
 </div>
 <div id=others>
@@ -111,12 +29,16 @@ function display(obj){
 
 <script>
 
-//console.log(display)
-
 lastm=-1
-
-tok = randstr(10)
-name = getParameterByName("name")
+url = window.location.href
+tok = localStorage.getItem(url)
+if (tok == null){
+  tok = randstr(10)
+  name = getParameterByName("name")
+  if (localStorage.getItem("allowCookies")=="true"){
+    localStorage.setItem(url,tok)
+  }
+}
 $.post("",JSON.stringify(
     {tag:'ReqJoin',contents:[name,tok]}),
   display, "json")

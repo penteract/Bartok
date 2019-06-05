@@ -3,24 +3,9 @@
     <meta charset="utf-8">
     <title> Add a New Rule </title>
     <script src="/static/jquery.min.js"></script>
+    <script src="/static/star.js"></script>
     <script src="/static/ace.js" type="text/javascript" charset="utf-8"></script>
-    <style>
-#prog{
-    width:600px;
-    height:600px
-}
-    #editor {
-        /*position: absolute;*/
-        /*top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;*/
-        height:600px;
-    }
-    .optionbox{
-        margin-left: 20px;
-    }
-    </style>
+    <link href="/static/styles.css" rel="stylesheet" type="text/css"> </style>
 
 </head>
 
@@ -48,21 +33,12 @@
 <span class="optionbox rb"> <input type="radio" name="ruleType" value="ViewRule">View </span>
 <span class="optionbox rb"> <input type="radio" name="ruleType" value="Both">Both </span>
 </div>
-<button onclick="submit()">Submit Rule</button>
-<div id="errors">
-</div>
+<button onclick="submitRule()">Submit Rule</button>
+<pre id="errors">
+</pre>
 
 <script>
 
-function getParameterByName(name, url) {
-    if (!url) url = window.location.href;
-    var name = name.replace(/[\[\]]/g, "\\$&");
-    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
-        results = regex.exec(url);
-    if (!results) return null;
-    if (!results[2]) return '';
-    return decodeURIComponent(results[2].replace(/\+/g, " "));
-}
 
 function process(dat){
     console.log(dat)
@@ -72,16 +48,6 @@ function process(dat){
 
 name = getParameterByName("name")
 
-function submit(){
-    console.log("hi")
-    data=JSON.stringify({
-        "imports":$('#imports :checked').map((_,y)=>y.value).toArray(),
-        "ruleType":$('#submissiontypes :checked').val(),
-        "code":editor.getValue()
-    })
-    console.log(data)
-    $.post("", data, process, "json")
-}
 </script>
 </body>
 </html>

@@ -351,6 +351,21 @@ newGame pls =  ((pile /\ deck) %~ (\(_,y:ys) -> (y:|[],ys))) . shuffleDeck $ -- 
               , _winner = Nothing
               }
 
+-- | Make a new game with no players given a seeded rng
+randGame :: StdGen -> GameState
+randGame rng =  ((pile /\ deck) %~ (\(_,y:ys) -> (y:|[],ys))) . shuffleDeck $ -- UNSAFE
+           GS { _deck = [ minBound.. ]
+              , _pile = undefined
+              , _messages = []
+              , _lastMoveLegal = True
+              , _randg = rng
+              , _varMap = Map.empty
+              , _players = []  --[("Angus",[]),("Toby",[]),("Anne",[])]
+              -- , _seats = pls
+              , _hands = Map.empty
+              --, _prevGS = Nothing
+              , _winner = Nothing
+              }
 
 -- Thanks stack overflow
 (/\)

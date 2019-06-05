@@ -110,6 +110,7 @@ said = findInMs
 -- banPhrase n pm s = banPhrase' n pm (\m e gs -> s `findInMs` m)
 
 -- tests "on the way out" if you said the phrase
+-- this seems to be poorly named
 banPhrase :: Int -> String -> ((Name,Action,String) -> GameState -> Bool) -> Rule
 --banPhrase n pm f = onAction (\t@(p,_,_) -> ((join (ap (if' . f t) (penalty n pm p)) .) .))
 banPhrase n pm f = onAction (\t@(p,_,_) act e gs-> if f t (act e gs) then penalty n pm p (act e gs) else act e gs )

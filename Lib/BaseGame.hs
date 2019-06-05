@@ -146,7 +146,7 @@ getHand p gs = gs^.hands.at p
 -- | Move a single card from the deck to a player's hand.
 draw1 :: Name -> Step
 --draw1 p = uncurry (((hands . at p) %~) . fmap . (:)) . cardFromDeck
-draw1 p = (\(c,gs) -> ((hands . at p) %~ fmap (c:)) gs) . cardFromDeck
+draw1 p = (\(c,gs) -> ((hands . at p) %~ fmap (++[c])) gs) . cardFromDeck
   -- uncurry ((ix p %~) . (:)) . cardFromDeck  -- withHand p (\h -> first (:h) $ cardFromDeck gs) gs
 
 -- shuffleDeck :: GameState -> GameState
