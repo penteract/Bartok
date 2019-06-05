@@ -94,6 +94,17 @@ function process(dat){
 }
 
 name = getParameterByName("name")
+
+function submitRule(){
+    console.log("submitting")
+    data=JSON.stringify({
+        "imports":$('#imports :checked').map((_,y)=>y.value).toArray(),
+        "ruleType":$('#submissiontypes :checked').val(),
+        "code":editor.getValue()
+    })
+    console.log(data)
+    $.post("newRule", data, process, "json")
+}
 </script>
 </div>
 </body>
