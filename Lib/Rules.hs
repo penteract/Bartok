@@ -49,7 +49,7 @@ rlast = onLegalCard
 rMao :: Rule
 rMao  = onAction (\(p,a,m) act e gs->
             let next = act e gs
-                won = next^.winner == Just p && "mao" `findInMs` last (split m)
+                won = next^.winner == Just p && "mao" `findInMs` last ("":split m)
                 saidmao = "mao" `findInMs` m in
             case (saidmao, won) of
                 (True,False) -> penalty 4 "Lying, cheating, deceiving, taking the name of the Chairman in vain."
