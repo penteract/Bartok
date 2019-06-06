@@ -41,6 +41,11 @@ module DataTypes(
     -- these don't matter too much
     Parser,runParser,parseSuit,parseRank,parseCard,
 
+    -- * Other types used
+    NonEmpty((:|)),
+    Map,
+    StdGen, randomR, random,
+
     -- *Angus needs to get rid of these
     if',(/\),
     -- **lenses
@@ -57,8 +62,6 @@ module DataTypes(
     pileV,
     deckV,
     messagesV,
-
-
 )
  where
 
@@ -70,10 +73,13 @@ import Data.List (isPrefixOf,stripPrefix)
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty(NonEmpty(..))
 import Data.Map (Map)
-import qualified Data.Map as Map (empty,findWithDefault,fromList,insert) -- (insert,findWithDefault,empty,fromList)
+import qualified Data.Map as Map (empty,findWithDefault,fromList,insert,map) -- (insert,findWithDefault,empty,fromList)
 import Data.Maybe (listToMaybe)
-import System.Random (StdGen,mkStdGen,split)
+import System.Random (StdGen,mkStdGen,split,random,randomR)
 import System.Random.Shuffle (shuffle')
+
+
+
 
 if' :: Bool -> a -> a -> a
 if' b a c = if b then a else c
@@ -103,7 +109,8 @@ data Action = Draw Int | Play Card deriving (Show,Eq)
 
 -- | Events that rules should be able to deal with
 data Event =
-      PlayerJoin Name (Maybe (Name,Name))  -- ^A player requesting to join the game. This is not limited to the start
+      PlayerLeave Name -- ^A player leaving the game
+    | PlayerJoin Name (Maybe (Name,Name))  -- ^A player requesting to join the game. This is not limited to the start
     | Action Name Action String -- ^A player performing one of the above actions and sending a message.
     | Timeout -- ^If no player has made an action for 10 seconds, this event will be sent
     deriving (Show,Eq)
@@ -304,7 +311,7 @@ parseCard = do
   return (r,s)
 
 
--- | Get the playeer if an event
+-- | Get the player of an event
 eventPlayer :: Event -> Maybe Name
 eventPlayer (Action p _ _) = Just p
 eventPlayer (PlayerJoin p _) = Just p
@@ -314,10 +321,13 @@ eventPlayer Timeout = Nothing
 
 readVar :: VarName -> GameState -> Int
 readVar s gs = Map.findWithDefault 0 s (gs^.varMap)
+
 setVar :: VarName -> Int -> Step
 setVar s i = varMap %~ Map.insert s i
+
 modifyVar :: VarName -> (Int -> Int) -> Step
 modifyVar s f gs = setVar s (f $ readVar s gs) gs
+
 
 -- | Shuffle the deck (does not touch the pile or hands) using the random seed contained in GameState.
 shuffleDeck :: Step
@@ -341,6 +351,21 @@ newGame pls =  ((pile /\ deck) %~ (\(_,y:ys) -> (y:|[],ys))) . shuffleDeck $ -- 
               , _winner = Nothing
               }
 
+-- | Make a new game with no players given a seeded rng
+randGame :: StdGen -> GameState
+randGame rng =  ((pile /\ deck) %~ (\(_,y:ys) -> (y:|[],ys))) . shuffleDeck $ -- UNSAFE
+           GS { _deck = [ minBound.. ]
+              , _pile = undefined
+              , _messages = []
+              , _lastMoveLegal = True
+              , _randg = rng
+              , _varMap = Map.empty
+              , _players = []  --[("Angus",[]),("Toby",[]),("Anne",[])]
+              -- , _seats = pls
+              , _hands = Map.empty
+              --, _prevGS = Nothing
+              , _winner = Nothing
+              }
 
 -- Thanks stack overflow
 (/\)

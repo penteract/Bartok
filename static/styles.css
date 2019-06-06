@@ -24,7 +24,7 @@ body{
 .hand{
     font-size: 200%;
     width: 140px;
-    text-align: center;
+    text-align: left;
 }
 #self .hand{
     width: 40%;
@@ -52,11 +52,12 @@ body{
     padding: 2px;
 }
 #others {
-    width:90%;
+    width: 90%;
     height: 10%;
-    border:1px;
+    min-height: 100px;
+    border: 1px;
     display: flex;
-    flex-flow:row wrap;
+    flex-flow: row wrap;
 }
 .Hearts {
     color: red
@@ -69,4 +70,10 @@ body{
 }
 .Spades{
     color: black;
+}
+
+#leave{
+  top:0;
+  right: 0;
+  position: absolute;
 }

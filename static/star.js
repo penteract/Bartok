@@ -49,9 +49,54 @@ function draw(){
 function sendMove(type,dat){
     $.post("",JSON.stringify({
         tag:type,
-        contents:[name,tok,dat,$("#mmsg").val()]
+        contents:[name,tok,count,dat,$("#mmsg").val()]
     }),display,"json")
     $("#mmsg").val("")
+}
+
+function sendLeave(){
+    $.post("",JSON.stringify({
+        tag:"ReqLeave",
+        contents:[name,tok,count]
+    }),display,"json")
+    clearInterval(poller)
+    $("#mmsg").val("you have left")
+}
+
+
+function display(obj){
+    if (obj.tag=="NewData"){
+        count = obj.contents[0]
+        obj = obj.contents[1]
+        $("#deck").html(joincards(obj._deckV))
+        $("#pile").html(joincards(obj._pileV))
+        if(obj._messagesV.length) $("#msg").prepend(obj._messagesV.join("<br />")+"<br />")
+        first=true
+        $("#others").html("")
+        for (h of obj._handsV){
+            if(first){
+              if (!window.lastm || h != lastm._handsV[0])
+                $("#self").html(displayOwnHand(h))
+              name = h[0]
+              first=false
+            }
+            else{
+              $("#others").append(displayHand(h))
+            }
+        }
+        lastm = obj
+    }
+    else if (obj.tag=="Redirect") location.assign(obj.contents)
+}
+
+function submitRule(){
+    data=JSON.stringify({
+        "imports":$('#imports :checked').map((_,y)=>y.value).toArray(),
+        "ruleType":$('#submissiontypes :checked').val(),
+        "code":editor.getValue()
+    })
+    console.log(data)
+    $.post("", data, process, "json")
 }
 
 function showCard(c){
@@ -99,4 +144,12 @@ function randstr(n) {
   for (var i = 0; i < n; i++)
     text += String.fromCharCode(Math.floor(Math.random()*(127-32)+32));
   return text;
+}
+
+function allowCookies(){
+  localStorage.setItem("allowCookies", "true")
+}
+
+function clearData(){
+  localStorage.clear() //Also unsets allowCookies
 }

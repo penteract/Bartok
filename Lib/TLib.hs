@@ -3,15 +3,14 @@
 Module      : TLib
 Description : An alternative to RuleHelpers; uses more higher order functions and fewer lenses
 
-This approaches monads, but we aren't using those.
-This presents operations with
+This presents operations with more arguments than strictly necessary so that they can be used interchangeably
 -}
 module TLib(
     -- * The fundamental type
     GEGSto,
     -- *users
     -- These functions give access to the arguments in a composable manner
-    withAction,withMessage,with,
+    withAction,withMessage,withCard, with,
 
     -- *Operators
     when, whether, onNextTurn, uponDoUntil,
@@ -37,19 +36,21 @@ module TLib(
     suit,rank,Suit(..),Rank(..),
     Viewer, ViewRule,
     readVar,setVar,modifyVar,
-    nextTurn,draw,broadcast,(%))
+    nextTurn,draw,broadcast,(%),
+    mapAllCards)
  where
 
 import DataTypes
 import Control.Applicative
 import Data.Maybe(isJust)
+import qualified Data.Map as Map
 import BaseGame(nextTurn,draw,broadcast,(%),illegal)
 import RuleHelpers(findInMs,split,regexProcess,reconstitute)
 import Text.Regex(matchRegexAll,matchRegex, mkRegexWithOpts)
 
 --import qualified BaseGame
 
--- | Avoids extremely long types. Almost a Monad.
+-- | Avoids having to write out extremely long types. Almost a Monad.
 type GEGSto a =
        Game -- ^ The inner ruleset
     -> Event -- ^ The event under consideration
@@ -158,6 +159,11 @@ withAction :: (Action -> Rule) -> Rule
 withAction f act e@(Action _ a _) gs = f a act e gs
 withAction f act e gs = act e gs
 
+-- | When an card is played happens, do something with it
+withCard :: (Card -> Rule) -> Rule
+withCard f act e@(Action _ (Play c) _) gs = f c act e gs
+withCard f act e gs = act e gs
+
 -- | When an action happens, do something with the message that gets sent
 withMessage :: (String -> Rule) -> Rule
 withMessage f act e@(Action _ _ m) gs = f m act e gs
@@ -178,34 +184,19 @@ with getter f act e gs = f (getter act e gs) act e gs
 getVar :: String -> GEGSto Int
 getVar s act e gs = readVar s gs
 
--- | Tests if a player said something matching a given regex (case insenstive).
---  Like most string processing functions in this project, this separates input messages based on semicolons.
-said :: String -> GEGSto Bool
-said s act (Action _ _ m) gs = s `findInMs` m
-said _ _ _ _ = False
+-- | Modify all cards in the game
+mapAllCards :: (Card -> Card) -> GameState -> GameState
+mapAllCards f gs =
+    let (p:|ps) = _pile gs
+        hss = _hands gs
+        ds = _deck gs in
+             gs{_pile=f p :| map f ps, _hands = Map.map (map f) hss, _deck = map f ds}
 
--- | Award a penalty to a player without preventing their action.
+
+-- | Award a penalty to the acting player without preventing their action.
 penalty :: Int -> String -> Game
 penalty n reason (Action p a m) = draw n p . broadcast ("{} receives penalty {}: {}"%p%show n%reason)
 penalty _ _ _ = id
-
--- | The penalty message produced by @mustSay s@
-failmsg :: String -> String
-failmsg s = "failure to say '{}'"%s
-
--- | penalize if 's' is not said
-mustSay s = mustSay' s failmsg
-mustSay' s failmsg = when (not_$ said s) (doBefore (penalty 1 (failmsg s)))
-
-
--- | If the condition holds, require that they say  the message; otherwise, penalize them if they say it
-sometimesSay :: String -> GEGSto Bool -> Rule
-sometimesSay s cond = sometimesSay' s cond failmsg ("unnecessarily saying '{}'"%)
-sometimesSay' s cond failmsg unnecmsg = 
-                      whether cond (mustSay' s failmsg)
-                                   (when (said s) (doBefore$ penalty 1 (unnecmsg s)))
-
---sometimesSay s cond = unnec s . when cond (mustSay s)
 
 
 -- | Any action except the specified one is an illegal move.
@@ -236,6 +227,30 @@ state _ _ gs = gs
 -- | lift an action (monadic 'fmap')
 (.:) :: (a -> b) -> GEGSto a -> GEGSto b
 (.:) f g a b c = f (g a b c)
+
+
+-- | Tests if a player said something matching a given regex (case insenstive).
+--  Like most string processing functions in this project, this separates input messages based on semicolons.
+said :: String -> GEGSto Bool
+said s act (Action _ _ m) gs = s `findInMs` m
+said _ _ _ _ = False
+
+-- | The penalty message produced by @mustSay s@
+failmsg :: String -> String
+failmsg s = "failure to say '{}'"%s
+
+-- | penalize if 's' is not said
+mustSay s = mustSay' s failmsg
+mustSay' s failmsg = when (not_$ said s) (doBefore (penalty 1 (failmsg s)))
+
+
+-- | If the condition holds, require that they say  the message; otherwise, penalize them if they say it
+sometimesSay :: String -> GEGSto Bool -> Rule
+sometimesSay s cond = sometimesSay' s cond failmsg ("unnecessarily saying '{}'"%)
+sometimesSay' s cond failmsg unnecmsg = 
+                      whether cond (mustSay' s failmsg)
+                                   (when (said s) (doBefore$ penalty 1 (unnecmsg s)))
+--sometimesSay s cond = unnec s . when cond (mustSay s)
 
 
 checkMatch pattern input = isJust$ matchRegex (mkRegexWithOpts pattern True False) input

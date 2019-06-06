@@ -61,7 +61,7 @@ rq act e gs = onLegalCard (\ card event gs'->
 
 --r8 = onLegalCard (\card event -> if (rank card == Queen) then reverseDirection else doNothing)
 
-mustdo7 :: (Int->(Bool->Game)-> Rule)
+mustdo7 :: Int->(Bool->Game)-> Rule
 mustdo7 n f = with (const$ head .(^.players)) (\p ->
               require (p,(Draw (2*n)), "thank you"++ (if n>1 then " "++ concat (replicate (n-1) "very ") ++ "much" else "")) f)
 
@@ -255,6 +255,30 @@ rBlind' = (rBlind,rBlindV)
 run7 :: Int -> Rule
 run7 = undefined
 
+rKnight :: Rule
+rKnight = onLegalCard (\c e gs -> if rank c == Knight
+    then let (n,nxrg) = randomR (0, 14 * 4 )  (_randg gs)
+             c = [(r,s) | r<-[Ace .. King], s<-[Clubs .. Spades]] !! n
+     in cardToPile c gs{_randg=nxrg}
+    else gs)
+
+rbadger =
+  let thresh = 3 in
+    \act e gs ->
+    onLegalCard (\c (Action n p m) _ ->
+      let  almosts n = concat $ replicate (n-1) " almost"
+           (said, m') = removeIn' "that's( almost)* the badger" m
+           i = case said of
+               Nothing -> 0
+               Just said -> length (filter (=='l') said)+1
+           expect j = if i == j then doNothing
+                      else if j == 0 then penalty 1 ("Incorrectly" ++ almosts i ++ " identifying the wildlife") n
+                      else penalty 1 ("Failure to" ++ almosts j ++ " identify the wildlife") n in
+      act e ((if suit c == Diamonds then
+          let n = abs(fromEnum (rank c) - 9) in
+          if n <= thresh then expect (n+1)
+          else expect 0
+      else expect 0) gs)) act e gs
 -- | When a four is played, toggle complete visibility
 rFourShow :: Rule'
 rFourShow = ( onLegalCard (\ c _ -> if rank c==Four then modifyVar "rfours" (1 -) else id) ,

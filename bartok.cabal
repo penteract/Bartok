@@ -11,7 +11,7 @@ description:
   .
   When implementing rules, they should be well behaved, and interact well with other well behaved rules:
   .
-      The set of players must not be modified (except on 'PlayerJoin'). They may be rearranged, which will affect turn order but not seating order (so a change to turn order is not immediately obvious to players).
+      The set of players must not be modified (except on 'PlayerJoin' or 'PlayerLeave'). They may be rearranged, which will affect turn order but not seating order (so a change to turn order is not immediately obvious to players).
       .
       A rule should call either the inner ruleset or 'illegal' with the event it was passed and a potentially modified GameState
       .
@@ -31,7 +31,7 @@ library
   hs-source-dirs:      Lib
 --  build-depends:       base >= 4 && < 5
 --  ghc-options:
-  exposed-modules:     TLib, TSample, BaseGame, Sample, DataTypes, Views, Rules, RuleHelpers, Tutorial
+  exposed-modules:     TLib, TSample, BaseGame, Sample, DataTypes, Views, Rules, RuleHelpers
 --  other-extensions:    FlexibleContexts
   build-depends:       base, lens, random-shuffle, transformers, regex-compat,
                        containers, random, text
@@ -47,7 +47,7 @@ executable server
                          lens, transformers, mtl,
                          containers, random, text,
                          time
-    other-modules:       Serialize, ServerInterface
+    other-modules:       Serialize, ServerInterface, Whitelist
     default-language:    Haskell2010
 
 

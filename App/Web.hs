@@ -4,6 +4,7 @@
 import System.Environment
 import Data.Text(Text,intercalate,unpack)
 import Data.Maybe
+import Data.List(isSuffixOf)
 
 import Data.Aeson
 
@@ -23,11 +24,13 @@ import Control.Concurrent
 --import Control.Monad.Trans.State
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Arrow(second)
 
 import Language.Haskell.Interpreter hiding (get)
 
 import Serialize
 import ServerInterface
+import Whitelist(allowed)
 
 --type GData = (GameState,Game,Viewer)
 type GMap = CMap.Map Text (OngoingGame,MVar ())
@@ -47,7 +50,7 @@ checktime gd = do
 checklongtime :: OngoingGame -> IO Bool
 checklongtime gd = do
     now <- getCurrentTime
-    return$ diffUTCTime now (_lastAction gd) > realToFrac (60*60)
+    return$ diffUTCTime now (_lastAction gd) > realToFrac (60*60*60)
 
 addGame :: Text -> GMap -> IO ()
 addGame gName games = do
@@ -70,7 +73,7 @@ sendTimeouts gName games = do
             when t (do -- check that it has been 10 seconds since the last move
                 _ <- takeMVar mv -- aquire lock
                 mx <- CMap.lookup gName games--need to read the data again now we hold the lock
-                case mx of --technically runs into some wierd prblems if the game can be deleted
+                case mx of --technically runs into some weird problems if the game can be deleted
                     Nothing -> return ()
                     Just (gd,_) -> do
                         t <- checktime gd
@@ -107,35 +110,41 @@ app games req resp = do
         _ -> resp$ responseLBS methodNotAllowed405 [(hAllow,"GET, POST")] ""
 
 onGet :: GMap -> Application
-onGet games req = do
+onGet games req =
     --print (pathInfo req)
     case pathInfo req of
-        [] -> load "home.html"
+        [] -> load "static/home.html"
         ["doc"] -> ($ redirect308 "/doc/index.html")
         ["static"] -> ($ redirect308 "/")
         [gname] -> playPage gname games req
         -- [gname] -> resp$redirect308 (concat
         --     ["/",unpack gname,"/",B.unpack (rawQueryString req)])
-        ["static",x] -> load x
+        ["static",x] -> loadstatic x
         ("doc":path) -> loaddoc (intercalate "/" path)
         [gname,"newRule"] -> newRulePage gname games req
         [gname,"wait"] -> waitPage gname games req
         _ -> ($ err404)
 
-load :: Text -> (Response -> a) -> a
-load p resp = resp$ responseFile ok200 [(hContentType,getContentType p)] ("static/"++unpack p) Nothing
+
+load :: String -> (Response -> a) -> a
+load p resp = if allowed p
+  then resp$ responseFile ok200 [(hContentType,getContentType p)] p Nothing
+  else resp$ err404
 
 loaddoc :: Text -> (Response -> a) -> a
-loaddoc p resp = resp$ responseFile ok200 [] ("doc/"++unpack p) Nothing
+loaddoc p  = load ("doc/"++unpack p)
 
-getContentType :: Text ->  B.ByteString
-getContentType p = fromMaybe "text/html" (lookup p
-    [("dejavupc","font/woff"),--Should this be .woff
-    ("star.js","text/javascript"),
-    ("jquery.min.js","text/javascript"),
-    ("ace.js","text/javascript"),
-    ("styles.css","text/css")])
---GET handlers
+loadstatic :: Text -> (Response -> a) -> a
+loadstatic p = load ("static/"++unpack p)
+
+getContentType :: String ->  B.ByteString
+getContentType p
+  | endsWith ".js"   =  "text/javascript"
+  | endsWith ".css"  = "text/css"
+  | endsWith ".woff" = "font/woff"
+  | endsWith ".html" = "text/html"
+  | otherwise        = "text/html"
+    where endsWith = (`isSuffixOf` p)
 
 -- homepage :: GMap -> Application
 -- homepage games req resp = resp$ responseFile ok200 [html] "home.html" Nothing
@@ -153,8 +162,8 @@ playPage gameName games req resp = do
         Nothing -> addGame gameName games
         Just a -> return ()
     if istest (unpack gameName)
-      then load "Testing.html" resp
-      else load "play.html" resp
+      then loadstatic "Testing.html" resp
+      else loadstatic "play.html" resp
 
 newRulePage :: Text -> GMap -> Application
 newRulePage gameName games req resp= do
@@ -163,12 +172,12 @@ newRulePage gameName games req resp= do
     case mx of
         Nothing -> addGame gameName games
         Just a -> return ()
-    load "newRule.html" resp
+    loadstatic "newRule.html" resp
 
 waitPage :: Text -> GMap -> Application
 waitPage gameName games req resp = do
     --mx <- CMap.lookup gameName games
-    load "wait.html" resp
+    loadstatic "wait.html" resp
 --WithGame Monad
 
 type WithGame a = ReaderT (Request,L.ByteString) (StateT OngoingGame IO) a
@@ -226,14 +235,16 @@ doErr e f = do
 
 onPost :: GMap -> Application
 onPost games req resp = do
-    print$ pathInfo req
+    --
     let gameName = intercalate "/" (pathInfo req)
     case pathInfo req of
         [gname] -> doWithGame playMove games gname req resp
         [gname, "newRule"] -> doWithGame newRule games gname req resp
         [gname, "poll"] -> doSafeWithGame viewGame games gname req resp
         [gname, "wait"] -> checkStatus gname games req resp
-        _ -> resp$ err404
+        _ -> do
+          print$ pathInfo req
+          resp$ err404
 
 -- POST handlers
 
@@ -243,10 +254,12 @@ viewGame :: WithGame Response
 viewGame = do
     e <- getBody
     let p = L.unpack e
-    let (name,tok) = span (/='\n') p
+    let (name,(tok,time)) = second (span (/='\n') . drop 1) $ (span (/='\n')) p
     game <- getGame
-    doErr (view name (drop 1 tok) game) (\v ->
-       return$ jsonResp (serialize v))
+    case reads (drop 1 time) of
+      ((n,""):_) -> doErr (view name tok n game) (\v ->
+                      return$ jsonResp (serialize v))
+      _ -> return$ err422 "Unable to parse counter"
 
 playMove :: WithGame Response
 playMove = do
@@ -262,7 +275,7 @@ playMove = do
               liftIO getCurrentTime >>= modify . setTime
               --liftIO (putStrLn (show (_players state)))
               game' <- getGame
-              doErr (view p (getTok r) game') (\ v ->
+              doErr (view p (getTok r) (getCount r) game') (\ v ->
                 return$ jsonResp (serialize v)))
 
         Nothing -> return err404
@@ -274,12 +287,20 @@ newRule = do
     liftIO$ putStrLn (L.unpack b)
     case readNewRule b of
         Just nr -> do
-            let imps = ["Prelude"]++[i | i <- imports nr , i `elem`
-                    ["RuleHelpers","BaseGame","DataTypes","Rules", "TLib","Views"]]
+            let available = ["Prelude", "RuleHelpers", "BaseGame", "DataTypes", "Rules", "TLib", "Views"]
+                imps = ["Prelude"]++[i | i <- imports nr , i `elem`
+                    available]
+                qimps = (zip imps $ repeat Nothing) ++ map (second Just) ([
+                    ("Data.Map", "Map"),
+                    ("Control.Arrow","Arrow"),
+                    ("Data.List.NonEmpty","NE"),
+                    ("Control.Monad","Monad"),
+                    ("Control.Applicative","Applicative")
+                    ] ++ map (\a -> (a,a)) available)
             liftIO$ print$ imps
             liftIO$ putStrLn$ code nr
             f <- liftIO$ runInterpreter$ do
-                           setImports imps
+                           setImportsQ qimps
                            case ruleType nr of
                                "ViewRule" -> (,) id <$> interpret (code nr) (as::ViewRule)
                                "Both" -> interpret (code nr) (as::Rule')
@@ -319,6 +340,12 @@ main = do
     putStrLn ("server running at http://localhost:"++show port)
     run port (cannonisepath (app games))
 
+{-
+allowedFiles :: IO (String -> Bool)
+allowedFiles = do
+  docs <- readProcess "find" ["doc", "-type", "f"] ""
+  statics <- readProcess "find" ["static", "-type", "f"] ""
+  return$ (`elem` lines docs ++ lines statics)-}
 
 redirect308 url = responseLBS permanentRedirect308 [] (L.pack url)
 

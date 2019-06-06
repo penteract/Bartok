@@ -71,7 +71,7 @@ baseViewer _ gs = GV {
                 -- liftM2 (:) head (takeWhile ((/=p).fst)) . dropWhile ((/=p).fst) . cycle -- starting with the viewer
                 -- uncurry (flip (++)) . span ((/=p).fst) -- put p to the front
                 map (second $ map CardFace) (Map.assocs $ gs^.hands) ,
-    _pileV = (\(c:|cs) -> (CardFace c:map (const CardBack) cs)) (gs^.pile) ,
+    _pileV = (\(c:|cs) -> CardFace c:map (const CardBack) cs) (gs^.pile) ,
     _deckV = map (const CardBack) (gs^.deck) ,
     _messagesV = gs^.messages }
 
