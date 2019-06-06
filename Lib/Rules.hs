@@ -50,8 +50,8 @@ rMao :: Rule
 rMao  = onAction (\(p,a,m) act e gs->
             let next = act e gs
                 won = next^.winner == Just p
-                saidmao = "mao" `findInMs` m in
-                saidmaolast = "mao" `findInMs` last ("":split m)
+                saidmao = "mao" `findInMs` m
+                saidmaolast = "mao" `findInMs` last ("":split m) in
             case (saidmao, won && saidmaolast, won) of
                 (True,False,_) -> penalty 4 "Lying, cheating, deceiving, taking the name of the Chairman in vain."
                     p next
