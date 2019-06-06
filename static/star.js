@@ -49,7 +49,7 @@ function draw(){
 function sendMove(type,dat){
     $.post("",JSON.stringify({
         tag:type,
-        contents:[name,tok,dat,$("#mmsg").val()]
+        contents:[name,tok,count,dat,$("#mmsg").val()]
     }),display,"json")
     $("#mmsg").val("")
 }
@@ -57,7 +57,7 @@ function sendMove(type,dat){
 function sendLeave(){
     $.post("",JSON.stringify({
         tag:"ReqLeave",
-        contents:[name,tok]
+        contents:[name,tok,count]
     }),display,"json")
     clearInterval(poller)
     $("#mmsg").val("you have left")
@@ -66,23 +66,25 @@ function sendLeave(){
 
 function display(obj){
     if (obj.tag=="NewData"){
-        lastm = obj.contents[0]
+        count = obj.contents[0]
         obj = obj.contents[1]
         $("#deck").html(joincards(obj._deckV))
         $("#pile").html(joincards(obj._pileV))
-        $("#msg").html(obj._messagesV.join("<br />"))
+        if(obj._messagesV.length) $("#msg").prepend(obj._messagesV.join("<br />")+"<br />")
         first=true
         $("#others").html("")
         for (h of obj._handsV){
             if(first){
+              if (!window.lastm || h != lastm._handsV[0])
                 $("#self").html(displayOwnHand(h))
-                name = h[0]
-                first=false
+              name = h[0]
+              first=false
             }
             else{
-                $("#others").append(displayHand(h))
+              $("#others").append(displayHand(h))
             }
         }
+        lastm = obj
     }
     else if (obj.tag=="Redirect") location.assign(obj.contents)
 }

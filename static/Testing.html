@@ -36,18 +36,25 @@
 
 //console.log(display)
 
-lastm=-1
-
-tok = randstr(10)
-name = getParameterByName("name")
+count=-1
+url = window.location.href
+tok = localStorage.getItem(url)
+if (tok == null){
+  tok = randstr(10)
+  name = getParameterByName("name")
+  if (localStorage.getItem("allowCookies")=="true"){
+    localStorage.setItem(url,tok)
+  }
+}
 $.post("",JSON.stringify(
-    {tag:'ReqJoin',contents:[name,tok]}),
+    {tag:'ReqJoin',contents:[name,tok,count]}),
   display, "json")
 
 
-poller = setInterval(() => $.post("./poll",name+"\n"+tok,//TODO(toby) send tokens
-  display, "json")
-    ,1000)
+poller =  setTimeout((() => setInterval(() =>
+  $.post("./poll",name+"\n"+tok+"\n"+count,
+     display, "json"),1000)),
+   1000)
 
 </script>
 </div>

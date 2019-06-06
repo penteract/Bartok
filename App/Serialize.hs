@@ -3,7 +3,7 @@
 
 module Serialize(serialize, unserialize,readNewRule,
         ActionReq(..),Token,ClientPacket(..),NewRuleReq(..),
-        getName,getTok)
+        getName,getTok,getCount)
  where
 
 import GHC.Generics (Generic)
@@ -53,10 +53,12 @@ type Token = String
 type CardIndex = Int
 
 -- TODO: Consider adding some validation to player join requests (eg name can't contain silly characters)
-data ActionReq = ReqPlay Name Token CardIndex String
-               | ReqDraw Name Token Int String
-               | ReqJoin Name Token
-               | ReqLeave Name Token deriving (Show,Eq,Generic)
+-- | Requests contain a Name, a validation token, a counter indicating how much they haven't seen
+--   and some data about the move being made
+data ActionReq = ReqPlay Name Token Int CardIndex String
+               | ReqDraw Name Token Int Int String
+               | ReqJoin Name Token Int
+               | ReqLeave Name Token Int deriving (Show,Eq,Generic)
 instance ToJSON ActionReq where toEncoding = genericToEncoding defaultOptions
 instance FromJSON ActionReq
 
@@ -73,16 +75,23 @@ readNewRule :: L.ByteString -> Maybe NewRuleReq
 readNewRule = decode
 
 getName :: ActionReq -> Name
-getName (ReqPlay p _ _ _) = p
-getName (ReqDraw p _ _ _) = p
-getName (ReqJoin p _) = p
-getName (ReqLeave p _) = p
+getName (ReqPlay p _ _ _ _) = p
+getName (ReqDraw p _ _ _ _) = p
+getName (ReqJoin p _ _) = p
+getName (ReqLeave p _ _) = p
 
 getTok :: ActionReq -> Token
-getTok (ReqPlay _ t _ _) = t
-getTok (ReqDraw _ t _ _) = t
-getTok (ReqJoin _ t) = t
-getTok (ReqLeave _ t) = t
+getTok (ReqPlay  _ t _ _ _) = t
+getTok (ReqDraw  _ t _ _ _) = t
+getTok (ReqJoin  _ t _) = t
+getTok (ReqLeave _ t _) = t
+
+
+getCount :: ActionReq -> Int
+getCount (ReqPlay  _ _ n _ _) = n
+getCount (ReqDraw  _ _ n _ _) = n
+getCount (ReqJoin  _ _ n) = n
+getCount (ReqLeave _ _ n) = n
 
 unserialize :: L.ByteString -> Maybe ActionReq
 unserialize = decode

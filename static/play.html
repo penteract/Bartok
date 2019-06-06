@@ -29,7 +29,7 @@
 
 <script>
 
-lastm=-1
+count=-1
 url = window.location.href
 tok = localStorage.getItem(url)
 if (tok == null){
@@ -40,13 +40,14 @@ if (tok == null){
   }
 }
 $.post("",JSON.stringify(
-    {tag:'ReqJoin',contents:[name,tok]}),
+    {tag:'ReqJoin',contents:[name,tok,count]}),
   display, "json")
 
 
-poller = setInterval(() => $.post("./poll",name+"\n"+tok,//TODO(toby) send tokens
-  display, "json")
-    ,1000)
+poller =  setTimeout((() => setInterval(() =>
+  $.post("./poll",name+"\n"+tok+"\n"+count,
+     display, "json"),1000)),
+   1000)
 
 </script>
 </body>

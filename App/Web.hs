@@ -254,10 +254,12 @@ viewGame :: WithGame Response
 viewGame = do
     e <- getBody
     let p = L.unpack e
-    let (name,tok) = span (/='\n') p
+    let (name,(tok,time)) = second (span (/='\n') . drop 1) $ (span (/='\n')) p
     game <- getGame
-    doErr (view name (drop 1 tok) game) (\v ->
-       return$ jsonResp (serialize v))
+    case reads (drop 1 time) of
+      ((n,""):_) -> doErr (view name tok n game) (\v ->
+                      return$ jsonResp (serialize v))
+      _ -> return$ err422 "Unable to parse counter"
 
 playMove :: WithGame Response
 playMove = do
@@ -273,7 +275,7 @@ playMove = do
               liftIO getCurrentTime >>= modify . setTime
               --liftIO (putStrLn (show (_players state)))
               game' <- getGame
-              doErr (view p (getTok r) game') (\ v ->
+              doErr (view p (getTok r) (getCount r) game') (\ v ->
                 return$ jsonResp (serialize v)))
 
         Nothing -> return err404
