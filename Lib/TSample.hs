@@ -41,12 +41,15 @@ rq = when (cardIs ((==Queen) . rank))
 rSpade :: Rule
 rSpade = flip (foldr ($))  [sometimesSay ("{} of Spades"%show c) (cardIs (==(c,Spades)))  | c <- [Ace .. King]]
 
-
+-- | When a 3 is played, treat all cards of that suit as though they were one higher.
+--   This is implemented by internally incrementing everything of that suit once,
+--   then reducing them in the view.
 r3 :: Rule
 r3 = when (isLegal ~&~ cardIs ((==Three) . rank))
     (withCard (\(r,s) -> doAfter (modifyVar (show s) (+1) .
                               mapAllCards (\(r',s') -> (if s == s' then toEnum ((fromEnum r' `mod` 14) + 1) else r', s')) )))
 
+-- Note that this does not mess with messages, giving people some ability to keep track
 r3V :: ViewRule
 r3V = (\ v n gs ->
   let f (CardFace (r,s)) = CardFace (toEnum (((fromEnum r - 1 - readVar (show s) gs) `mod` 14) + 1), s)

@@ -14,6 +14,7 @@ baseViewer,GameView(..),
 lastCard,onlyOwnCards,
 defaultView,
 -- * Helper functions
+makeViewTransformer,
 -- ** dealing with hands
 mapOwnHand,mapOtherHands, modifyHandMap, mapHands,
 hideHand,
