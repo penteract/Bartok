@@ -50,7 +50,7 @@ function sendMove(type,dat){
     $.post("",JSON.stringify({
         tag:type,
         contents:[name,tok,count,dat,$("#mmsg").val()]
-    }),display,"json")
+    }),display(count),"json")
     $("#mmsg").val("")
 }
 
@@ -58,14 +58,15 @@ function sendLeave(){
     $.post("",JSON.stringify({
         tag:"ReqLeave",
         contents:[name,tok,count]
-    }),display,"json")
+    }),display(count),"json")
     clearInterval(poller)
     $("#mmsg").val("you have left")
 }
 
 
-function display(obj){
-    if (obj.tag=="NewData"){
+function display(n){
+    return function(obj){
+    if (obj.tag=="NewData" && count==n){
         count = obj.contents[0]
         obj = obj.contents[1]
         $("#deck").html(joincards(obj._deckV))
@@ -87,7 +88,7 @@ function display(obj){
         lastm = obj
     }
     else if (obj.tag=="Redirect") location.assign(obj.contents)
-}
+}}
 
 function submitRule(){
     data=JSON.stringify({

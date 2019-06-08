@@ -41,12 +41,12 @@ if (tok == null){
 }
 $.post("",JSON.stringify(
     {tag:'ReqJoin',contents:[name,tok,count]}),
-  display, "json")
+  display(count), "json")
 
 
 poller =  setTimeout((() => setInterval(() =>
   $.post("./poll",name+"\n"+tok+"\n"+count,
-     display, "json"),1000)),
+     display(count), "json"),1000)),
    1000)
 
 </script>
