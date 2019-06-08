@@ -10,10 +10,10 @@
 --   When implementing rules, they should be well behaved, and interact
 --   well with other well behaved rules:
 --   
---   The set of players must not be modified (except on <a>PlayerJoin</a>).
---   They may be rearranged, which will affect turn order but not seating
---   order (so a change to turn order is not immediately obvious to
---   players).
+--   The set of players must not be modified (except on <a>PlayerJoin</a>
+--   or <a>PlayerLeave</a>). They may be rearranged, which will affect turn
+--   order but not seating order (so a change to turn order is not
+--   immediately obvious to players).
 --   
 --   A rule should call either the inner ruleset or <a>illegal</a> with the
 --   event it was passed and a potentially modified GameState
@@ -59,8 +59,11 @@ Play :: Card -> Action
 -- | Events that rules should be able to deal with
 data Event
 
+-- | A player leaving the game
+PlayerLeave :: Name -> Event
+
 -- | A player requesting to join the game. This is not limited to the start
-PlayerJoin :: Name -> (Maybe (Name, Name)) -> Event
+PlayerJoin :: Name -> Maybe (Name, Name) -> Event
 
 -- | A player performing one of the above actions and sending a message.
 Action :: Name -> Action -> String -> Event
@@ -151,7 +154,7 @@ modifyVar :: VarName -> (Int -> Int) -> Step
 --   seed contained in GameState.
 shuffleDeck :: Step
 
--- | Get the playeer if an event
+-- | Get the player of an event
 eventPlayer :: Event -> Maybe Name
 
 -- | Functions to tell a player what they should see
@@ -195,8 +198,66 @@ runParser :: Parser a -> String -> Maybe a
 parseSuit :: Parser Suit
 parseRank :: Parser Rank
 parseCard :: Parser Card
+
+-- | Non-empty (and non-strict) list type.
+data NonEmpty a
+(:|) :: a -> [a] -> NonEmpty a
+infixr 5 :|
+
+-- | A Map from keys <tt>k</tt> to values <tt>a</tt>.
+data Map k a
+
+-- | The <a>StdGen</a> instance of <a>RandomGen</a> has a <a>genRange</a>
+--   of at least 30 bits.
+--   
+--   The result of repeatedly using <a>next</a> should be at least as
+--   statistically robust as the <i>Minimal Standard Random Number
+--   Generator</i> described by [<a>System.Random\#Park</a>,
+--   <a>System.Random\#Carta</a>]. Until more is known about
+--   implementations of <a>split</a>, all we require is that <a>split</a>
+--   deliver generators that are (a) not identical and (b) independently
+--   robust in the sense just given.
+--   
+--   The <a>Show</a> and <a>Read</a> instances of <a>StdGen</a> provide a
+--   primitive way to save the state of a random number generator. It is
+--   required that <tt><a>read</a> (<a>show</a> g) == g</tt>.
+--   
+--   In addition, <a>reads</a> may be used to map an arbitrary string (not
+--   necessarily one produced by <a>show</a>) onto a value of type
+--   <a>StdGen</a>. In general, the <a>Read</a> instance of <a>StdGen</a>
+--   has the following properties:
+--   
+--   <ul>
+--   <li>It guarantees to succeed on any string.</li>
+--   <li>It guarantees to consume only a finite portion of the string.</li>
+--   <li>Different argument strings are likely to result in different
+--   results.</li>
+--   </ul>
+data StdGen
+
+-- | Takes a range <i>(lo,hi)</i> and a random number generator <i>g</i>,
+--   and returns a random value uniformly distributed in the closed
+--   interval <i>[lo,hi]</i>, together with a new generator. It is
+--   unspecified what happens if <i>lo&gt;hi</i>. For continuous types
+--   there is no requirement that the values <i>lo</i> and <i>hi</i> are
+--   ever produced, but they may be, depending on the implementation and
+--   the interval.
+randomR :: (Random a, RandomGen g) => (a, a) -> g -> (a, g)
+
+-- | The same as <a>randomR</a>, but using a default range determined by
+--   the type:
+--   
+--   <ul>
+--   <li>For bounded types (instances of <a>Bounded</a>, such as
+--   <a>Char</a>), the range is normally the whole type.</li>
+--   <li>For fractional types, the range is normally the semi-closed
+--   interval <tt>[0,1)</tt>.</li>
+--   <li>For <a>Integer</a>, the range is (arbitrarily) the range of
+--   <a>Int</a>.</li>
+--   </ul>
+random :: (Random a, RandomGen g) => g -> (a, g)
 if' :: Bool -> a -> a -> a
-(/\) :: (Functor f) => ((a -> (a, a)) -> (c -> (a, c))) -> ((b -> (b, b)) -> (c -> (b, c))) -> (((a, b) -> f (a, b)) -> (c -> f c))
+(/\) :: Functor f => ((a -> (a, a)) -> c -> (a, c)) -> ((b -> (b, b)) -> c -> (b, c)) -> ((a, b) -> f (a, b)) -> c -> f c
 infixl 7 /\
 players :: Lens' GameState [Name]
 hands :: Lens' GameState (Map Name Hand)
@@ -231,72 +292,14 @@ instance GHC.Classes.Eq DataTypes.Suit
 instance GHC.Show.Show DataTypes.Suit
 
 
--- | The functions in this module define how the data sent to clients is
---   constructed. They should help when writing rules that affect what
---   players can see.
-module Views
-
--- | Functions to tell a player what they should see
-type Viewer = Name -> GameState -> GameView
-
--- | Rules that modify what players see without affecting the game state
-type ViewRule = Viewer -> Viewer
-
--- | Like <tt>baseGame</tt>, this defines how cards should be viewed in a
---   very simple game. See <a>GameView</a> for more.
-baseViewer :: Viewer
-
--- | The structure describing data seen by players
-data GameView
-GV :: [(Name, [CardView])] -> [CardView] -> [CardView] -> [String] -> GameView
-
--- | The players and the information a particular player will have about
---   each hand. By default, this is a <a>CardFace</a>s for the viewing
---   player and a number of <a>CardBack</a>s for others.
-[_handsV] :: GameView -> [(Name, [CardView])]
-
--- | What should be seen of the pile. By default, only the top card is
---   visible.
-[_pileV] :: GameView -> [CardView]
-
--- | What should be seen of the pile. By default, none are visible.
-[_deckV] :: GameView -> [CardView]
-
--- | The messages a player can see. By default, this is all messages that
---   have been sent
-[_messagesV] :: GameView -> [String]
-
--- | Hide the last card in a player's hand.
-lastCard :: ViewRule
-
--- | Hides other players' hands.
-onlyOwnCards :: ViewRule
-
--- | <tt>baseView</tt> with the above rules added to it.
-defaultView :: Viewer
-
--- | Modify a player's view of their own hand
-mapOwnHand :: ([CardView] -> [CardView]) -> ViewRule
-
--- | Modify the view of all other players' hands
-mapOtherHands :: ([CardView] -> [CardView]) -> ViewRule
-
--- | Apply a modification to the structure describing what can be seen of
---   each player's hand after inner rules have been applied.
-modifyHandMap :: ([(Name, [CardView])] -> [(Name, [CardView])]) -> ViewRule
-
--- | Apply a function to all views of hands
-mapHands :: ([CardView] -> [CardView]) -> ViewRule
-hideHand :: [CardView] -> [CardView]
-
-
 -- | This contains functions for a simple game.
 module BaseGame
 doNothing :: Step
 fromStep :: Step -> Game
-if'' :: Bool -> (a -> a) -> (a -> a)
+if'' :: Bool -> (a -> a) -> a -> a
 (%) :: String -> String -> String
 (%%) :: String -> Card -> String
+appendl :: NonEmpty a -> [a] -> NonEmpty a
 
 -- | Returns a game where the move has not occured and a penalty has been
 --   given. Should be used with <tt>doOnly</tt>
@@ -314,6 +317,7 @@ sayAct :: Game
 -- | Add a player to the game
 addPlayer :: Name -> Maybe (Name, Name) -> Step
 addToSeat :: Name -> Maybe (Name, Name) -> [Name] -> [Name]
+remPlayer :: Name -> Step
 
 -- | Play a move and tidy up the game state.
 play :: Name -> Event -> Card -> Step
@@ -425,8 +429,8 @@ reverseDirection :: Step
 rq :: Rule
 rlast :: Rule
 rMao :: Rule
-(^.^) :: (Event -> b -> c) -> (Event -> a -> b) -> Event -> a -> c
-(^^.^^) :: (Bool -> Event -> b -> c) -> (Bool -> Event -> a -> b) -> Bool -> Event -> a -> c
+(^.^) :: () => (Event -> b -> c) -> (Event -> a -> b) -> Event -> a -> c
+(^^.^^) :: () => (Bool -> Event -> b -> c) -> (Bool -> Event -> a -> b) -> Bool -> Event -> a -> c
 ifSaid :: String -> Game -> Game
 getState :: Event -> GameState -> GameState
 rMao'' :: Rule
@@ -435,53 +439,21 @@ defaultRules :: [Rule]
 defaultRulesNamed :: [([Char], Rule)]
 
 
--- | Look at the implementation of these to see examples of how to write
---   rules
-module Sample
-
--- | When an 8 is played, skip the following player's turn
-r8 :: Rule
-reverseDirection :: Step
-
--- | Reverse direction when a Queen is played
-rq :: Rule
-mustdo7 :: Int -> (Bool -> Game) -> Rule
-count7s :: GameState -> Int
-
--- | When a seven is played, the player must say 'have a nice day'. The
---   following player must either play another seven, saying 'have a very
---   nice day' or say 'thank you' and draw 2 cards. If futher sevens are
---   played (each such player must add another <tt>very</tt>), the first
---   player who cannot play one must say 'thank you very{n} much' and draw
---   2n cards.
-r7 :: Rule
-r7' :: Rule
-rC :: Game -> Game
-gSnap :: Rule'
-nextTurnDo :: String -> (Game -> Event -> GameState -> Bool) -> Rule -> Rule
-nextTurnDoUntil :: String -> (Game -> Event -> GameState -> Bool) -> (Game -> Event -> GameState -> (GameState, Bool)) -> Rule
-r6 :: Rule
-rPM :: Rule
-rPMV :: ViewRule
-rPM' :: Rule'
-rBlind :: Rule
-rBlindV :: ViewRule
-rBlind' :: Rule'
-run7 :: Int -> Rule
-
-
--- | This approaches monads, but we aren't using those. This presents
---   operations with
+-- | This presents operations with more arguments than strictly necessary
+--   so that they can be used interchangeably
 module TLib
 
--- | Avoids extremely long types. Almost a Monad.
-type GEGSto a = Game  The inner ruleset -> Event  The event under consideration -> GameState  The previous state of the game -> a
+-- | Avoids having to write out extremely long types. Almost a Monad.
+type GEGSto a = Game " The inner ruleset" -> Event " The event under consideration" -> GameState " The previous state of the game" -> a
 
 -- | When an action happens, do something with it
 withAction :: (Action -> Rule) -> Rule
 
 -- | When an action happens, do something with the message that gets sent
 withMessage :: (String -> Rule) -> Rule
+
+-- | When an card is played happens, do something with it
+withCard :: (Card -> Rule) -> Rule
 
 -- | Build a rule (or similar that depends on an extracted value (if you
 --   know monads, this is bind <tt>(&gt;&gt;=)</tt>).
@@ -493,15 +465,15 @@ withMessage :: (String -> Rule) -> Rule
 with :: GEGSto a -> (a -> GEGSto b) -> GEGSto b
 
 -- | Given a condition, implement a rule only when that condition holds.
-when :: (GEGSto Bool) -> Rule -> Rule
+when :: GEGSto Bool -> Rule -> Rule
 
 -- | Given a condition, do one thing when the condition holds and another
 --   when it doesn't.
-whether :: (GEGSto Bool) -> Rule -> Rule -> Rule
+whether :: GEGSto Bool -> Rule -> Rule -> Rule
 
 -- | Given a fresh variable name, when a condition is met, run an action on
 --   the following turn.
-onNextTurn :: VarName -> (GEGSto Bool) -> Rule -> Rule
+onNextTurn :: VarName -> GEGSto Bool -> Rule -> Rule
 
 -- | Upon a condition being satisfied, implement a rule until a second
 --   condition is satisfied.
@@ -554,14 +526,14 @@ getVar :: String -> GEGSto Int
 state :: GEGSto GameState
 
 -- | The penalty message produced by <tt>mustSay s</tt>
-failmsg :: String -> String
+mkFailMsg :: String -> String
 
 -- | penalize if <tt>s</tt> is not said
 mustSay :: String -> Rule
 
 -- | Penalize for unnecessarily saying something. This works by testing if
 --   the absence of any matching component of a player's message would
---   cause a penalty containing <a>failmsg</a>. If not, the component is
+--   cause a penalty containing <tt>failmsg</tt>. If not, the component is
 --   assumed to be unnecessary.
 unnec :: String -> Rule
 
@@ -572,6 +544,11 @@ sometimesSay :: String -> GEGSto Bool -> Rule
 -- | Any action except the specified one is an illegal move. When the
 --   specified action occurs, run the second argument.
 mustDo :: Action -> Rule -> Rule
+
+-- | Like <a>mustSay</a>, but with custom penalty message
+mustSayPenalty :: String -> String -> Rule
+sometimesSayPenalty :: String -> GEGSto Bool -> String -> String -> Rule
+unnecPenalty :: String -> (String -> String) -> Rule
 
 -- | Transform the list of players (affects turn order).
 modifyPlayers :: ([Name] -> [Name]) -> Step
@@ -606,8 +583,11 @@ data GameState
 -- | Events that rules should be able to deal with
 data Event
 
+-- | A player leaving the game
+PlayerLeave :: Name -> Event
+
 -- | A player requesting to join the game. This is not limited to the start
-PlayerJoin :: Name -> (Maybe (Name, Name)) -> Event
+PlayerJoin :: Name -> Maybe (Name, Name) -> Event
 
 -- | A player performing one of the above actions and sending a message.
 Action :: Name -> Action -> String -> Event
@@ -699,8 +679,74 @@ draw :: Int -> Name -> Step
 --   default.
 broadcast :: String -> Step
 (%) :: String -> String -> String
+
+-- | Modify all cards in the game
+mapAllCards :: (Card -> Card) -> GameState -> GameState
 instance TLib.Ruleable DataTypes.Step
 instance TLib.Ruleable DataTypes.Game
+
+
+-- | The functions in this module define how the data sent to clients is
+--   constructed. They should help when writing rules that affect what
+--   players can see.
+module Views
+
+-- | Functions to tell a player what they should see
+type Viewer = Name -> GameState -> GameView
+
+-- | Rules that modify what players see without affecting the game state
+type ViewRule = Viewer -> Viewer
+
+-- | Like <tt>baseGame</tt>, this defines how cards should be viewed in a
+--   very simple game. See <a>GameView</a> for more.
+baseViewer :: Viewer
+
+-- | The structure describing data seen by players
+data GameView
+GV :: [(Name, [CardView])] -> [CardView] -> [CardView] -> [String] -> GameView
+
+-- | The players and the information a particular player will have about
+--   each hand. By default, this is a <a>CardFace</a>s for the viewing
+--   player and a number of <a>CardBack</a>s for others.
+[_handsV] :: GameView -> [(Name, [CardView])]
+
+-- | What should be seen of the pile. By default, only the top card is
+--   visible.
+[_pileV] :: GameView -> [CardView]
+
+-- | What should be seen of the pile. By default, none are visible.
+[_deckV] :: GameView -> [CardView]
+
+-- | The messages a player can see. By default, this is all messages that
+--   have been sent
+[_messagesV] :: GameView -> [String]
+
+-- | Hide the last card in a player's hand.
+lastCard :: ViewRule
+
+-- | Hides other players' hands.
+onlyOwnCards :: ViewRule
+
+-- | <tt>baseView</tt> with the above rules added to it.
+defaultView :: Viewer
+
+-- | Turn a function transforming a <a>GameView</a> into a viewRule &gt;
+--   makeViewTransformer f r p gs == f$ r p gs
+makeViewTransformer :: (GameView -> GameView) -> ViewRule
+
+-- | Modify a player's view of their own hand
+mapOwnHand :: ([CardView] -> [CardView]) -> ViewRule
+
+-- | Modify the view of all other players' hands
+mapOtherHands :: ([CardView] -> [CardView]) -> ViewRule
+
+-- | Apply a modification to the structure describing what can be seen of
+--   each player's hand after inner rules have been applied.
+modifyHandMap :: ([(Name, [CardView])] -> [(Name, [CardView])]) -> ViewRule
+
+-- | Apply a function to all views of hands
+mapHands :: ([CardView] -> [CardView]) -> ViewRule
+hideHand :: [CardView] -> [CardView]
 
 
 -- | Looking at the source code is recommended
@@ -709,3 +755,43 @@ r7 :: Rule
 r8 :: Rule
 rq :: Rule
 rSpade :: Rule
+
+
+-- | Look at the implementation of these to see examples of how to write
+--   rules
+module Sample
+
+-- | When an 8 is played, skip the following player's turn
+r8 :: Rule
+reverseDirection :: Step
+
+-- | Reverse direction when a Queen is played
+rq :: Rule
+mustdo7 :: Int -> (Bool -> Game) -> Rule
+count7s :: GameState -> Int
+
+-- | When a seven is played, the player must say 'have a nice day'. The
+--   following player must either play another seven, saying 'have a very
+--   nice day' or say 'thank you' and draw 2 cards. If futher sevens are
+--   played (each such player must add another <tt>very</tt>), the first
+--   player who cannot play one must say 'thank you very{n} much' and draw
+--   2n cards.
+r7 :: Rule
+r7' :: Rule
+rC :: Game -> Game
+gSnap :: Rule'
+nextTurnDo :: String -> (Game -> Event -> GameState -> Bool) -> Rule -> Rule
+nextTurnDoUntil :: String -> (Game -> Event -> GameState -> Bool) -> (Game -> Event -> GameState -> (GameState, Bool)) -> Rule
+r6 :: Rule
+rPM :: Rule
+rPMV :: ViewRule
+rPM' :: Rule'
+rBlind :: Rule
+rBlindV :: ViewRule
+rBlind' :: Rule'
+run7 :: Int -> Rule
+rKnight :: Rule
+rbadger :: (Event -> GameState -> GameState) -> Event -> GameState -> GameState
+
+-- | When a four is played, toggle complete visibility
+rFourShow :: Rule'
