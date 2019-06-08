@@ -29,6 +29,8 @@ import Data.List.NonEmpty (NonEmpty((:|)))
 
 import DataTypes hiding (_hands,_pile,_deck,_messages)
 
+-- | Turn a function transforming a 'GameView' into a viewRule
+-- > makeViewTransformer f r p gs == f$ r p gs
 makeViewTransformer :: (GameView -> GameView) -> ViewRule
 makeViewTransformer = (.) . (.)
 --makeViewTransformer f r p gs = f$ r p gs

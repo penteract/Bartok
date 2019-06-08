@@ -13,7 +13,7 @@ import Views(mapHands)
 a >|< b = "(" ++ a ++"|" ++ b ++ ")"
 
 r7 :: Rule
-r7 = unnec' ("thank you(( very)* very much)?" >|< "have a( very)* nice day") (const "Excessive politeness")
+r7 = unnecPenalty ("thank you(( very)* very much)?" >|< "have a( very)* nice day") (const "Excessive politeness")
    . with (getVar "r7") (\nsevens ->
        when (isLegal ~&~ isSeven) (
            doAfter (modifyVar "r7" (+1))
@@ -63,10 +63,10 @@ r8 :: Rule
 r8 = when (isLegal ~&~ cardIs ((==Eight) . rank)) (doAfter nextTurn)
 
 rBadgerN :: Int -> Rule
-rBadgerN n = sometimesSay' ("that's{} the badger" % almosts) 
-                           (cardIs (\c -> suit c == Diamonds && abs (fromEnum (rank c) - 9) == n)) 
-                           (const$ "Failure to{} identify the wildlife" % almosts)
-                           (const$ "Incorrectly{} identifying wildlife" % almosts)
+rBadgerN n = sometimesSayPenalty ("that's{} the badger" % almosts)
+                           (cardIs (\c -> suit c == Diamonds && abs (fromEnum (rank c) - 9) == n))
+                           ("Failure to{} identify the wildlife" % almosts)
+                           ("Incorrectly{} identifying wildlife" % almosts)
                  where almosts = concat$ replicate n " almost"
 
 rBadger :: Rule
