@@ -24,7 +24,7 @@ module TLib(
     -- *Helper Functions
     --  These should help with common patterns
     mkFailMsg,mustSay,unnec,sometimesSay,mustDo,mustSayPenalty,sometimesSayPenalty,unnecPenalty,
-    modifyPlayers,penalty,
+    modifyPlayers,modifyMessage,penalty,
     -- * class
     Ruleable(..),
     -- * From DataTypes:
@@ -221,6 +221,10 @@ mustDo act whenDone = when isAction$
 modifyPlayers :: ([Name] ->[Name])-> Step
 modifyPlayers f g = g{_players = f (_players g)}
 
+-- | Transform the message that gets sent
+modifyMessage :: (String -> String) -> Rule
+modifyMessage f act (Action p a m) gs = act (Action p a (f m)) gs
+modifyMessage f act e gs = act e gs
 
 -- (monadic 'return')
 -- | Abbreviation for \ _ _ _ ->
