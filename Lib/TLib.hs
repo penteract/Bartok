@@ -24,7 +24,7 @@ module TLib(
     -- *Helper Functions
     --  These should help with common patterns
     failmsg,mustSay,unnec,sometimesSay,mustDo,mustSay',sometimesSay',unnec',
-    modifyPlayers,
+    modifyPlayers,penalty,
     -- * class
     Ruleable(..),
     -- * From DataTypes:
@@ -160,7 +160,6 @@ withAction f act e@(Action _ a _) gs = f a act e gs
 withAction f act e gs = act e gs
 
 -- | When an card is played happens, do something with it
-withCard :: (Card -> Rule) -> Rule
 withCard f act e@(Action _ (Play c) _) gs = f c act e gs
 withCard f act e gs = act e gs
 
