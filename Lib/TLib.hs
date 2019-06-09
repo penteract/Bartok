@@ -296,4 +296,4 @@ unnecPenalty s penaltyMsg act e@(Action p a m) gs =
               when (__$not$ any (checkMatch$ "receives penalty.*{}"%mkFailMsg x) (_messages$ act (Action p a (reconstitute ms')) gs))
                   (doBefore$ penalty 1 (penaltyMsg x))) ms)
               act e gs
-unnec' _ _ act e gs = act e gs
+unnecPenalty _ _ act e gs = act e gs
