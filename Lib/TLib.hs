@@ -10,7 +10,7 @@ module TLib(
     GEGSto,
     -- *users
     -- These functions give access to the arguments in a composable manner
-    withAction,withMessage,withCard, with,
+    withAction,withMessage,withCard,withPlayer,withHand,with,
 
     -- *Operators
     when, whether, onNextTurn, uponDoUntil,
@@ -44,7 +44,7 @@ import DataTypes
 import Control.Applicative
 import Data.Maybe(isJust)
 import qualified Data.Map as Map
-import BaseGame(nextTurn,draw,broadcast,(%),illegal)
+import BaseGame(nextTurn,draw,broadcast,(%),illegal,getHand)
 import RuleHelpers(findInMs,split,regexProcess,reconstitute)
 import Text.Regex(matchRegexAll,matchRegex, mkRegexWithOpts)
 
@@ -168,6 +168,15 @@ withCard f act e gs = act e gs
 withMessage :: (String -> Rule) -> Rule
 withMessage f act e@(Action _ _ m) gs = f m act e gs
 withMessage f act e gs = act e gs
+
+-- | When an action happens, do something with the player that made it
+withPlayer :: (Name -> Rule) -> Rule
+withPlayer f act e@(Action p _ _) gs = f p act e gs
+withPlayer f act e gs = act e gs
+
+-- | When an action hapens, do something with the hand of the player that made it
+withHand :: ([Card] -> Rule) -> Rule
+withHand f = withPlayer $ \p -> with state $ \gs -> f (maybe [] id $ getHand p gs)
 
 -- | Build a rule (or similar that depends on an extracted value (if you know monads, this is bind @(>>=)@).
 --
