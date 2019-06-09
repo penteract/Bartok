@@ -72,3 +72,17 @@ rBadgerN n = when isLegal $
 
 rBadger :: Rule
 rBadger = flip (foldr ($)) [rBadgerN n | n <- [0..2]]
+
+
+rNoHTML :: Rule
+rNoHTML = withMessage $ \m -> 
+    when (__$ '<' `elem` m) $
+    doBefore (penalty 1 "Hacking")
+  . remMsg
+  where remMsg act (Action p a m) gs = act (Action p a $ sanitise m) gs
+        remMsg act e gs = act e gs
+        sanitise "" = ""
+        sanitise ('<':s) = "&lt;"++sanitise s
+        sanitise ('>':s) = "&gt;"++sanitise s
+        sanitise ('&':s) = "&amp;"++sanitise s
+        sanitise (c:s) = c:sanitise s
