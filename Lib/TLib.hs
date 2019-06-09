@@ -23,7 +23,7 @@ module TLib(
     getVar,state,
     -- *Helper Functions
     --  These should help with common patterns
-    failmsg,mustSay,unnec,sometimesSay,mustDo,mustSay',sometimesSay',unnec',
+    mkFailMsg,mustSay,unnec,sometimesSay,mustDo,mustSayPenalty,sometimesSayPenalty,unnecPenalty,
     modifyPlayers,penalty,
     -- * class
     Ruleable(..),
@@ -235,20 +235,25 @@ said s act (Action _ _ m) gs = s `findInMs` m
 said _ _ _ _ = False
 
 -- | The penalty message produced by @mustSay s@
-failmsg :: String -> String
-failmsg s = "failure to say '{}'"%s
+mkFailMsg :: String -> String
+mkFailMsg s = "failure to say '{}'"%s
 
 -- | penalize if 's' is not said
-mustSay s = mustSay' s failmsg
-mustSay' s failmsg = when (not_$ said s) (doBefore (penalty 1 (failmsg s)))
+mustSay :: String -> Rule
+mustSay s = mustSayPenalty s (mkFailMsg s)
+
+-- | Like 'mustSay', but with custom penalty message
+mustSayPenalty :: String -> String -> Rule
+mustSayPenalty s failMsg = when (not_$ said s) (doBefore (penalty 1 failMsg ))
 
 
 -- | If the condition holds, require that they say  the message; otherwise, penalize them if they say it
 sometimesSay :: String -> GEGSto Bool -> Rule
-sometimesSay s cond = sometimesSay' s cond failmsg ("unnecessarily saying '{}'"%)
-sometimesSay' s cond failmsg unnecmsg = 
-                      whether cond (mustSay' s failmsg)
-                                   (when (said s) (doBefore$ penalty 1 (unnecmsg s)))
+sometimesSay s cond = sometimesSayPenalty s cond (mkFailMsg s) ("unnecessarily saying '{}'"%s)
+sometimesSayPenalty :: String -> GEGSto Bool -> String -> String -> Rule
+sometimesSayPenalty s cond failMsg unnecMsg =
+                      whether cond (mustSayPenalty s failMsg)
+                                   (when (said s) (doBefore$ penalty 1 unnecMsg))
 --sometimesSay s cond = unnec s . when cond (mustSay s)
 
 
@@ -267,13 +272,14 @@ withoutEach f (x:xs) = withoutEach' f ([],x,xs)
 --   This works by testing if the absence of any matching component of a player's message would cause a penalty containing 'failmsg'.
 --   If not, the component is assumed to be unnecessary.
 unnec :: String -> Rule
-unnec s = unnec' s ("unnecessarily saying '{}'"%)
-unnec' s unnecmsg act e@(Action p a m) gs =
+unnec s = unnecPenalty s ("unnecessarily saying '{}'"%)
+unnecPenalty :: String -> (String->String) -> Rule
+unnecPenalty s penaltyMsg act e@(Action p a m) gs =
             let ms = split m
                 r = regexProcess s in
                 --lm = length $ _messages gs in
             foldr (.) id (withoutEach (\ms' x -> when (__$ isJust $ matchRegexAll r x)$
-              when (__$not$ any (checkMatch$ "receives penalty.*{}"%failmsg x) (_messages$ act (Action p a (reconstitute ms')) gs))
-                  (doBefore$ penalty 1 (unnecmsg x))) ms)
+              when (__$not$ any (checkMatch$ "receives penalty.*{}"%mkFailMsg x) (_messages$ act (Action p a (reconstitute ms')) gs))
+                  (doBefore$ penalty 1 (penaltyMsg x))) ms)
               act e gs
 unnec' _ _ act e gs = act e gs

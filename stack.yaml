@@ -47,6 +47,10 @@ flags: {}
 # Extra package databases containing global packages
 extra-package-dbs: []
 
+build:
+  haddock-arguments:
+    haddock-args:
+    - "--odir=./doc"
 # Control whether we use the GHC we find on the path
 # system-ghc: true
 #
