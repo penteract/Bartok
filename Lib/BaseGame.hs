@@ -45,7 +45,7 @@ appendl (x :| xs) l = x :| (xs ++ l)
 illegal ::Int -> String -> Game
 illegal n reason e@(Action p a m) =
     draw n p .
-    broadcast ("{} recieves penalty {}: {}"%p%show n%reason) .
+    broadcast ("{} receives penalty {}: {}"%p%show n%reason) .
     sayAct e .
     (case a of
         Play c -> broadcast (p++" tries to play {}"%%c)

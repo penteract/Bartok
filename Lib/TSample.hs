@@ -75,12 +75,10 @@ rBadger = flip (foldr ($)) [rBadgerN n | n <- [0..2]]
 
 
 rNoHTML :: Rule
-rNoHTML = withMessage $ \m -> 
+rNoHTML = withMessage $ \m ->
     when (__$ sanitise m /= m) $
-    doBefore (penalty 1 "Hacking")
-  . modifyMessage sanitise
-  where sanitise "" = ""
-        sanitise ('<':s) = "&lt;"++sanitise s
-        sanitise ('>':s) = "&gt;"++sanitise s
-        sanitise ('&':s) = "&amp;"++sanitise s
-        sanitise (c:s) = c:sanitise s
+      doBefore (penalty 1 "Hacking") . modifyMessage sanitise
+  where sanitise = (>>= sanChar)
+        sanChar '<' = "&lt;"
+        sanChar '>' = "&gt;"
+        sanChar c = [c]

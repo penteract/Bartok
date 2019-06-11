@@ -455,6 +455,13 @@ withMessage :: (String -> Rule) -> Rule
 -- | When an card is played happens, do something with it
 withCard :: (Card -> Rule) -> Rule
 
+-- | When an action happens, do something with the player that made it
+withPlayer :: (Name -> Rule) -> Rule
+
+-- | When an action hapens, do something with the hand of the player that
+--   made it
+withHand :: ([Card] -> Rule) -> Rule
+
 -- | Build a rule (or similar that depends on an extracted value (if you
 --   know monads, this is bind <tt>(&gt;&gt;=)</tt>).
 --   
@@ -552,6 +559,12 @@ unnecPenalty :: String -> (String -> String) -> Rule
 
 -- | Transform the list of players (affects turn order).
 modifyPlayers :: ([Name] -> [Name]) -> Step
+
+-- | Transform the message that gets sent
+modifyMessage :: (String -> String) -> Rule
+
+-- | Award a penalty to the acting player without preventing their action.
+penalty :: Int -> String -> Game
 
 -- | A class for types that are <tt>smaller</tt> than <a>Rule</a> so that
 --   there are different options for how to convert.
