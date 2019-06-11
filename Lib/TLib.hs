@@ -10,7 +10,7 @@ module TLib(
     GEGSto,
     -- *users
     -- These functions give access to the arguments in a composable manner
-    withAction,withMessage,withCard, with,
+    withAction,withMessage,withCard,withPlayer,withHand,with,
 
     -- *Operators
     when, whether, onNextTurn, uponDoUntil,
@@ -24,7 +24,7 @@ module TLib(
     -- *Helper Functions
     --  These should help with common patterns
     mkFailMsg,mustSay,unnec,sometimesSay,mustDo,mustSayPenalty,sometimesSayPenalty,unnecPenalty,
-    modifyPlayers,
+    modifyPlayers,modifyMessage,penalty,
     -- * class
     Ruleable(..),
     -- * From DataTypes:
@@ -44,7 +44,7 @@ import DataTypes
 import Control.Applicative
 import Data.Maybe(isJust)
 import qualified Data.Map as Map
-import BaseGame(nextTurn,draw,broadcast,(%),illegal)
+import BaseGame(nextTurn,draw,broadcast,(%),illegal,getHand)
 import RuleHelpers(findInMs,split,regexProcess,reconstitute)
 import Text.Regex(matchRegexAll,matchRegex, mkRegexWithOpts)
 
@@ -169,6 +169,15 @@ withMessage :: (String -> Rule) -> Rule
 withMessage f act e@(Action _ _ m) gs = f m act e gs
 withMessage f act e gs = act e gs
 
+-- | When an action happens, do something with the player that made it
+withPlayer :: (Name -> Rule) -> Rule
+withPlayer f act e@(Action p _ _) gs = f p act e gs
+withPlayer f act e gs = act e gs
+
+-- | When an action hapens, do something with the hand of the player that made it
+withHand :: ([Card] -> Rule) -> Rule
+withHand f = withPlayer $ \p -> with state $ \gs -> f (maybe [] id $ getHand p gs)
+
 -- | Build a rule (or similar that depends on an extracted value (if you know monads, this is bind @(>>=)@).
 --
 --  e.g. @with ('getVar' "n") (\ n -> doSomethingInvolvingN)@
@@ -212,6 +221,10 @@ mustDo act whenDone = when isAction$
 modifyPlayers :: ([Name] ->[Name])-> Step
 modifyPlayers f g = g{_players = f (_players g)}
 
+-- | Transform the message that gets sent
+modifyMessage :: (String -> String) -> Rule
+modifyMessage f act (Action p a m) gs = act (Action p a (f m)) gs
+modifyMessage f act e gs = act e gs
 
 -- (monadic 'return')
 -- | Abbreviation for \ _ _ _ ->
@@ -283,4 +296,4 @@ unnecPenalty s penaltyMsg act e@(Action p a m) gs =
               when (__$not$ any (checkMatch$ "receives penalty.*{}"%mkFailMsg x) (_messages$ act (Action p a (reconstitute ms')) gs))
                   (doBefore$ penalty 1 (penaltyMsg x))) ms)
               act e gs
-unnec' _ _ act e gs = act e gs
+unnecPenalty _ _ act e gs = act e gs

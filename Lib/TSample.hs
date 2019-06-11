@@ -63,7 +63,8 @@ r8 :: Rule
 r8 = when (isLegal ~&~ cardIs ((==Eight) . rank)) (doAfter nextTurn)
 
 rBadgerN :: Int -> Rule
-rBadgerN n = sometimesSayPenalty ("that's{} the badger" % almosts)
+rBadgerN n = when isLegal $
+             sometimesSayPenalty ("that's{} the badger" % almosts)
                            (cardIs (\c -> suit c == Diamonds && abs (fromEnum (rank c) - 9) == n))
                            ("Failure to{} identify the wildlife" % almosts)
                            ("Incorrectly{} identifying wildlife" % almosts)
@@ -71,3 +72,15 @@ rBadgerN n = sometimesSayPenalty ("that's{} the badger" % almosts)
 
 rBadger :: Rule
 rBadger = flip (foldr ($)) [rBadgerN n | n <- [0..2]]
+
+
+rNoHTML :: Rule
+rNoHTML = withMessage $ \m -> 
+    when (__$ sanitise m /= m) $
+    doBefore (penalty 1 "Hacking")
+  . modifyMessage sanitise
+  where sanitise "" = ""
+        sanitise ('<':s) = "&lt;"++sanitise s
+        sanitise ('>':s) = "&gt;"++sanitise s
+        sanitise ('&':s) = "&amp;"++sanitise s
+        sanitise (c:s) = c:sanitise s
