@@ -51,11 +51,10 @@ $.post("",JSON.stringify(
   display, "json")
 
 
-poller =  setTimeout((() => setInterval(() =>
+setTimeout((() => poller = setInterval(() =>
   $.post("./poll",name+"\n"+tok+"\n"+count,
-     display, "json"),1000)),
+     display(count), "json"),1000)),
    1000)
-
 </script>
 </div>
 

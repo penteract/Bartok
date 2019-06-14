@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title> Bartok </title>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="/static/jquery.min.js"></script>
     <script src="/static/star.js"></script>
     <link href="/static/styles.css" rel="stylesheet" type="text/css"> </style>
 </head>
@@ -44,7 +44,7 @@ $.post("",JSON.stringify(
   display(count), "json")
 
 
-poller =  setTimeout((() => setInterval(() =>
+setTimeout((() => poller = setInterval(() =>
   $.post("./poll",name+"\n"+tok+"\n"+count,
      display(count), "json"),1000)),
    1000)
