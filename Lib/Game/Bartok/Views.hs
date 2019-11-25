@@ -1,4 +1,3 @@
-{-# LANGUAGE Safe #-}
 {-|
 Module      : Views
 Description : How the game decides what to send to the client

@@ -1,4 +1,3 @@
-{-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE DeriveGeneric, StandaloneDeriving #-}
 
 module Game.Bartok.Serialize(serialize, unserialize,readNewRule,

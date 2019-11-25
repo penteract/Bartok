@@ -1,4 +1,3 @@
-{-# LANGUAGE Trustworthy #-}
 {-|
 Module      : Sample
 Description : Sample rules

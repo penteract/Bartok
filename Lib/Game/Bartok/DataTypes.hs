@@ -1,4 +1,3 @@
-{-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TemplateHaskell, ScopedTypeVariables #-}
 {-|
 Module      : DataTypes

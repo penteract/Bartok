@@ -1,5 +1,3 @@
-{-# LANGUAGE Trustworthy #-}
-
 module Game.Bartok.RuleHelpers
   ( module Game.Bartok.RuleHelpers
   , BaseGame.nextTurn , BaseGame.doNothing , BaseGame.illegal

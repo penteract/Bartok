@@ -4,7 +4,6 @@ Description : Basic functions needed to set up a simple game
 
 This contains functions for a simple game.
 -}
-{-# LANGUAGE Safe #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 --TODO : list exports explicitly
 module Game.Bartok.BaseGame where

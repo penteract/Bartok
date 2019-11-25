@@ -24,12 +24,12 @@
 --   penalty cards to the original state, then call the inner rule again
 --   before returning.
 @package bartok
-@version 0.0.0.1
+@version 0.1.0.1
 
 
 -- | Datatypes for cards, game state and game view alongside some basic
 --   functions to process them.
-module DataTypes
+module Game.Bartok.DataTypes
 
 -- | The type of transformations of game state
 type Step = GameState -> GameState
@@ -272,28 +272,28 @@ handsV :: Lens' GameView [(Name, [CardView])]
 pileV :: Lens' GameView [CardView]
 deckV :: Lens' GameView [CardView]
 messagesV :: Lens' GameView [String]
-instance GHC.Enum.Enum DataTypes.Rank
+instance GHC.Enum.Enum Game.Bartok.DataTypes.Rank
 instance (GHC.Enum.Enum a, GHC.Enum.Enum b, GHC.Enum.Bounded a, GHC.Enum.Bounded b, GHC.Classes.Eq a, GHC.Classes.Eq b) => GHC.Enum.Enum (a, b)
-instance GHC.Show.Show DataTypes.GameView
-instance GHC.Show.Show DataTypes.CardView
-instance GHC.Show.Show DataTypes.GameState
-instance GHC.Classes.Eq DataTypes.Event
-instance GHC.Show.Show DataTypes.Event
-instance GHC.Classes.Eq DataTypes.Action
-instance GHC.Show.Show DataTypes.Action
-instance GHC.Classes.Ord DataTypes.Rank
-instance GHC.Enum.Bounded DataTypes.Rank
-instance GHC.Classes.Eq DataTypes.Rank
-instance GHC.Show.Show DataTypes.Rank
-instance GHC.Classes.Ord DataTypes.Suit
-instance GHC.Enum.Bounded DataTypes.Suit
-instance GHC.Enum.Enum DataTypes.Suit
-instance GHC.Classes.Eq DataTypes.Suit
-instance GHC.Show.Show DataTypes.Suit
+instance GHC.Show.Show Game.Bartok.DataTypes.GameView
+instance GHC.Show.Show Game.Bartok.DataTypes.CardView
+instance GHC.Show.Show Game.Bartok.DataTypes.GameState
+instance GHC.Classes.Eq Game.Bartok.DataTypes.Event
+instance GHC.Show.Show Game.Bartok.DataTypes.Event
+instance GHC.Classes.Eq Game.Bartok.DataTypes.Action
+instance GHC.Show.Show Game.Bartok.DataTypes.Action
+instance GHC.Classes.Ord Game.Bartok.DataTypes.Rank
+instance GHC.Enum.Bounded Game.Bartok.DataTypes.Rank
+instance GHC.Classes.Eq Game.Bartok.DataTypes.Rank
+instance GHC.Show.Show Game.Bartok.DataTypes.Rank
+instance GHC.Classes.Ord Game.Bartok.DataTypes.Suit
+instance GHC.Enum.Bounded Game.Bartok.DataTypes.Suit
+instance GHC.Enum.Enum Game.Bartok.DataTypes.Suit
+instance GHC.Classes.Eq Game.Bartok.DataTypes.Suit
+instance GHC.Show.Show Game.Bartok.DataTypes.Suit
 
 
 -- | This contains functions for a simple game.
-module BaseGame
+module Game.Bartok.BaseGame
 doNothing :: Step
 fromStep :: Step -> Game
 if'' :: Bool -> (a -> a) -> a -> a
@@ -365,7 +365,7 @@ nextTurn :: Step
 -- | incomplete?
 win :: Name -> Step
 
-module RuleHelpers
+module Game.Bartok.RuleHelpers
 when :: (a -> Bool) -> Rule -> a -> Rule
 with :: (Event -> GameState -> a) -> (a -> Rule) -> Rule
 with' :: (Event -> GameState -> a) -> (a -> Game) -> Game
@@ -423,7 +423,7 @@ win :: Name -> Step
 -- | Move n cards from the deck to a player's hand
 draw :: Int -> Name -> Step
 
-module Rules
+module Game.Bartok.Rules
 r8 :: Rule
 reverseDirection :: Step
 rq :: Rule
@@ -441,7 +441,7 @@ defaultRulesNamed :: [([Char], Rule)]
 
 -- | This presents operations with more arguments than strictly necessary
 --   so that they can be used interchangeably
-module TLib
+module Game.Bartok.TLib
 
 -- | Avoids having to write out extremely long types. Almost a Monad.
 type GEGSto a = Game " The inner ruleset" -> Event " The event under consideration" -> GameState " The previous state of the game" -> a
@@ -695,14 +695,14 @@ broadcast :: String -> Step
 
 -- | Modify all cards in the game
 mapAllCards :: (Card -> Card) -> GameState -> GameState
-instance TLib.Ruleable DataTypes.Step
-instance TLib.Ruleable DataTypes.Game
+instance Game.Bartok.TLib.Ruleable Game.Bartok.DataTypes.Step
+instance Game.Bartok.TLib.Ruleable Game.Bartok.DataTypes.Game
 
 
 -- | The functions in this module define how the data sent to clients is
 --   constructed. They should help when writing rules that affect what
 --   players can see.
-module Views
+module Game.Bartok.Views
 
 -- | Functions to tell a player what they should see
 type Viewer = Name -> GameState -> GameView
@@ -763,7 +763,7 @@ hideHand :: [CardView] -> [CardView]
 
 
 -- | Looking at the source code is recommended
-module TSample
+module Game.Bartok.TSample
 r7 :: Rule
 r8 :: Rule
 rq :: Rule
@@ -772,7 +772,7 @@ rSpade :: Rule
 
 -- | Look at the implementation of these to see examples of how to write
 --   rules
-module Sample
+module Game.Bartok.Sample
 
 -- | When an 8 is played, skip the following player's turn
 r8 :: Rule

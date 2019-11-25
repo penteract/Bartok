@@ -1,4 +1,3 @@
-{-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TemplateHaskell, FlexibleContexts #-}
 -- | Sanitisation of user input and check that rules behave well.
 module Game.Bartok.ServerInterface(

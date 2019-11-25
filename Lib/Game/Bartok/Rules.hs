@@ -1,5 +1,3 @@
-{-# LANGUAGE Safe #-}
-
 module Game.Bartok.Rules where
 
 import Control.Lens((%~),(^.),(^?),(&),_1,_2,_Just,at,ix)
