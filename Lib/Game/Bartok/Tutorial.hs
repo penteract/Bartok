@@ -4,7 +4,7 @@
 Module      : Tutorial
 Description : A walkthrough of how to play Bartok
 -}
-module Tutorial
+module Game.Bartok.Tutorial
  where
 
 import Control.Lens ((^.),(%~),makeLenses, (%%~),(&),Lens'(..),Lens)

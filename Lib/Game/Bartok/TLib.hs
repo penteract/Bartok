@@ -5,7 +5,7 @@ Description : An alternative to RuleHelpers; uses more higher order functions an
 
 This presents operations with more arguments than strictly necessary so that they can be used interchangeably
 -}
-module TLib(
+module Game.Bartok.TLib(
     -- * The fundamental type
     GEGSto,
     -- *users
@@ -40,12 +40,12 @@ module TLib(
     mapAllCards)
  where
 
-import DataTypes
+import Game.Bartok.DataTypes
 import Control.Applicative
 import Data.Maybe(isJust)
 import qualified Data.Map as Map
-import BaseGame(nextTurn,draw,broadcast,(%),illegal,getHand)
-import RuleHelpers(findInMs,split,regexProcess,reconstitute)
+import Game.Bartok.BaseGame(nextTurn,draw,broadcast,(%),illegal,getHand)
+import Game.Bartok.RuleHelpers(findInMs,split,regexProcess,reconstitute)
 import Text.Regex(matchRegexAll,matchRegex, mkRegexWithOpts)
 
 --import qualified BaseGame

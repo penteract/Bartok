@@ -7,7 +7,7 @@ This contains functions for a simple game.
 {-# LANGUAGE Safe #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 --TODO : list exports explicitly
-module BaseGame where
+module Game.Bartok.BaseGame where
 
 import Control.Arrow (first,second)
 import Control.Lens ((.~),(%~),(%%~),(^.),(^?),(&),(<>~),_1,at,each,ix)
@@ -19,7 +19,7 @@ import qualified Data.Map as Map (adjust,insert,mapAccum,delete,lookup)
 import Data.Text (pack,unpack,strip)
 import Data.Maybe (fromJust,isJust,fromMaybe)
 
-import DataTypes
+import Game.Bartok.DataTypes
 
 doNothing :: Step
 doNothing = id

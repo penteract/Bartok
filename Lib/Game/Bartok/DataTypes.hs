@@ -6,7 +6,7 @@ Description : Data types used for dealing with games
 
 Datatypes for cards, game state and game view alongside some basic functions to process them.
 -}
-module DataTypes(
+module Game.Bartok.DataTypes(
 
     -- *Basic Rules
     Step,Game, Rule,

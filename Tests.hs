@@ -1,8 +1,8 @@
 --module Tests where
 
 import Lib
-import DataTypes
-import Sample
+import Game.Bartok.DataTypes
+import Game.Bartok.Sample
 import qualified Data.Map as Map
 import System.IO
 import Data.List

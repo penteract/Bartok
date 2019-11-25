@@ -1,7 +1,7 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TemplateHaskell, FlexibleContexts #-}
 -- | Sanitisation of user input and check that rules behave well.
-module ServerInterface(
+module Game.Bartok.ServerInterface(
    handle, view,
    addRule, addRule', addViewRule,restartWithNewRule,
    setState, setTime, getWinner,
@@ -25,12 +25,13 @@ import Data.Maybe (isJust,fromJust)
 import qualified Data.Set as Set (empty,fromList,insert,notMember)
 import Data.Set (Set)
 
-import DataTypes hiding (seats)
-import BaseGame hiding (when)
-import Views
-import Serialize
-import Rules
-import Sample
+import Game.Bartok.Serialize
+
+import Game.Bartok.DataTypes hiding (seats)
+import Game.Bartok.BaseGame hiding (when)
+import Game.Bartok.Views
+import Game.Bartok.Rules
+import Game.Bartok.Sample
 
 type Error = String
 --type MError a = Either Error a

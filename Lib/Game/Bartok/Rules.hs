@@ -1,6 +1,6 @@
 {-# LANGUAGE Safe #-}
 
-module Rules where
+module Game.Bartok.Rules where
 
 import Control.Lens((%~),(^.),(^?),(&),_1,_2,_Just,at,ix)
 import Control.Applicative
@@ -9,8 +9,8 @@ import qualified Data.Map as Map (toList,insertWith,keys,findWithDefault,lookup)
 import Control.Arrow ((***),second)
 import Control.Monad (ap,join)
 
-import DataTypes
-import RuleHelpers
+import Game.Bartok.DataTypes
+import Game.Bartok.RuleHelpers
 
 r8 :: Rule
 r8 = onLegalCard (\card event ->

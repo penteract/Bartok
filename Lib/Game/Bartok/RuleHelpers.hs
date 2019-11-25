@@ -1,7 +1,7 @@
 {-# LANGUAGE Trustworthy #-}
 
-module RuleHelpers
-  ( module RuleHelpers
+module Game.Bartok.RuleHelpers
+  ( module Game.Bartok.RuleHelpers
   , BaseGame.nextTurn , BaseGame.doNothing , BaseGame.illegal
   , BaseGame.broadcast , BaseGame.broadcastp , BaseGame.penalty
   , BaseGame.isTurn , BaseGame.win , BaseGame.draw
@@ -14,8 +14,9 @@ import Data.List (intercalate)
 import Data.Maybe (isJust)
 import Text.Regex(Regex,matchRegex,matchRegexAll,mkRegex,mkRegexWithOpts,splitRegex)
 
-import DataTypes
-import BaseGame
+import Game.Bartok.DataTypes
+import Game.Bartok.BaseGame
+import qualified Game.Bartok.BaseGame as BaseGame
 
 
 when :: (a -> Bool) -> Rule -> a -> Rule

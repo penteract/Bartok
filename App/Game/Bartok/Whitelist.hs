@@ -1,4 +1,4 @@
-module Whitelist(allowed) where
+module Game.Bartok.Whitelist(allowed) where
 
 allowed :: String -> Bool
 allowed = (`elem`[

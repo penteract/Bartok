@@ -28,9 +28,9 @@ import Control.Arrow(second)
 
 import Language.Haskell.Interpreter hiding (get)
 
-import Serialize
-import ServerInterface
-import Whitelist(allowed)
+import Game.Bartok.Serialize
+import Game.Bartok.ServerInterface
+import Game.Bartok.Whitelist(allowed)
 
 --type GData = (GameState,Game,Viewer)
 type GMap = CMap.Map Text (OngoingGame,MVar ())
@@ -287,7 +287,13 @@ newRule = do
     liftIO$ putStrLn (L.unpack b)
     case readNewRule b of
         Just nr -> do
-            let available = ["Prelude", "RuleHelpers", "BaseGame", "DataTypes", "Rules", "TLib", "Views"]
+            let available = [ "Prelude"
+                            , "Game.Bartok.RuleHelpers"
+                            , "Game.Bartok.BaseGame"
+                            , "Game.Bartok.DataTypes"
+                            , "Game.Bartok.Rules"
+                            , "Game.Bartok.TLib"
+                            , "Game.Bartok.Views"]
                 imps = ["Prelude"]++[i | i <- imports nr , i `elem`
                     available]
                 qimps = (zip imps $ repeat Nothing) ++ map (second Just) ([

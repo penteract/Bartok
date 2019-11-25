@@ -5,12 +5,12 @@ Description : Sample rules
 
 Look at the implementation of these to see examples of how to write rules
 -}
-module Sample where
+module Game.Bartok.Sample where
 
-import BaseGame
-import RuleHelpers
-import DataTypes
-import Views
+import Game.Bartok.BaseGame
+import Game.Bartok.RuleHelpers
+import Game.Bartok.DataTypes
+import Game.Bartok.Views
 import Control.Lens
 --import qualified Data.List.NonEmpty as NE
 import Control.Monad

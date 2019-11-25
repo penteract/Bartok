@@ -1,7 +1,7 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE DeriveGeneric, StandaloneDeriving #-}
 
-module Serialize(serialize, unserialize,readNewRule,
+module Game.Bartok.Serialize(serialize, unserialize,readNewRule,
         ActionReq(..),Token,ClientPacket(..),NewRuleReq(..),
         getName,getTok,getCount)
  where
@@ -11,8 +11,8 @@ import qualified Data.ByteString.Lazy as L
 import qualified Data.Text as T (unpack)
 import Data.Aeson (FromJSON,ToJSON,defaultOptions,decode,encode,fromJSON,genericToEncoding,toEncoding,toJSON)
 
-import DataTypes
-import Views
+import Game.Bartok.DataTypes
+import Game.Bartok.Views
 
 deriving instance Generic GameView
 deriving instance Generic CardView

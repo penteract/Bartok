@@ -6,7 +6,7 @@ Description : How the game decides what to send to the client
 The functions in this module define how the data sent to clients is constructed.
 They should help when writing rules that affect what players can see.
 -}
-module Views(-- * Type Synonyms
+module Game.Bartok.Views(-- * Type Synonyms
 Viewer,ViewRule,
 -- * Basic Rules
 baseViewer,GameView(..),
@@ -27,7 +27,7 @@ import qualified Data.Map as Map --(adjust,assocs,findWithDefault,map,mapWithKey
 --import Data.Map (Map)
 import Data.List.NonEmpty (NonEmpty((:|)))
 
-import DataTypes hiding (_hands,_pile,_deck,_messages)
+import Game.Bartok.DataTypes hiding (_hands,_pile,_deck,_messages)
 
 -- | Turn a function transforming a 'GameView' into a viewRule
 -- > makeViewTransformer f r p gs == f$ r p gs
