@@ -94,9 +94,11 @@ setTimeout((() => poller = setInterval(() =>
 function process(dat){
     console.log(dat)
     if (dat.tag == "Error") $("#errors").html(dat.contents)
-    else if (dat.tag == "Redirect") {$.post("",JSON.stringify(
-        {tag:'ReqJoin',contents:[name,tok]}),
-      display, "json")}
+    else if (dat.tag == "Redirect") {
+        count=-1
+        $.post("",JSON.stringify({tag:'ReqJoin',contents:[name,tok,count]}),
+          display, "json")
+    }
 }
 
 name = getParameterByName("name")

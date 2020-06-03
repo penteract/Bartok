@@ -10,7 +10,16 @@ import Game.Bartok.TLib
 import Game.Bartok.Views(mapHands)
 import Game.Bartok.DataTypes(_deck, shuffleDeck)
 
+{-
+Note that when submitting a rule, the game server expects an expression.
+To allow definitions and type signatures, use @let@ e.g.
 
+> let r8 :: rule
+>     r8 = when (isLegal ~&~ cardIs ((==Eight) . rank)) (doAfter nextTurn)
+>   in r8
+
+(also remember to tick Tlib and untick RuleHelpers)
+-}
 
 -- When a card is legal and is an eight, then skip a player.
 r8 :: Rule
