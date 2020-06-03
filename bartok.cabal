@@ -2,7 +2,7 @@
 -- further documentation, see http://haskell.org/cabal/users-guide/
 
 name:                bartok
-version:             0.1.0.1
+version:             0.1.0.2
 -- synopsis:
 description:
   Bartok is a card game where it is possible to change the rules.
