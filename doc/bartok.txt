@@ -443,32 +443,64 @@ defaultRulesNamed :: [([Char], Rule)]
 --   so that they can be used interchangeably
 module Game.Bartok.TLib
 
--- | Avoids having to write out extremely long types. Almost a Monad.
+-- | Avoids having to write out extremely long types.
+--   
+--   Note that <tt>GEGSto GameState</tt> is <a>Rule</a>.
 type GEGSto a = Game " The inner ruleset" -> Event " The event under consideration" -> GameState " The previous state of the game" -> a
 
--- | When an action happens, do something with it
+-- | A class for types that are <tt>smaller</tt> than <a>Rule</a> so that
+--   there are different options for how to convert.
+--   
+--   Be careful when composing these. <tt>doBefore a . doBefore b ==
+--   doBefore (b . a)</tt> <tt>doAfter a . doBefore b == doBefore (a .
+--   b)</tt>
+--   
+--   Check the source code of TSample to see how to use these.
+--   
+--   Also be careful when both reading and writing variables. See
+--   <a>rAce</a> for an example of how to set and unset variables to get a
+--   oneshot effect without missing
+class Ruleable a
+
+-- | Perform an action after the inner ruleset.
+doAfter :: Ruleable a => a -> Rule
+
+-- | Perform an action before the inner ruleset.
+doBefore :: Ruleable a => a -> Rule
+
+-- | Perform an action and ignore the inner ruleset. This should be used
+--   rarely.
+doOnly :: Ruleable a => a -> Rule
+
+-- | When an action happens, do something with it.
 withAction :: (Action -> Rule) -> Rule
 
--- | When an action happens, do something with the message that gets sent
+-- | When an action happens, do something with the message that gets sent.
 withMessage :: (String -> Rule) -> Rule
 
--- | When an card is played happens, do something with it
+-- | When an card is played, do something with it.
 withCard :: (Card -> Rule) -> Rule
 
--- | When an action happens, do something with the player that made it
+-- | When an action happens, do something with the player that made it.
 withPlayer :: (Name -> Rule) -> Rule
 
 -- | When an action hapens, do something with the hand of the player that
---   made it
+--   made it.
 withHand :: ([Card] -> Rule) -> Rule
 
 -- | Build a rule (or similar that depends on an extracted value (if you
---   know monads, this is bind <tt>(&gt;&gt;=)</tt>).
+--   know monads, this is bind <tt>(&gt;&gt;=)</tt>). This differs from
+--   <a>withAction</a> etc in that it is not conditional on the type of
+--   event
 --   
 --   e.g. <tt>with (<a>getVar</a> "n") ( n -&gt;
 --   doSomethingInvolvingN)</tt>
 --   
---   e.g. &gt; with (<a>getVar</a> "n") ( n -&gt; doSomethingInvolvingN)
+--   e.g.
+--   
+--   <pre>
+--   with ('getVar' "n") (\ n -&gt; doSomethingInvolvingN)
+--   </pre>
 with :: GEGSto a -> (a -> GEGSto b) -> GEGSto b
 
 -- | Given a condition, implement a rule only when that condition holds.
@@ -489,7 +521,7 @@ uponDoUntil :: VarName -> GEGSto Bool -> Rule -> GEGSto Bool -> Rule
 -- | lift an action (monadic <a>fmap</a>)
 (.:) :: (a -> b) -> GEGSto a -> GEGSto b
 
--- | Abbreviation for _ _ _ -&gt;
+-- | Abbreviation for <tt>\ _ _ _ -&gt;</tt>
 __ :: a -> GEGSto a
 
 -- | Returns True if the event is an Action.
@@ -529,6 +561,9 @@ not_ :: GEGSto Bool -> GEGSto Bool
 -- | Retrive a variable from the GameState.
 getVar :: String -> GEGSto Int
 
+-- | Look at the top card of the pile
+getTop :: GEGSto Card
+
 -- | Extract the state argument.
 state :: GEGSto GameState
 
@@ -565,13 +600,6 @@ modifyMessage :: (String -> String) -> Rule
 
 -- | Award a penalty to the acting player without preventing their action.
 penalty :: Int -> String -> Game
-
--- | A class for types that are <tt>smaller</tt> than <a>Rule</a> so that
---   there are different options for how to convert.
-class Ruleable a
-doAfter :: Ruleable a => a -> Rule
-doBefore :: Ruleable a => a -> Rule
-doOnly :: Ruleable a => a -> Rule
 
 -- | The type of transformations of game state
 type Step = GameState -> GameState
@@ -697,6 +725,193 @@ broadcast :: String -> Step
 mapAllCards :: (Card -> Card) -> GameState -> GameState
 instance Game.Bartok.TLib.Ruleable Game.Bartok.DataTypes.Step
 instance Game.Bartok.TLib.Ruleable Game.Bartok.DataTypes.Game
+
+
+module Game.Bartok.Tutorial
+
+-- | A Game is essentially a ruleset that defines how an event modifies the
+--   gamestate.
+--   
+--   For example, in the following game nothing that happens has any
+--   effect:
+--   
+--   <pre>
+--   useless :: Game
+--   useless event state = state
+--   </pre>
+type Game = Event -> GameState -> GameState
+
+-- | A game of Bartok, from the server's point of view, consists of events
+--   arriving and affecting the gamestate.
+--   
+--   Actions are the most interesting, and always come with a message
+--   (which may be the empty string).
+data Event
+
+-- | A player actually doing something (playing a card or drawing cards)
+Action :: Name -> Action -> String -> Event
+
+-- | If no player has made an action for 10 seconds, this event will be
+--   sent.
+Timeout :: Event
+
+-- | This is handled by the base game. You probably want to leave it alone.
+PlayerJoin :: Name -> Maybe (Name, Name) -> Event
+
+-- | A player leaving the game. Again handled by the base game.
+PlayerLeave :: Name -> Event
+
+-- | A game is a composition of rules such as 'r1 (r2 (r3 useless))' .
+--   
+--   For example, the following rule will stop players being penalized for
+--   timeouts.
+--   
+--   <pre>
+--   rLongTurns :: Rule
+--   rLongTurns oldgame Timeout gamestate = gamestate
+--   rLongTurns oldgame event gamestate = oldgame event gamestate
+--   </pre>
+--   
+--   You usually want to call <tt>oldgame event gamestate</tt> at some
+--   point so that rules which have been implemented before yours get a
+--   chance to do something.
+type Rule = Game -> Game
+
+-- | Transformations of gamestate.
+type Step = GameState -> GameState
+
+-- | A single playing card
+type Card = (Rank, Suit)
+
+-- | An ordered collection of cards forming a player's hand
+type Hand = [Card]
+
+-- | Names of players.
+type Name = String
+
+-- | At any point, a player can attempt to take one of these actions
+data Action
+
+-- | Draw some number of cards
+Draw :: Int -> Action
+
+-- | Play a card
+Play :: Card -> Action
+
+-- | The state of a game in play
+data GameState
+GS :: [Name] -> Map Name Hand -> [Card] -> NonEmpty Card -> [String] -> Bool -> StdGen -> Maybe Name -> Map VarName Int -> GameState
+
+-- | The players curretly in the game. The player whose turn it is should
+--   be at head of list and usually this advances forward by 1 each turn.
+[_players] :: GameState -> [Name]
+
+-- | Stores the contents of each player's hand
+[_hands] :: GameState -> Map Name Hand
+
+-- | The deck from which cards are drawn
+[_deck] :: GameState -> [Card]
+
+-- | The cards that have been played - shuffled back into the deck when
+--   necessary.
+[_pile] :: GameState -> NonEmpty Card
+
+-- | The messages that . Contains only those generated by the most recent
+--   event.
+[_messages] :: GameState -> [String]
+
+-- | Indicates if the last move was successful. When a new event happens,
+--   this is False until baseAct is called.
+[_lastMoveLegal] :: GameState -> Bool
+
+-- | A seeded random number generator
+[_randg] :: GameState -> StdGen
+
+-- | <tt>Nothing</tt> until a player p wins at which point it becomes
+--   <tt>Just p</tt>
+[_winner] :: GameState -> Maybe Name
+
+-- | A store of named variables that rules may use to keep track of state
+--   between events.
+[_varMap] :: GameState -> Map VarName Int
+
+-- | A card as viewed - the type of cards sent to the client
+data CardView
+CardFace :: Card -> CardView
+CardBack :: CardView
+
+-- | The structure describing data seen by players
+data GameView
+GV :: [(Name, [CardView])] -> [CardView] -> [CardView] -> [String] -> GameView
+
+-- | The players and the information a particular player will have about
+--   each hand. By default, this is a <a>CardFace</a>s for the viewing
+--   player and a number of <a>CardBack</a>s for others.
+[_handsV] :: GameView -> [(Name, [CardView])]
+
+-- | What should be seen of the pile. By default, only the top card is
+--   visible.
+[_pileV] :: GameView -> [CardView]
+
+-- | What should be seen of the pile. By default, none are visible.
+[_deckV] :: GameView -> [CardView]
+
+-- | The messages a player can see. By default, this is all messages that
+--   have been sent
+[_messagesV] :: GameView -> [String]
+
+-- | Functions to tell a player what they should see
+type Viewer = Name -> GameState -> GameView
+
+-- | Rules that modify what players see without affecting the game state
+type ViewRule = Viewer -> Viewer
+
+-- | Complex rules
+type Rule' = (Rule, ViewRule)
+
+-- | Get the suit of a card.
+suit :: Card -> Suit
+
+-- | Get the rank of a card.
+rank :: Card -> Rank
+
+-- | One character corresponding to the rank (A1..9TJCQK)
+rankChar :: Rank -> Char
+
+-- | Get the unicode playing card character corresponding to some card
+uniCard :: Card -> Char
+
+-- | Given 2 parsers, tries the first, if it fails, try the second
+(<|>) :: Parser a -> Parser a -> Parser a
+
+-- | Get the playeer if an event
+eventPlayer :: Event -> Maybe Name
+
+-- | variable processing
+readVar :: VarName -> GameState -> Int
+
+-- | Shuffle the deck (does not touch the pile or hands) using the random
+--   seed contained in GameState.
+shuffleDeck :: Step
+
+-- | Construct a new game from a list of player names.
+newGame :: [String] -> GameState
+instance GHC.Enum.Enum Game.Bartok.Tutorial.Rank
+instance (GHC.Enum.Enum a, GHC.Enum.Enum b, GHC.Enum.Bounded a, GHC.Enum.Bounded b, GHC.Classes.Eq a, GHC.Classes.Eq b) => GHC.Enum.Enum (a, b)
+instance GHC.Show.Show Game.Bartok.Tutorial.GameView
+instance GHC.Show.Show Game.Bartok.Tutorial.CardView
+instance GHC.Show.Show Game.Bartok.Tutorial.GameState
+instance GHC.Classes.Eq Game.Bartok.Tutorial.Action
+instance GHC.Show.Show Game.Bartok.Tutorial.Action
+instance GHC.Classes.Ord Game.Bartok.Tutorial.Rank
+instance GHC.Enum.Bounded Game.Bartok.Tutorial.Rank
+instance GHC.Classes.Eq Game.Bartok.Tutorial.Rank
+instance GHC.Show.Show Game.Bartok.Tutorial.Rank
+instance GHC.Classes.Ord Game.Bartok.Tutorial.Suit
+instance GHC.Enum.Bounded Game.Bartok.Tutorial.Suit
+instance GHC.Enum.Enum Game.Bartok.Tutorial.Suit
+instance GHC.Classes.Eq Game.Bartok.Tutorial.Suit
+instance GHC.Show.Show Game.Bartok.Tutorial.Suit
 
 
 -- | The functions in this module define how the data sent to clients is

@@ -31,7 +31,7 @@ library
   hs-source-dirs:      Lib
 --  build-depends:       base >= 4 && < 5
 --  ghc-options:
-  exposed-modules:     Game.Bartok.TLib, Game.Bartok.TSample, Game.Bartok.BaseGame, Game.Bartok.Sample, Game.Bartok.DataTypes, Game.Bartok.Views, Game.Bartok.Rules, Game.Bartok.RuleHelpers
+  exposed-modules:     Game.Bartok.TLib, Game.Bartok.TSample, Game.Bartok.BaseGame, Game.Bartok.Sample, Game.Bartok.DataTypes, Game.Bartok.Views, Game.Bartok.Rules, Game.Bartok.RuleHelpers, Game.Bartok.Tutorial
 --  other-extensions:    FlexibleContexts
   build-depends:       base, lens, random-shuffle, transformers, regex-compat,
                        containers, random, text

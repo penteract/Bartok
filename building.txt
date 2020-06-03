@@ -1,0 +1,35 @@
+Instructions for getting this to work on nearlyfreespeech hosting:
+
+Make a virtual machine for the current version of FreeBSD (found by uname -a).
+(https://download.freebsd.org/ftp/releases/VM-IMAGES/11.3-RELEASE/amd64/Latest/ at time of writing, https://www.freebsd.org/where.html#download for future reference).
+
+If the disk is too small (for 11.3, but not 11.2, it was only 4GB), it can be made bigger.
+I created another (empty) disk, used dd to copy everything, then fixed the filesystem, then expanded the partition (using gpart), then stopped the vm and switched the disks. There may be a better way, and it may involve not using the .vmdk image.
+
+Install ghc and cabal (use pkg - Building yourself takes a while).
+
+Make a user with home directory /home/private .
+
+Clone the git repo
+`git clone --depth=1 https://github.com/penteract/Bartok`
+`cd Bartok`
+As that user, build the executable.
+with v1-style cabal commands: 
+`cabal v1-update`
+`cabal v1-install bindir=.` 
+
+Copy everything needed from /home/private on the vm into /home/private on the server:
+At most the following are needed (using v1-style cabal):
+~/.ghc (this is the only directory which cares about stuff being in "/home/private" - I dare someone to make things in a different directory and work out how these files need to be patched)
+~/.cabal/packages (.cabal/packages/hackage.haskell.org/01-index.* are large and not needed)
+~/.cabal/lib
+~/.cabal/config
+~/.cabal/share
+(don't forget the executable itself)
+Also needed are `Bartok/doc/` and `Bartok/static` which need to be in the working directory of the server program.
+
+I would suggest making a compressed tar archive, uploading it, then extracting it. `rsync` may also work. `scp` does not work that well with lots of small files.
+
+To reduce average memory usage, I wrote a wrapper in go which forwards all tcp traffic and kills the server if there have been no requests for 5 hours.
+
+Daemons and port proxies also need to be set up, but those are easy and there are other tutorials for that.

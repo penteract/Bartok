@@ -8,6 +8,8 @@ This presents operations with more arguments than strictly necessary so that the
 module Game.Bartok.TLib(
     -- * The fundamental type
     GEGSto,
+    -- * class
+    Ruleable(..),
     -- *users
     -- These functions give access to the arguments in a composable manner
     withAction,withMessage,withCard,withPlayer,withHand,with,
@@ -20,13 +22,11 @@ module Game.Bartok.TLib(
     actionIs,cardIs,boolVar,said,
     (~&~),not_,
     -- * getters
-    getVar,state,
+    getVar, getTop, state,
     -- *Helper Functions
     --  These should help with common patterns
     mkFailMsg,mustSay,unnec,sometimesSay,mustDo,mustSayPenalty,sometimesSayPenalty,unnecPenalty,
     modifyPlayers,modifyMessage,penalty,
-    -- * class
-    Ruleable(..),
     -- * From DataTypes:
     Step,Game,Rule,
     GameState,Event(..),Action(..),
@@ -48,9 +48,11 @@ import Game.Bartok.BaseGame(nextTurn,draw,broadcast,(%),illegal,getHand)
 import Game.Bartok.RuleHelpers(findInMs,split,regexProcess,reconstitute)
 import Text.Regex(matchRegexAll,matchRegex, mkRegexWithOpts)
 
---import qualified BaseGame
 
--- | Avoids having to write out extremely long types. Almost a Monad.
+--  Almost a Monad.
+-- | Avoids having to write out extremely long types.
+--
+--   Note that @GEGSto GameState@ is 'Rule'.
 type GEGSto a =
        Game -- ^ The inner ruleset
     -> Event -- ^ The event under consideration
@@ -59,10 +61,22 @@ type GEGSto a =
 
 -- | A class for types that are 'smaller' than 'Rule' so that there are different options for how to convert.
 class Ruleable a where
-    doAfter :: a -> Rule -- ^ Perform an action after the inner ruleset.
-    doBefore :: a -> Rule -- ^ Perform an action before the inner ruleset.
-    doOnly :: a -> Rule -- ^ Perform an action and ignore the inner ruleset.
+    -- | Perform an action after the inner ruleset.
+    doAfter :: a -> Rule
+    -- | Perform an action before the inner ruleset.
+    doBefore :: a -> Rule
+    -- | Perform an action and ignore the inner ruleset.
                         --   This should be used rarely.
+    doOnly :: a -> Rule
+-- ^ Be careful when composing these.
+--  @doBefore a . doBefore b == doBefore (b . a)@
+--  @doAfter a . doBefore b == doBefore (a . b)@
+--
+--  Check the source code of TSample to see how to use these.
+--
+--  Also be careful when both reading and writing variables. See 'TSample.rAce'
+--  for an example of how to set and unset variables to get a oneshot effect
+--  without missing
 
 instance Ruleable Step where
     doAfter s act e gs  = s $ act e gs
@@ -154,35 +168,37 @@ uponDoUntil v upon r untl =  when upon (doAfter$ setVar v 1)
 --
 -- withPlayer :: GEGSto (Maybe String)
 
--- | When an action happens, do something with it
+-- | When an action happens, do something with it.
 withAction :: (Action -> Rule) -> Rule
 withAction f act e@(Action _ a _) gs = f a act e gs
 withAction f act e gs = act e gs
 
--- | When an card is played happens, do something with it
+-- | When an card is played, do something with it.
 withCard :: (Card -> Rule) -> Rule
 withCard f act e@(Action _ (Play c) _) gs = f c act e gs
 withCard f act e gs = act e gs
 
--- | When an action happens, do something with the message that gets sent
+-- | When an action happens, do something with the message that gets sent.
 withMessage :: (String -> Rule) -> Rule
 withMessage f act e@(Action _ _ m) gs = f m act e gs
 withMessage f act e gs = act e gs
 
--- | When an action happens, do something with the player that made it
+-- | When an action happens, do something with the player that made it.
 withPlayer :: (Name -> Rule) -> Rule
 withPlayer f act e@(Action p _ _) gs = f p act e gs
 withPlayer f act e gs = act e gs
 
--- | When an action hapens, do something with the hand of the player that made it
+-- | When an action hapens, do something with the hand of the player that made it.
 withHand :: ([Card] -> Rule) -> Rule
 withHand f = withPlayer $ \p -> with state $ \gs -> f (maybe [] id $ getHand p gs)
 
 -- | Build a rule (or similar that depends on an extracted value (if you know monads, this is bind @(>>=)@).
+-- This differs from 'withAction' etc in that it is not conditional on the type of event
 --
 --  e.g. @with ('getVar' "n") (\ n -> doSomethingInvolvingN)@
 --
 --  e.g.
+--
 -- > with ('getVar' "n") (\ n -> doSomethingInvolvingN)
 with :: GEGSto a -- ^ The extractor
         -> (a -> GEGSto b) -- ^ The thing to do with the value
@@ -192,6 +208,10 @@ with getter f act e gs = f (getter act e gs) act e gs
 -- | Retrive a variable from the GameState.
 getVar :: String -> GEGSto Int
 getVar s act e gs = readVar s gs
+
+-- | Look at the top card of the pile
+getTop :: GEGSto Card
+getTop act e gs = case (_pile gs) of (top :| _) -> top
 
 -- | Modify all cards in the game
 mapAllCards :: (Card -> Card) -> GameState -> GameState
@@ -205,7 +225,7 @@ mapAllCards f gs =
 -- | Award a penalty to the acting player without preventing their action.
 penalty :: Int -> String -> Game
 penalty n reason (Action p a m) = draw n p . broadcast ("{} receives penalty {}: {}"%p%show n%reason)
-penalty _ _ _ = id
+penalty _ _ _ = id -- this case probably shouldn't happen, so could add debug message
 
 
 -- | Any action except the specified one is an illegal move.
@@ -227,7 +247,7 @@ modifyMessage f act (Action p a m) gs = act (Action p a (f m)) gs
 modifyMessage f act e gs = act e gs
 
 -- (monadic 'return')
--- | Abbreviation for \ _ _ _ ->
+-- | Abbreviation for @\\ _ _ _ ->@
 __ :: a -> GEGSto a
 __ = const.const.const
 

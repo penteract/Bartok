@@ -1,11 +1,11 @@
 {-# LANGUAGE TemplateHaskell, ScopedTypeVariables #-}
+{-# OPTIONS_HADDOCK prune #-}
 {-|
 Module      : Tutorial
-Description : A walkthrough of how to play Bartok
+Description : A walkthrough of how to play Bartok.
 -}
 module Game.Bartok.Tutorial
  where
-
 import Control.Lens ((^.),(%~),makeLenses, (%%~),(&),Lens'(..),Lens)
 import Control.Monad (ap,liftM2)
 import Control.Monad.Trans.State (StateT(StateT),evalStateT,runStateT)
@@ -19,11 +19,15 @@ import Data.Maybe (listToMaybe)
 import System.Random (StdGen,mkStdGen,split)
 import System.Random.Shuffle (shuffle')
 
+{- $doc
+Note that this file involves copy-pasting a bunch of definitions so that it generates nice haddock.
+It may be inaccurate or out of date.
+-}
 
-
+-- *Framework
 
 -- | A Game is essentially a ruleset that defines how an event modifies the
--- gamestate
+-- gamestate.
 type Game = Event -> GameState -> GameState
 {-^
 For example, in the following game nothing that happens has any effect:
@@ -35,55 +39,47 @@ For example, in the following game nothing that happens has any effect:
 A game of Bartok, from the server's point of view, consists of
 events arriving and affecting the gamestate.
 
-Actions are the most interesting, and always come with a message (which may be the empty string) -}
+Actions are the most interesting, and always come with a message (which may be the empty string). -}
 data Event =
-      PlayerJoin Name (Maybe (Name,Name))  -- ^This is handled by the base game. You probably want to leave it alone
-    | Action Name Action String -- ^A player actually doing something (playing a card or drawing cards)
-    | Timeout -- ^If no player has made an action for 10 seconds, this event will be sent
+      Action Name Action String -- ^A player actually doing something (playing a card or drawing cards)
+    | Timeout -- ^If no player has made an action for 10 seconds, this event will be sent.
+    | PlayerJoin Name (Maybe (Name,Name))  -- ^This is handled by the base game. You probably want to leave it alone.
+    | PlayerLeave Name -- ^A player leaving the game. Again handled by the base game.
 
 
 
 {-| A game is a composition of rules
 such as 'r1 (r2 (r3 useless))' .
 
-For example, the following rule will stop players being peanalised for timeouts.
+For example, the following rule will stop players being penalized for timeouts.
 
-> longturns :: Rule
-> longturns oldgame Timeout gamestate = gamestate
-> longturns oldgame event gamestate = oldgame event gamestate
+> rLongTurns :: Rule
+> rLongTurns oldgame Timeout gamestate = gamestate
+> rLongTurns oldgame event gamestate = oldgame event gamestate
 
 You usually want to call @oldgame event gamestate@ at some point
-so that other rules get a chance to do something
--}
+so that rules which have been implemented before yours get a chance to do something. -}
 type Rule = Game -> Game
 
-
+{-$doc
+The rest of this tutorial is unfinished, and 'Game.Bartok.DataTypes' is a better reference.
+See 'Game.Bartok.TLib' for a framework to make rules
+and the source code of 'Game.Bartok.TSample' for sample rules using it.
+-}
 
 -- **Gamestate
-{-$doc
- One of the easiest things to do is award penalties 'TLib.penalty'
+{-
+ One of the easiest things to do is award penalties 'Game.Bartok.TLib.penalty'
 -}
 
 
--- | asdf
+-- | Transformations of gamestate.
 type Step = GameState -> GameState
 
 
-
-
-if' :: Bool -> a -> a -> a
-if' b a c = if b then a else c
-
 data Suit = Clubs | Diamonds | Hearts | Spades deriving (Show,Eq,Enum,Bounded,Ord)
 data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Knight | Queen | King deriving (Show,Eq,Bounded,Ord)
--- data Rank' = Fool | Individual | Childhood | Youth | Maturity | OldAge | Morning | Afternoon
---            | Evening | Night | EarthAir | WaterFire | Dance | Shopping | OpenAir | VisualArts
---            | Spring | Summer | Autumn | Winter | TheGame | Collective deriving (Show,Eq,Enum,Bounded)
--- data JColour = Red | Black | White deriving (Show,Eq,Enum,Bounded)
---
--- data Suit = Clubs | .. | Trumps | Black | Red | White
--- data Rank = Ace .. King | Joker | Fool ... Collective
--- data Card = SCard Rank Suit | Trump Rank' | Joker JColour deriving (Show,Eq)
+
 
 -- | A single playing card
 type Card = (Rank,Suit)
@@ -95,12 +91,12 @@ type Hand = [Card]
 type Name = String
 
 -- | At any point, a player can attempt to take one of these actions
-data Action = Draw Int | Play Card deriving (Show,Eq)
+data Action =
+      Draw Int -- ^ Draw some number of cards
+    | Play Card -- ^ Play a card
+     deriving (Show,Eq)
 
 
-
-
--- I'd call a function playmove or runevent. the problem is that it's used more than once
 
 
 -- \ Identifiers for variables
@@ -113,38 +109,22 @@ data GameState = GS {
        -- and usually this advances forward by 1 each turn.
        _hands :: Map Name Hand, -- ^ Stores the contents of each player's hand
        _deck :: [Card], -- ^ The deck from which cards are drawn
-       _pile :: NonEmpty Card, -- ^ The cards that have been played -
+       _pile :: NonEmpty Card, -- ^ The cards that have been played - shuffled back into the deck when necessary.
        _messages :: [String], -- ^ The messages that .  Contains only those generated by the most recent event.
        _lastMoveLegal :: Bool, -- ^ Indicates if the last move was successful.
-           -- This should be true
            -- When a new event happens, this is False until baseAct is called.
-       --_prevGS :: Maybe (GameState,Action),
 
-       _randg :: StdGen, -- ^ A seeded random number generator so that you can
+       _randg :: StdGen, -- ^ A seeded random number generator
        _winner :: Maybe Name, -- ^ @Nothing@ until a player p wins at which point it becomes @Just p@
        _varMap :: Map VarName Int -- ^ A store of named variables that rules may use to keep track of state between events.
      } deriving Show
+
+-- I'll try not to expose casual readers to lenses.
+-- They are fun and powerful, but arguably turn Haskell into a different language.
 makeLenses ''GameState
--- players :: Lens' GameState [Name]
--- players f gs@GS{_players = p} = (\p' -> gs{_players = p'}) <$> f p
--- seats :: Lens' GameState [Name]
--- seats f gs@GS{_seats = s} = (\s' -> gs{_seats = s'}) <$> f s
--- hands :: Lens' GameState (Map Name Hand)
--- hands f gs@GS{_hands = h} = (\h' -> gs{_hands = h'}) <$> f h
--- deck :: Lens' GameState [Card]
--- deck f gs@GS{_deck = d} = (\d' -> gs{_deck = d'}) <$> f d
--- pile :: Lens' GameState (NonEmpty Card)
--- pile f gs@GS{_pile = p} = (\p' -> gs{_pile = p'}) <$> f p
--- messages :: Lens' GameState [String]
--- messages f gs@GS{_messages = m} = (\m' -> gs{_messages = m'}) <$> f m
--- lastMoveLegal :: Lens' GameState Bool
--- lastMoveLegal f gs@GS{_lastMoveLegal = b} = (\b' -> gs{_lastMoveLegal = b'}) <$> f b
--- randg :: Lens' GameState StdGen
--- randg f gs@GS{_randg = r} = (\r' -> gs{_randg = r'}) <$> f r
--- winner :: Lens' GameState (Maybe Name)
--- winner f gs@GS{_winner = w} = (\w' -> gs{_winner = w'}) <$> f w
--- varMap :: Lens' GameState (Map String Int)
--- varMap f gs@GS{_varMap = v} = (\v' -> gs{_varMap = v'}) <$> f v
+
+
+-- ** View Rules
 
 -- | A card as viewed - the type of cards sent to the client
 data CardView = CardFace Card | CardBack deriving (Show)
@@ -321,6 +301,10 @@ newGame pls =  ((pile /\ deck) %~ (\(_,y:ys) -> (y:|[],ys))) . shuffleDeck $ -- 
               , _winner = Nothing
               }
 
+
+
+if' :: Bool -> a -> a -> a
+if' b a c = if b then a else c
 
 -- Thanks stack overflow
 (/\)
