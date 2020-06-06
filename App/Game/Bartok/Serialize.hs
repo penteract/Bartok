@@ -1,73 +1,100 @@
-{-# LANGUAGE DeriveGeneric, StandaloneDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
-module Game.Bartok.Serialize(serialize, unserialize,readNewRule,
-        ActionReq(..),Token,ClientPacket(..),NewRuleReq(..),
-        getName,getTok,getCount)
- where
+module Game.Bartok.Serialize
+  ( serialize,
+    unserialize,
+    readNewRule,
+    ActionReq (..),
+    Token,
+    ClientPacket (..),
+    NewRuleReq (..),
+    getName,
+    getTok,
+    getCount,
+  )
+where
 
-import GHC.Generics (Generic)
+import Data.Aeson (FromJSON, ToJSON, decode, defaultOptions, encode, fromJSON, genericToEncoding, toEncoding, toJSON)
 import qualified Data.ByteString.Lazy as L
 import qualified Data.Text as T (unpack)
-import Data.Aeson (FromJSON,ToJSON,defaultOptions,decode,encode,fromJSON,genericToEncoding,toEncoding,toJSON)
-
+import GHC.Generics (Generic)
 import Game.Bartok.DataTypes
 import Game.Bartok.Views
 
 deriving instance Generic GameView
+
 deriving instance Generic CardView
+
 deriving instance Generic Rank
+
 deriving instance Generic Suit
 
 deriving instance Generic Action
+
 deriving instance Generic Event
 
 instance ToJSON Rank where
   toEncoding = genericToEncoding defaultOptions
+
 instance ToJSON Suit where
   toEncoding = genericToEncoding defaultOptions
+
 instance ToJSON CardView where
   toEncoding = genericToEncoding defaultOptions
+
 instance ToJSON GameView where
   toEncoding = genericToEncoding defaultOptions
 
 instance ToJSON Action where
   toEncoding = genericToEncoding defaultOptions
+
 instance ToJSON Event where
   toEncoding = genericToEncoding defaultOptions
 
 instance FromJSON Suit
+
 instance FromJSON Rank
+
 instance FromJSON Action
+
 instance FromJSON Event
 
-data ClientPacket = NewData Int GameView | NoNewData | Redirect String deriving (Show,Generic)
+data ClientPacket = NewData Int GameView | NoNewData | Redirect String deriving (Show, Generic)
+
 instance ToJSON ClientPacket
 
 serialize :: ClientPacket -> L.ByteString
 serialize = encode . toJSON
-
 
 type Token = String
 
 type CardIndex = Int
 
 -- TODO: Consider adding some validation to player join requests (eg name can't contain silly characters)
+
 -- | Requests contain a Name, a validation token, a counter indicating how much they haven't seen
 --   and some data about the move being made
-data ActionReq = ReqPlay Name Token Int CardIndex String
-               | ReqDraw Name Token Int Int String
-               | ReqJoin Name Token Int
-               | ReqLeave Name Token Int deriving (Show,Eq,Generic)
+data ActionReq
+  = ReqPlay Name Token Int CardIndex String
+  | ReqDraw Name Token Int Int String
+  | ReqJoin Name Token Int
+  | ReqLeave Name Token Int
+  deriving (Show, Eq, Generic)
+
 instance ToJSON ActionReq where toEncoding = genericToEncoding defaultOptions
+
 instance FromJSON ActionReq
 
-data NewRuleReq = NewRuleReq {
-    imports :: [String],
-    ruleType:: String,
+data NewRuleReq = NewRuleReq
+  { imports :: [String],
+    ruleType :: String,
     code :: String
-} deriving(Show,Generic)
+  }
+  deriving (Show, Generic)
 
 instance ToJSON NewRuleReq where toEncoding = genericToEncoding defaultOptions
+
 instance FromJSON NewRuleReq
 
 readNewRule :: L.ByteString -> Maybe NewRuleReq
@@ -80,20 +107,20 @@ getName (ReqJoin p _ _) = p
 getName (ReqLeave p _ _) = p
 
 getTok :: ActionReq -> Token
-getTok (ReqPlay  _ t _ _ _) = t
-getTok (ReqDraw  _ t _ _ _) = t
-getTok (ReqJoin  _ t _) = t
+getTok (ReqPlay _ t _ _ _) = t
+getTok (ReqDraw _ t _ _ _) = t
+getTok (ReqJoin _ t _) = t
 getTok (ReqLeave _ t _) = t
 
-
 getCount :: ActionReq -> Int
-getCount (ReqPlay  _ _ n _ _) = n
-getCount (ReqDraw  _ _ n _ _) = n
-getCount (ReqJoin  _ _ n) = n
+getCount (ReqPlay _ _ n _ _) = n
+getCount (ReqDraw _ _ n _ _) = n
+getCount (ReqJoin _ _ n) = n
 getCount (ReqLeave _ _ n) = n
 
 unserialize :: L.ByteString -> Maybe ActionReq
 unserialize = decode
+
 -- unserialize s = do
 --   name <- s ^? key "name" . _String . to T.unpack
 --   action <- s ^? key "action" . _String
