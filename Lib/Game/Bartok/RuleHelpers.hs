@@ -10,7 +10,7 @@ import Control.Lens ((^.))
 import Control.Monad (ap,join)
 import Data.List (intercalate)
 import Data.Maybe (isJust)
-import Text.Regex(Regex,matchRegex,matchRegexAll,mkRegex,mkRegexWithOpts,splitRegex)
+import Text.Regex (Regex, matchRegex, matchRegexAll, mkRegex, mkRegexWithOpts, splitRegex)
 
 import Game.Bartok.DataTypes
 import Game.Bartok.BaseGame

@@ -33,7 +33,7 @@ library
 --  ghc-options:
   exposed-modules:     Game.Bartok.TLib, Game.Bartok.TSample, Game.Bartok.BaseGame, Game.Bartok.Sample, Game.Bartok.DataTypes, Game.Bartok.Views, Game.Bartok.Rules, Game.Bartok.RuleHelpers, Game.Bartok.Tutorial
 --  other-extensions:    FlexibleContexts
-  build-depends:       base, lens, random-shuffle, transformers, regex-compat,
+  build-depends:       base, lens, random-shuffle, transformers, regex-compat-tdfa,
                        containers, random, text
 
   default-language:    Haskell2010
@@ -43,7 +43,7 @@ executable server
     main-is:             Game/Bartok/Web.hs
     build-depends:       aeson, base, bartok,
                          bytestring,
-                         warp, wai, http-types, ctrie, hint, regex-compat,
+                         warp, wai, http-types, ctrie, hint, regex-compat-tdfa,
                          lens, transformers, mtl,
                          containers, random, text,
                          time
