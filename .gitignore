@@ -2,3 +2,5 @@
 *.o
 .stack-work
 dist-newstyle
+*.lock
+*.swp
