@@ -42,7 +42,7 @@ executable server
     hs-source-dirs:      App
     main-is:             Game/Bartok/Web.hs
     build-depends:       aeson, base, bartok,
-                         bytestring,
+                         bytestring, extra,
                          warp, wai, http-types, ctrie, hint, regex-compat-tdfa,
                          lens, transformers, mtl,
                          containers, random, text,
