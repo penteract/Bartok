@@ -1,15 +1,17 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
-import Control.Arrow (second)
 import Control.Concurrent (forkIO, killThread, myThreadId, threadDelay)
 import Control.Concurrent.MVar (MVar, newMVar, putMVar, takeMVar)
 import qualified Control.Concurrent.Map as CMap
 import Control.Monad.Extra (void, when, whenJustM, whenM)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.State (StateT, get, modify, put, runStateT)
 import Data.Aeson (encode, toJSON)
+import Data.Bifunctor (second)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
 import Data.List (isSuffixOf)
@@ -45,7 +47,8 @@ import Game.Bartok.ServerInterface
     _lastAction,
   )
 import Game.Bartok.Whitelist (allowed)
-import Language.Haskell.Interpreter hiding (get)
+import Language.Haskell.Interpreter (GhcError(GhcError), InterpreterError(WontCompile), 
+   as, errMsg, interpret, runInterpreter, setImportsQ)
 import Network.HTTP.Types
   ( HeaderName,
     StdMethod (GET, POST),
@@ -59,7 +62,6 @@ import Network.HTTP.Types
     unprocessableEntity422,
   )
 import Network.HTTP.Types.Header (hAllow)
-import Network.HTTP.Types.Status ()
 import Network.Wai
   ( Application,
     Middleware,
@@ -330,7 +332,7 @@ newRule = do
       f <- liftIO $ runInterpreter $ do
         setImportsQ qimps
         case ruleType nr of
-          "ViewRule" -> (,) id <$> interpret (code nr) (as :: ViewRule)
+          "ViewRule" -> (id,) <$> interpret (code nr) (as :: ViewRule)
           "Both" -> interpret (code nr) (as :: Rule')
           _ -> flip (,) id <$> interpret (code nr) (as :: Rule)
       case f of
