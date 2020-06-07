@@ -14,7 +14,7 @@ import Data.Aeson (encode, toJSON)
 import Data.Bifunctor (second)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
-import Data.List (isSuffixOf)
+import Data.List.Extra (isSuffixOf, notNull)
 import Data.Maybe (fromMaybe, listToMaybe)
 import Data.Text (Text, intercalate, unpack)
 import Data.Time (diffUTCTime, getCurrentTime)
@@ -130,7 +130,7 @@ sendTimeouts gName games = do
 
 cannonisepath :: Middleware
 cannonisepath app req resp =
-  app req {pathInfo = filter (/= "") (pathInfo req)} resp
+  app req {pathInfo = filter notNull (pathInfo req)} resp
 
 app :: GMap -> Application
 app games req resp = do
