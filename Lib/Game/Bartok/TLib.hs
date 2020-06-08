@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 
 -- |
 -- Module      : TLib
@@ -74,8 +75,8 @@ module Game.Bartok.TLib
     GameView (..),
     suit,
     rank,
-    Suit (..),
-    Rank (..),
+    Suit,
+    Rank,
     Viewer,
     ViewRule,
     readVar,
@@ -89,11 +90,41 @@ module Game.Bartok.TLib
   )
 where
 
-import Control.Applicative
+import Control.Applicative (liftA2)
+import Control.Lens (none)
+import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.Map as Map
 import Data.Maybe (isJust)
 import Game.Bartok.BaseGame (broadcast, draw, getHand, illegal, nextTurn, (%))
 import Game.Bartok.DataTypes
+  ( Action (..),
+    Card,
+    CardView (..),
+    Event (..),
+    Game,
+    GameState,
+    GameView (..),
+    Name,
+    Rank,
+    Rule,
+    Step,
+    Suit,
+    VarName,
+    ViewRule,
+    Viewer,
+    modifyVar,
+    rank,
+    readVar,
+    setVar,
+    suit,
+    _deck,
+    _hands,
+    _lastMoveLegal,
+    _messages,
+    _pile,
+    _players,
+  )
 import Game.Bartok.RuleHelpers (findInMs, reconstitute, regexProcess, split)
 import Text.Regex (matchRegex, matchRegexAll, mkRegexWithOpts)
 
@@ -135,7 +166,7 @@ class Ruleable a where
 instance Ruleable Step where
   doAfter s act e gs = s $ act e gs
   doBefore s act e gs = act e $ s gs
-  doOnly s act e gs = s gs
+  doOnly s _ _ gs = s gs
 
 instance Ruleable Game where
   doAfter act1 act2 e = act1 e . act2 e
@@ -166,33 +197,27 @@ actionIs _ _ _ _ = False
 
 -- | Returns True if the event is an action and the next Turn should be taken by the player submitting it.
 isTurn :: GEGSto Bool
-isTurn act (Action p a m) gs = p == head (_players gs)
+isTurn _ (Action p _ _) gs = p == head (_players gs)
 isTurn _ _ _ = False
 
 -- | Returns True if the value of the named variable is not 0.
 boolVar :: VarName -> GEGSto Bool
-boolVar v act e gs = readVar v gs /= 0
+boolVar v _ _ gs = readVar v gs /= 0
 
 -- | Combines 2 tests. Returns True if both do.
 (~&~) :: GEGSto Bool -> GEGSto Bool -> GEGSto Bool
-(~&~) = liftA2 (liftA2 (liftA2 (&&)))
+(~&~) = liftA2 $ liftA2 $ liftA2 (&&)
 
 -- | Negates a test. Be aware that @(not_ (actionIs (==(Draw 2))))@ is different from  @(actionIs (/=(Draw 2)))@.
 --   The first example would return True for events that are not actions.
 not_ :: GEGSto Bool -> GEGSto Bool
-not_ = fmap $fmap $fmap not
-
--- Synonym for ~&~
-(^^^&^^^) :: (Applicative f1, Applicative f2, Applicative f3) => f1 (f2 (f3 Bool)) -> f1 (f2 (f3 Bool)) -> f1 (f2 (f3 Bool))
-(^^^&^^^) = liftA2 (liftA2 (liftA2 (&&)))
-
---  Making this behave as the monadic version would require
+not_ = fmap $ fmap $ fmap not
 
 -- | Given a condition, implement a rule only when that condition holds.
 when :: (GEGSto Bool) -> Rule -> Rule
 when f r act e gs = if f act e gs then r act e gs else act e gs
 
--- when f r = whether f r (\ _ _->id)
+-- when f r = whether f r (\ _ _ ->id)
 
 -- This could be given the more general type @(GEGSto Bool) -> GEGSto a -> GEGSto a -> GEGSto a@
 
@@ -239,22 +264,22 @@ uponDoUntil v upon r untl =
 -- | When an action happens, do something with it.
 withAction :: (Action -> Rule) -> Rule
 withAction f act e@(Action _ a _) gs = f a act e gs
-withAction f act e gs = act e gs
+withAction _ act e gs = act e gs
 
 -- | When an card is played, do something with it.
 withCard :: (Card -> Rule) -> Rule
 withCard f act e@(Action _ (Play c) _) gs = f c act e gs
-withCard f act e gs = act e gs
+withCard _ act e gs = act e gs
 
 -- | When an action happens, do something with the message that gets sent.
 withMessage :: (String -> Rule) -> Rule
 withMessage f act e@(Action _ _ m) gs = f m act e gs
-withMessage f act e gs = act e gs
+withMessage _ act e gs = act e gs
 
 -- | When an action happens, do something with the player that made it.
 withPlayer :: (Name -> Rule) -> Rule
 withPlayer f act e@(Action p _ _) gs = f p act e gs
-withPlayer f act e gs = act e gs
+withPlayer _ act e gs = act e gs
 
 -- | When an action hapens, do something with the hand of the player that made it.
 withHand :: ([Card] -> Rule) -> Rule
@@ -278,11 +303,11 @@ with getter f act e gs = f (getter act e gs) act e gs
 
 -- | Retrive a variable from the GameState.
 getVar :: String -> GEGSto Int
-getVar s act e gs = readVar s gs
+getVar s _ _ gs = readVar s gs
 
 -- | Look at the top card of the pile
 getTop :: GEGSto Card
-getTop act e gs = case (_pile gs) of (top :| _) -> top
+getTop _ _ gs = NE.head $ _pile gs
 
 -- | Modify all cards in the game
 mapAllCards :: (Card -> Card) -> GameState -> GameState
@@ -294,7 +319,7 @@ mapAllCards f gs =
 
 -- | Award a penalty to the acting player without preventing their action.
 penalty :: Int -> String -> Game
-penalty n reason (Action p a m) = draw n p . broadcast ("{} receives penalty {}: {}" % p % show n % reason)
+penalty n reason (Action p _ _) = draw n p . broadcast ("{} receives penalty {}: {}" % p % show n % reason)
 penalty _ _ _ = id -- this case probably shouldn't happen, so could add debug message
 
 -- | Any action except the specified one is an illegal move.
@@ -313,8 +338,8 @@ modifyPlayers f g = g {_players = f (_players g)}
 
 -- | Transform the message that gets sent
 modifyMessage :: (String -> String) -> Rule
-modifyMessage f act (Action p a m) gs = act (Action p a (f m)) gs
-modifyMessage f act e gs = act e gs
+modifyMessage f act (Action p a m) gs = act (Action p a $ f m) gs
+modifyMessage _ act e gs = act e gs
 
 -- (monadic 'return')
 
@@ -326,8 +351,6 @@ __ = const . const . const
 state :: GEGSto GameState
 state _ _ gs = gs
 
--- could try Control.DotDotDot
-
 -- | lift an action (monadic 'fmap')
 (.:) :: (a -> b) -> GEGSto a -> GEGSto b
 (.:) f g a b c = f (g a b c)
@@ -335,7 +358,7 @@ state _ _ gs = gs
 -- | Tests if a player said something matching a given regex (case insenstive).
 --  Like most string processing functions in this project, this separates input messages based on semicolons.
 said :: String -> GEGSto Bool
-said s act (Action _ _ m) gs = s `findInMs` m
+said s _ (Action _ _ m) _ = s `findInMs` m
 said _ _ _ _ = False
 
 -- | The penalty message produced by @mustSay s@
@@ -363,15 +386,21 @@ sometimesSayPenalty s cond failMsg unnecMsg =
 
 --sometimesSay s cond = unnec s . when cond (mustSay s)
 
-checkMatch pattern input = isJust $ matchRegex (mkRegexWithOpts pattern True False) input
+checkMatch :: String -> String -> Bool
+checkMatch pattern = isJust . matchRegex r
+  where
+    r = mkRegexWithOpts pattern True False
 
 -- | Apply a function to 'rest' and 'x' for each possible 'x' in a list where rest is the list with 'x' removed
 withoutEach :: ([a] -> a -> b) -> [a] -> [b]
-withoutEach f [] = []
-withoutEach f (x : xs) = withoutEach' f ([], x, xs)
+withoutEach f = \case
+  [] -> []
+  (x : xs) -> map (uncurry f) $ go [] x xs
   where
-    withoutEach' f t@(xs, x, []) = [f (reverse xs) x]
-    withoutEach' f t@(xs, x, y : ys) = f (reverse xs ++ ys) x : withoutEach' f (x : xs, y, ys)
+    go :: [a] -> a -> [a] -> [([a], a)]
+    go ys y = \case
+      [] -> [(reverse ys, y)]
+      (z : zs) -> (reverse ys ++ zs, y) : go (y : ys) z zs
 
 -- | Penalize for unnecessarily saying something.
 --   This works by testing if the absence of any matching component of a player's message would cause a penalty containing 'failmsg'.
@@ -391,8 +420,8 @@ unnecPenalty s penaltyMsg act e@(Action p a m) gs =
             ( \ms' x ->
                 when (__ $ isJust $ matchRegexAll r x) $
                   when
-                    (__ $not $ any (checkMatch $ "receives penalty.*{}" % mkFailMsg x) (_messages $ act (Action p a (reconstitute ms')) gs))
-                    (doBefore $ penalty 1 (penaltyMsg x))
+                    (__ $ none (checkMatch $ "receives penalty.*{}" % mkFailMsg x) (_messages $ act (Action p a (reconstitute ms')) gs))
+                    (doBefore $ penalty 1 $ penaltyMsg x)
             )
             ms
         )

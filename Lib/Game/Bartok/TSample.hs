@@ -1,12 +1,75 @@
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE LambdaCase #-}
+
 -- |
 -- Module      : TSample
 -- Description : Sample rules using Tlib.
 --
 -- Looking at the source code is recommended
-module Game.Bartok.TSample (r7, r8, rq, rSpade) where
+module Game.Bartok.TSample
+  ( r7,
+    r8,
+    rq,
+    rSpade,
+    rq',
+    r3,
+    r3V,
+    rBadger,
+    rBadgerN,
+    rNoHTML,
+    rSnap,
+    rAce,
+  )
+where
 
-import Game.Bartok.DataTypes (shuffleDeck, _deck)
+import Game.Bartok.DataTypes
+  ( Action (..),
+    CardView (CardFace),
+    GameState,
+    GameView (GV),
+    Rank (Ace, Eight, King, Queen, Seven, Three),
+    Rule,
+    Suit (Diamonds, Spades),
+    ViewRule,
+    fullDeck,
+    modifyVar,
+    rank,
+    readVar,
+    setVar,
+    shuffleDeck,
+    suit,
+    _deck,
+  )
 import Game.Bartok.TLib
+  ( boolVar,
+    cardIs,
+    doAfter,
+    doBefore,
+    getTop,
+    getVar,
+    isLegal,
+    isTurn,
+    mapAllCards,
+    modifyMessage,
+    modifyPlayers,
+    mustDo,
+    mustSay,
+    nextTurn,
+    not_,
+    penalty,
+    said,
+    sometimesSay,
+    sometimesSayPenalty,
+    unnecPenalty,
+    when,
+    with,
+    withCard,
+    withMessage,
+    withPlayer,
+    (%),
+    __,
+    (~&~),
+  )
 import Game.Bartok.Views (mapHands)
 
 {-
@@ -25,7 +88,11 @@ r8 :: Rule
 r8 = when (isLegal ~&~ cardIs ((== Eight) . rank)) (doAfter nextTurn)
 
 reverseDirection :: GameState -> GameState
-reverseDirection = modifyPlayers (\(c : cs) -> c : reverse cs)
+reverseDirection =
+  modifyPlayers
+    \case
+      [] -> []
+      (c : cs) -> c : reverse cs
 
 -- When a card is legal and is a Queen, reverse direction.
 -- This needs to use 'doBefore' rather than 'doAfter' since the inner ruleset is
@@ -37,7 +104,7 @@ reverseDirection = modifyPlayers (\(c : cs) -> c : reverse cs)
 rq' :: Rule
 rq' =
   when
-    (isLegal ~&~ cardIs ((== Queen) . rank))
+    (isLegal ~&~ cardIs ((Queen ==) . rank))
     (doBefore reverseDirection)
 
 -- This is an improvement to rq'. It is possible that playing a queen may become illegal if the
@@ -68,7 +135,7 @@ r3 =
   when
     (isLegal ~&~ cardIs ((== Three) . rank))
     ( withCard
-        ( \(r, s) ->
+        ( \(_, s) ->
             doAfter
               ( modifyVar (show s) (+ 1)
                   . mapAllCards (\(r', s') -> (if s == s' then toEnum ((fromEnum r' `mod` 14) + 1) else r', s'))
@@ -111,6 +178,7 @@ rNoHTML = withMessage $ \m ->
     sanChar c = [c]
 
 -- TODO: allow changing to a specific named suit
+rAce :: Rule
 rAce =
   withCard (\c -> when (__ (rank c == Ace) ~&~ isLegal) (doAfter (setVar "rAce" 1)))
     . when
@@ -129,27 +197,27 @@ rAce =
           . when isLegal (doAfter (setVar "rAce" 0))
       )
 
--- map1 ; checkIfLegal ; innerAct ; map2
-
 -- Warning: unnec doesn't play nice with this
+rSnap :: Rule
 rSnap =
   when
     (not_ $ boolVar "extra_deck")
     ( doBefore $
         shuffleDeck
           . setVar "extra_deck" 1
-          . (\gs -> gs {_deck = _deck gs ++ [minBound ..]})
+          . (\gs -> gs {_deck = _deck gs ++ fullDeck})
     )
     . with
       getTop
       ( \c ->
-          when ((cardIs (== c)) ~&~ (said "snap!"))
-            $ withPlayer
-            $ \p -> doBefore (modifyPlayers (makeFirst p))
+          when ((cardIs (== c)) ~&~ (said "snap!")) $
+            withPlayer \p -> doBefore (modifyPlayers $ makeFirst p)
       )
   where
-    makeFirst p ps = let (l, r) = break (== p) ps in r ++ l
+    makeFirst :: Eq a => a -> [a] -> [a]
+    makeFirst p ps = let (l, r) = break (p ==) ps in r ++ l
 
+(>|<) :: String -> String -> String
 a >|< b = "(" ++ a ++ "|" ++ b ++ ")"
 
 r7 :: Rule

@@ -1,5 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
 module Game.Bartok.Serialize
   ( serialize,
@@ -15,54 +15,22 @@ module Game.Bartok.Serialize
   )
 where
 
-import Data.Aeson (FromJSON, ToJSON, decode, defaultOptions, encode, fromJSON, genericToEncoding, toEncoding, toJSON)
+import Data.Aeson
+  ( FromJSON,
+    ToJSON,
+    decode,
+    defaultOptions,
+    encode,
+    genericToEncoding,
+    toEncoding,
+    toJSON,
+  )
 import qualified Data.ByteString.Lazy as L
-import qualified Data.Text as T (unpack)
 import GHC.Generics (Generic)
-import Game.Bartok.DataTypes
-import Game.Bartok.Views
+import Game.Bartok.DataTypes (GameView, Name)
 
-deriving instance Generic GameView
-
-deriving instance Generic CardView
-
-deriving instance Generic Rank
-
-deriving instance Generic Suit
-
-deriving instance Generic Action
-
-deriving instance Generic Event
-
-instance ToJSON Rank where
-  toEncoding = genericToEncoding defaultOptions
-
-instance ToJSON Suit where
-  toEncoding = genericToEncoding defaultOptions
-
-instance ToJSON CardView where
-  toEncoding = genericToEncoding defaultOptions
-
-instance ToJSON GameView where
-  toEncoding = genericToEncoding defaultOptions
-
-instance ToJSON Action where
-  toEncoding = genericToEncoding defaultOptions
-
-instance ToJSON Event where
-  toEncoding = genericToEncoding defaultOptions
-
-instance FromJSON Suit
-
-instance FromJSON Rank
-
-instance FromJSON Action
-
-instance FromJSON Event
-
-data ClientPacket = NewData Int GameView | NoNewData | Redirect String deriving (Show, Generic)
-
-instance ToJSON ClientPacket
+data ClientPacket = NewData Int GameView | NoNewData | Redirect String
+  deriving (Show, Generic, ToJSON)
 
 serialize :: ClientPacket -> L.ByteString
 serialize = encode . toJSON

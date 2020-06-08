@@ -1,5 +1,7 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wno-missing-export-lists #-}
 {-# OPTIONS_HADDOCK prune #-}
 
 -- |
@@ -7,18 +9,18 @@
 -- Description : A walkthrough of how to play Bartok.
 module Game.Bartok.Tutorial where
 
-import Control.Lens (Lens, Lens' (..), makeLenses, (%%~), (%~), (&), (^.))
-import Control.Monad (ap, liftM2)
+import Control.Lens (makeLenses, (%%~), (%~), (^.))
+import Control.Monad (ap)
 import Control.Monad.Trans.State (StateT (StateT), evalStateT, runStateT)
 import Data.Char (isSpace, toLower)
 import Data.List (isPrefixOf, stripPrefix)
-import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Map (Map)
 import qualified Data.Map as Map (empty, findWithDefault, fromList, insert) -- (insert,findWithDefault,empty,fromList)
 import Data.Maybe (listToMaybe)
 import System.Random (StdGen, mkStdGen, split)
 import System.Random.Shuffle (shuffle')
+import Utils ((/\))
 
 -- $doc
 -- Note that this file involves copy-pasting a bunch of definitions so that it generates nice haddock.
@@ -188,6 +190,7 @@ instance Enum Rank where
     12 -> Knight
     13 -> Queen
     14 -> King
+    _ -> error "Enum Rank instance only covers 1..14"
   fromEnum r = case r of
     Ace -> 1
     Two -> 2
@@ -205,16 +208,14 @@ instance Enum Rank where
     King -> 14
   enumFrom n = map toEnum [fromEnum n .. fromEnum (maxBound :: Rank)]
 
+fullDeck :: [Card]
+fullDeck = [(r,s) | r <- [minBound..], s <- [minBound..]]
+
 next :: (Enum a, Bounded a, Eq a) => a -> a
 next a = if a == maxBound then minBound else succ a
 
 prev :: (Enum a, Bounded a, Eq a) => a -> a
 prev a = if a == minBound then maxBound else pred a
-
-instance (Enum a, Enum b, Bounded a, Bounded b, Eq a, Eq b) => Enum (a, b) where
-  toEnum i = (\(x, y) -> (toEnum (x + fromEnum (minBound :: a)), toEnum (y + fromEnum (minBound :: b)))) $ i `divMod` (1 + (fromEnum (maxBound :: b) - fromEnum (minBound :: b))) -- i `divMod` (fromEnum $ maxBound :: b)
-  fromEnum (r, s) = (fromEnum r - fromEnum (minBound :: a)) * (1 + fromEnum (maxBound :: b) - fromEnum (minBound :: b)) + (fromEnum s - fromEnum (minBound :: b))
-  enumFrom c = c : (if c == maxBound then [] else enumFrom (succ c))
 
 suitChar :: Suit -> Char
 suitChar s = case s of
@@ -295,6 +296,7 @@ parseCard = do
 eventPlayer :: Event -> Maybe Name
 eventPlayer (Action p _ _) = Just p
 eventPlayer (PlayerJoin p _) = Just p
+eventPlayer (PlayerLeave p) = Just p
 eventPlayer Timeout = Nothing
 
 -- | variable processing
@@ -311,15 +313,18 @@ modifyVar s f gs = setVar s (f $ readVar s gs) gs
 shuffleDeck :: Step
 shuffleDeck = uncurry ((deck %~) . flip (ap shuffle' length)) . (randg %%~ split)
 
--- shuffleDeck = (deck /\ randg) %~ ap ((`ap` snd) . ((,) .) . (. fst) . liftM2 shuffle' fst (length . fst)) (split . snd)
--- shuffleDeck = (deck /\ randg) %~ (\(d,r) -> let (r1,r2) = split r in (shuffle' d (length d) r1,r2))
+-- | Set the pile to be just the top card of the deck
+popToPile :: Step
+popToPile = (pile /\ deck) %~ \case
+  (_, y : ys) -> (y :| [], ys)
+  x -> x -- make an error?
 
 -- | Construct a new game from a list of player names.
 newGame :: [String] -> GameState
 newGame pls =
-  ((pile /\ deck) %~ (\(_, y : ys) -> (y :| [], ys))) . shuffleDeck $ -- UNSAFE
+  popToPile . shuffleDeck $
     GS
-      { _deck = [minBound ..],
+      { _deck = fullDeck,
         _pile = undefined,
         _messages = [],
         _lastMoveLegal = True,
@@ -331,29 +336,3 @@ newGame pls =
         --, _prevGS = Nothing
         _winner = Nothing
       }
-
-if' :: Bool -> a -> a -> a
-if' b a c = if b then a else c
-
--- Thanks stack overflow
-(/\) ::
-  (Functor f) =>
-  -- | Lens' c a
-  ((a -> (a, a)) -> (c -> (a, c))) ->
-  -- | Lens' c b
-  ((b -> (b, b)) -> (c -> (b, c))) ->
-  -- | Lens' c (a, b)
-  (((a, b) -> f (a, b)) -> (c -> f c))
-(lens1 /\ lens2) f c0 =
-  let (a, _) = lens1 (\a_ -> (a_, a_)) c0
-      (b, _) = lens2 (\b_ -> (b_, b_)) c0
-      fab = f (a, b)
-   in fmap
-        ( \(a, b) ->
-            let (_, c1) = lens1 (\a_ -> (a_, a)) c0
-                (_, c2) = lens2 (\b_ -> (b_, b)) c1
-             in c2
-        )
-        fab
-
-infixl 7 /\

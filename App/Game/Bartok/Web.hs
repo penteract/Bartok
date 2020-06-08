@@ -6,7 +6,7 @@
 import Control.Concurrent (forkIO, killThread, myThreadId, threadDelay)
 import Control.Concurrent.MVar (MVar, newMVar, putMVar, takeMVar)
 import qualified Control.Concurrent.Map as CMap
-import Control.Monad.Extra (void, when, whenJustM, whenM)
+import Control.Monad.Extra (void, whenJustM, whenM)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, asks, runReaderT)
 import Control.Monad.State (StateT, get, modify, put, runStateT)
@@ -14,9 +14,10 @@ import Data.Aeson (encode, toJSON)
 import Data.Bifunctor (second)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as L
-import Data.List.Extra (isSuffixOf, notNull)
+import Data.List (isSuffixOf)
 import Data.Maybe (fromMaybe, listToMaybe)
-import Data.Text (Text, intercalate, unpack)
+import qualified Data.Text as T
+import Data.Text (Text)
 import Data.Time (diffUTCTime, getCurrentTime)
 import Game.Bartok.Serialize
   ( code,
@@ -47,11 +48,17 @@ import Game.Bartok.ServerInterface
     _lastAction,
   )
 import Game.Bartok.Whitelist (allowed)
-import Language.Haskell.Interpreter (GhcError(GhcError), InterpreterError(WontCompile), 
-   as, errMsg, interpret, runInterpreter, setImportsQ)
+import Language.Haskell.Interpreter
+  ( GhcError (GhcError),
+    InterpreterError (..),
+    as,
+    errMsg,
+    interpret,
+    runInterpreter,
+    setImportsQ,
+  )
 import Network.HTTP.Types
-  ( HeaderName,
-    StdMethod (GET, POST),
+  ( StdMethod (GET, POST),
     badRequest400,
     hContentType,
     methodNotAllowed405,
@@ -75,28 +82,26 @@ import Network.Wai
   )
 import Network.Wai.Handler.Warp (run)
 import System.Environment (getArgs)
+import Utils (whenNothingM_)
 
 type GMap = CMap.Map Text (OngoingGame, MVar ())
-
-html :: (HeaderName, String)
-html = (hContentType, "text/html")
 
 -- | returns True if it has been more than 10 seconds since the last player action
 checktime :: OngoingGame -> IO Bool
 checktime gd = do
   now <- getCurrentTime
-  pure $ diffUTCTime now (_lastAction gd) > realToFrac 10
+  pure $ diffUTCTime now (_lastAction gd) > realToFrac @Int 10
 
 -- | Returns true if it has been more than an hour
 checklongtime :: OngoingGame -> IO Bool
 checklongtime gd = do
   now <- getCurrentTime
-  pure $ diffUTCTime now (_lastAction gd) > realToFrac (60 * 60 * 60)
+  pure $ diffUTCTime now (_lastAction gd) > realToFrac @Int (60 * 60 * 60)
 
 addGame :: Text -> GMap -> IO ()
 addGame gName games = do
   og <- (,) <$> initialGame <*> newMVar ()
-  b <- CMap.insertIfAbsent gName og games
+  void $ CMap.insertIfAbsent gName og games
   void $ forkIO (sendTimeouts gName games)
 
 sendTimeouts :: Text -> GMap -> IO ()
@@ -106,34 +111,33 @@ sendTimeouts gName games = do
     whenM (checktime gd) $ do
       -- check that it has been 10 seconds since the last move
       void $ takeMVar mv -- aquire lock
-      whenJustM (fmap fst <$> gName `CMap.lookup` games) $ \gd -> do
+      whenJustM (fmap fst <$> gName `CMap.lookup` games) $ \gd' -> do
         -- reread following lock acquisition
-        t <- checktime gd
-        whenM (checktime gd) $ do
+        whenM (checktime gd') $ do
           -- check that it has been 10 seconds since the last move
-          lt <- checklongtime gd
+          lt <- checklongtime gd'
           if not lt
             then do
-              g <- case readError (handle timeoutReq gd) of
+              g <- case readError (handle timeoutReq gd') of
                 Left err -> do
                   putMVar mv ()
                   error err
                 Right (x, mo) -> do
-                  pure $ setState x $ fromMaybe gd mo
-              CMap.insert gName (g, mv) games
+                  pure $ setState x $ fromMaybe gd' mo
+              void $ CMap.insert gName (g, mv) games
               putMVar mv ()
             else do
-              CMap.delete gName games -- delete the game if it's boring (nothing for an hour)
+              void $ gName `CMap.delete` games -- delete the game if it's boring (nothing for an hour)
               putMVar mv () -- Now I technically should do insertIfPresent everywhere
               myThreadId >>= killThread
   sendTimeouts gName games
 
 cannonisepath :: Middleware
 cannonisepath app req resp =
-  app req {pathInfo = filter notNull (pathInfo req)} resp
+  app req {pathInfo = filter ("" /=) (pathInfo req)} resp
 
-app :: GMap -> Application
-app games req resp = do
+makeApp :: GMap -> Application
+makeApp games req resp = do
   let m = requestMethod req
   case parseMethod m of
     Right GET -> onGet games req resp
@@ -148,7 +152,7 @@ onGet games req =
     ["static"] -> ($ redirect308 "/")
     [gname] -> playPage gname games req
     ["static", x] -> loadstatic x
-    ("doc" : path) -> loaddoc (intercalate "/" path)
+    ("doc" : path) -> loaddoc (T.intercalate "/" path)
     [gname, "newRule"] -> newRulePage gname games req
     [gname, "wait"] -> waitPage gname games req
     _ -> ($ err404)
@@ -160,10 +164,10 @@ load p resp =
     else resp $ err404
 
 loaddoc :: Text -> (Response -> a) -> a
-loaddoc p = load ("doc/" ++ unpack p)
+loaddoc p = load $ "doc/" <> T.unpack p
 
 loadstatic :: Text -> (Response -> a) -> a
-loadstatic p = load ("static/" ++ unpack p)
+loadstatic p = load $ "static/" <> T.unpack p
 
 getContentType :: String -> B.ByteString
 getContentType p
@@ -175,30 +179,22 @@ getContentType p
   where
     endsWith = (`isSuffixOf` p)
 
-istest :: String -> Bool
-istest ('T' : 'S' : 'T' : x) = True
-istest _ = False
-
 playPage :: Text -> GMap -> Application
-playPage gameName games req resp = do
-  mx <- CMap.lookup gameName games
-  case mx of
-    Nothing -> addGame gameName games
-    Just a -> pure ()
-  if istest (unpack gameName)
-    then loadstatic "Testing.html" resp
-    else loadstatic "play.html" resp
+playPage gameName games _req resp = do
+  whenNothingM_ (gameName `CMap.lookup` games) $
+    addGame gameName games
+  let pageName :: Text
+      pageName = if "TST" `T.isPrefixOf` gameName then "Testing" else "play"
+  loadstatic (pageName <> ".html") resp
 
 newRulePage :: Text -> GMap -> Application
-newRulePage gameName games req resp = do
-  mx <- CMap.lookup gameName games
-  case mx of
-    Nothing -> addGame gameName games
-    Just a -> pure ()
+newRulePage gameName games _req resp = do
+  whenNothingM_ (gameName `CMap.lookup` games) $
+    addGame gameName games
   loadstatic "newRule.html" resp
 
 waitPage :: Text -> GMap -> Application
-waitPage gameName games req resp = do
+waitPage _gameName _games _req resp = do
   loadstatic "wait.html" resp
 
 type WithGame a = ReaderT (Request, L.ByteString) (StateT OngoingGame IO) a
@@ -208,14 +204,14 @@ doWithGame wg games gname req resp =
   CMap.lookup gname games >>= \case
     Nothing -> resp $ responseLBS badRequest400 [] ""
     Just (_, mv) -> do
-      _ <- takeMVar mv -- aquire lock
+      void $ takeMVar mv -- aquire lock
       rb <- lazyRequestBody req
-      CMap.lookup gname games >>= \case
+      gname `CMap.lookup` games >>= \case
         --need to read the data again now we hold the lock
         Nothing -> resp $ responseLBS badRequest400 [] "" --don't bother releasing the lock if the game has been deleted?
         Just (gd, _) -> do
           (r, gd') <- runStateT (runReaderT wg (req, rb)) gd
-          CMap.insert gname (gd', mv) games
+          void $ CMap.insert gname (gd', mv) games
           putMVar mv () -- release lock
           resp r
 
@@ -225,7 +221,7 @@ doSafeWithGame wg games gname req resp =
     Nothing -> resp $ responseLBS badRequest400 [] ""
     Just (gd, _) -> do
       rb <- lazyRequestBody req
-      (r, gd') <- runStateT (runReaderT wg (req, rb)) gd
+      (r, _) <- runStateT (runReaderT wg (req, rb)) gd
       resp r
 
 getGame :: WithGame OngoingGame
@@ -247,8 +243,7 @@ doErr e f = do
       f x
 
 onPost :: GMap -> Application
-onPost games req resp = do
-  let gameName = intercalate "/" (pathInfo req)
+onPost games req resp =
   case pathInfo req of
     [gname] -> doWithGame playMove games gname req resp
     [gname, "newRule"] -> doWithGame newRule games gname req resp
@@ -305,7 +300,8 @@ newRule = do
   liftIO $ putStrLn (L.unpack b)
   case readNewRule b of
     Just nr -> do
-      let available =
+      let available :: [String]
+          available =
             [ "Prelude",
               "Game.Bartok.RuleHelpers",
               "Game.Bartok.BaseGame",
@@ -345,19 +341,23 @@ newRule = do
     Nothing -> pure err400
 
 checkStatus :: Text -> GMap -> Application
-checkStatus gameName games req resp = do
+checkStatus gameName games _req resp = do
   mx <- CMap.lookup gameName games
   resp $ textResp $ case mx of
     Nothing -> "home"
     Just (og, _) -> case getWinner og of
-      Just p -> "unfinished"
+      Just _ -> "unfinished"
       Nothing -> "resume"
 
 fromErr :: InterpreterError -> String
-fromErr (WontCompile errs) = Prelude.unlines (map frghc errs)
-
-frghc :: GhcError -> String
-frghc (GhcError {errMsg = m}) = m
+fromErr = \case
+  GhcException err -> err
+  NotAllowed err -> err
+  UnknownError err -> err
+  WontCompile errs -> f errs
+  where
+    f = Prelude.unlines . map frghc
+    frghc (GhcError {errMsg = m}) = m
 
 jsonResp :: L.ByteString -> Response
 jsonResp = responseLBS ok200 [(hContentType, "application/json")]
@@ -368,7 +368,7 @@ main = do
   let port = fromMaybe 8080 $ read @Int <$> listToMaybe args
   games <- CMap.empty
   putStrLn ("server running at http://localhost:" ++ show port)
-  run port $ cannonisepath (app games)
+  run port $ cannonisepath $ makeApp games
 
 redirect308 :: String -> Response
 redirect308 url = responseLBS permanentRedirect308 [] (L.pack url)
@@ -387,6 +387,7 @@ err404 =
     "<html><head><title>404: Page Not Found</title></head>\
     \ <body><h1>Page Not Found</h1></body></html>"
 
+err400 :: Response
 err400 =
   responseLBS
     badRequest400

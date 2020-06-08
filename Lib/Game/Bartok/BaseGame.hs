@@ -1,4 +1,6 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wno-missing-export-lists #-}
 
 --TODO : list exports explicitly
 
@@ -9,16 +11,13 @@
 -- This contains functions for a simple game.
 module Game.Bartok.BaseGame where
 
-import Control.Arrow (first, second)
-import Control.Lens (at, each, ix, (%%~), (%~), (&), (.~), (<>~), (^.), (^?), _1)
-import Control.Monad (liftM2, liftM3)
+import Control.Lens (at, each, ix, (%%~), (%~), (&), (.~), (<>~), (^.))
 import Data.List (delete)
-import qualified Data.List.NonEmpty as NE (head, (<|))
---import Data.List.NonEmpty (NonEmpty((:|)))
-import qualified Data.Map as Map (adjust, delete, insert, lookup, mapAccum)
-import Data.Maybe (fromJust, fromMaybe, isJust)
-import Data.Text (pack, strip, unpack)
-import Game.Bartok.DataTypes
+import Data.List.NonEmpty (NonEmpty ((:|)))
+import qualified Data.List.NonEmpty.Extra as NE
+import qualified Data.Map as Map
+import Game.Bartok.DataTypes (Action (..), Card, Event (..), Game, GameState, Hand, Name, Step, deck, hands, lastMoveLegal, messages, pile, players, rank, shuffleDeck, suit, uniCard, winner)
+import Utils (applyUnless, applyWhen)
 
 doNothing :: Step
 doNothing = id
@@ -26,32 +25,28 @@ doNothing = id
 fromStep :: Step -> Game
 fromStep = const
 
-if'' :: Bool -> (a -> a) -> (a -> a)
-if'' b a = if' b a id
-
 (%) :: String -> String -> String
 (%) ('{' : '}' : s) x = x ++ s
 (%) ('\\' : c : s) x = c : (s % x)
 (%) (c : s) xs = c : (s % xs)
 (%) "" _ = error "not enough '{}' in string"
 
+(%%) :: String -> Card -> String
 (%%) s = (s %) . (: []) . uniCard
-
-appendl :: NonEmpty a -> [a] -> NonEmpty a
-appendl (x :| xs) l = x :| (xs ++ l)
 
 -- | Returns a game where the move has not occured and a penalty has been given.
 -- Should be used with 'doOnly'
 illegal :: Int -> String -> Game
-illegal n reason e@(Action p a m) =
+illegal n reason e@(Action p a _) =
   draw n p
     . broadcast ("{} receives penalty {}: {}" % p % show n % reason)
     . sayAct e
     . ( case a of
           Play c -> broadcast (p ++ " tries to play {}" %% c)
-          Draw n -> broadcast (p ++ " tries to draw {}" % show n)
+          Draw n' -> broadcast (p ++ " tries to draw {}" % show n')
       )
     . (lastMoveLegal .~ False)
+illegal _ _ _ = doNothing
 
 -- | A penalty which does not end the turn
 penalty :: Int -> String -> Name -> Step
@@ -65,11 +60,14 @@ penalty n reason p =
 
 -- | Broadcast a message while identifying the player it came from.
 broadcastp :: Name -> String -> Step
-broadcastp p m = if'' (not $ null m) (broadcast (p ++ ": " ++ m))
+broadcastp p m =
+  applyUnless (null m)
+    $ broadcast
+    $ p <> ": " <> m
 
 -- | Broadcast the message a player sent with their action.
 sayAct :: Game
-sayAct e@(Action p a m) = broadcastp p m
+sayAct (Action p _ m) = broadcastp p m
 sayAct _ = id
 
 -- | Add a player to the game
@@ -80,13 +78,16 @@ addPlayer n mps =
 
 addToSeat :: Name -> Maybe (Name, Name) -> [Name] -> [Name]
 addToSeat n mps ps = case mps of
-  Just (pl, pr) | ps /= [pl] -> (\(a, b : bs) -> a ++ b : n : bs) (break (liftM2 (||) (== pl) (== pr)) ps)
+  Just (pl, pr)
+    | ps /= [pl],
+      (a, b : bs) <- break (`elem` [pl, pr]) ps ->
+      a ++ b : n : bs
   _ -> n : ps
 
 remPlayer :: Name -> Step
 remPlayer n =
   (hands %~ Map.delete n) . (players %~ filter (/= n))
-    . (\k -> (pile %~ flip appendl (fromMaybe [] $ Map.lookup n (k ^. hands))) k)
+    . (\k -> (pile %~ flip NE.appendl (Map.findWithDefault [] n $ k ^. hands)) k)
 
 -- addToSeat n (ps,ss) = if length ss>1 then
 --     (ps++[n],
@@ -109,12 +110,12 @@ play p e c =
 -- Draws always succeed, a card may be played if it is in the player's hand, it is the player's turn and it matches either the suit or rank of the previous card.
 -- Timeouts give one penalty card to the player whose turn it is.
 baseAct :: Game
-baseAct e@(Action p a m) gs
+baseAct e@(Action p a _) gs
   | (Draw n) <- a =
     ( sayAct e
         . broadcast (p ++ " draws " ++ show n ++ " cards.")
         . draw n p
-        . if'' (inTurn && n > 0) (nextTurn . (lastMoveLegal .~ True))
+        . applyWhen (inTurn && n > 0) (nextTurn . (lastMoveLegal .~ True))
     )
       gs
   | (Play c) <- a,
@@ -209,7 +210,10 @@ isTurn p gs = p == (gs ^. players . ix 0)
 
 -- | Advance the turn order by one.
 nextTurn :: Step -- perhaps nextTurn should also set lastMoveLegal .~ True
-nextTurn = players %~ (\(x : xs) -> xs ++ [x])
+nextTurn = players
+  %~ \case
+    x : xs -> xs ++ [x]
+    [] -> [] -- should not happen
 
 -- | incomplete?
 win :: Name -> Step

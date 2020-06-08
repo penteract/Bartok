@@ -30,17 +30,15 @@ module Game.Bartok.Views
   )
 where
 
-import Control.Arrow (second)
 import Control.Lens ((%~), (^.))
-import Control.Monad
---(adjust,assocs,findWithDefault,map,mapWithKey)
---import Data.Map (Map)
+import Data.Bifunctor (second)
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.Map as Map
-import Game.Bartok.DataTypes hiding (_deck, _hands, _messages, _pile)
+import Game.Bartok.DataTypes (CardView (..), GameView (..), Name, ViewRule, Viewer, deck, hands, handsV, messages, pile)
+import Utils (applyWhen)
 
 -- | Turn a function transforming a 'GameView' into a viewRule
--- > makeViewTransformer f r p gs == f$ r p gs
+-- > makeViewTransformer f r p gs == f $ r p gs
 makeViewTransformer :: (GameView -> GameView) -> ViewRule
 makeViewTransformer = (.) . (.)
 
@@ -54,25 +52,12 @@ modifyHandMap = makeViewTransformer . (handsV %~)
 mapHands :: ([CardView] -> [CardView]) -> ViewRule
 mapHands f = modifyHandMap (map (second f))
 
---mapHands f = modifyHandMap (Map.map f)
-
--- Modify the view of a particular player's hand
--- mapOwnHand :: Name -> ([CardView]->[CardView]) -> ViewRule
--- mapOwnHand p f = modifyHandMap (map (join (ap (if'.(p==).fst) (second f)))) -- (\l -> [if x == p then (x,f y) else (x,y) | (x,y) <- l])
---mapOwnHand p f = modifyHandMap (Map.adjust f p)
-
 -- | Modify a player's view of their own hand
 mapOwnHand :: ([CardView] -> [CardView]) -> ViewRule
---mapOwnHand f r p = modifyHandMap (map (join (ap (if'.(p==).fst) (second f)))) r p
 mapOwnHand f r p = modifyHandMap (\l -> [if p' == p then (p', f h) else (p', h) | (p', h) <- l]) r p
-
--- Modify the view of all player's hands
--- mapOtherHands :: Name -> ([CardView]->[CardView]) -> ViewRule
--- mapOtherHands p f = modifyHandMap (map (join (ap (if'.(p/=).fst) (second f))))
 
 -- | Modify the view of all other players' hands
 mapOtherHands :: ([CardView] -> [CardView]) -> ViewRule
---mapOtherHands f r p = modifyHandMap (map (join (ap (if'.(p/=).fst) (second f)))) r p
 mapOtherHands f r p = modifyHandMap (\l -> [if p' /= p then (p', f h) else (p', h) | (p', h) <- l]) r p
 
 -- | Like 'baseGame', this defines how cards should be viewed in a very simple game. See 'DataTypes.GameView' for more.
@@ -93,7 +78,7 @@ baseViewer _ gs =
     }
 
 hideHand :: [CardView] -> [CardView]
-hideHand = map (const CardBack)
+hideHand = (CardBack <$)
 
 -- | Hides other players' hands.
 onlyOwnCards :: ViewRule
@@ -101,10 +86,8 @@ onlyOwnCards = mapOtherHands hideHand
 
 -- | Hide the last card in a player's hand.
 lastCard :: ViewRule
-lastCard = mapOwnHand (ap ((if' =<<) ((> 1) . length)) hideHand)
-
--- lastCard = (,) id (((handsV.each._2 %~
---                ap ((if' =<<) ((>1).length)) (map (const CardBack))).).)
+lastCard = mapOwnHand $ \h ->
+  applyWhen (length h == 1) hideHand h
 
 -- | 'baseView' with the above rules added to it.
 defaultView :: Viewer

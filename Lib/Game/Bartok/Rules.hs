@@ -1,25 +1,74 @@
-module Game.Bartok.Rules where
+{-# LANGUAGE LambdaCase #-}
 
-import Control.Applicative
-import Control.Arrow (second, (***))
-import Control.Lens (at, ix, (%~), (&), (^.), (^?), _1, _2, _Just)
-import Control.Monad (ap, join)
-import qualified Data.Map as Map (findWithDefault, insertWith, keys, lookup, toList)
-import Data.Maybe
+module Game.Bartok.Rules
+  ( r8,
+    rq,
+    rlast,
+    rMao,
+    getState,
+    rMao'',
+    ifSaid,
+    r7',
+    defaultRules,
+    defaultRulesNamed,
+  )
+where
+
+import Control.Applicative (liftA2)
+import Control.Lens (at, (%~), (^.))
+import Data.Bifunctor (second)
+import Data.Maybe (isJust)
 import Game.Bartok.DataTypes
+  ( Action (..),
+    Event (..),
+    Game,
+    GameState,
+    Rank (Eight, Queen, Seven),
+    Rule,
+    Step,
+    hands,
+    lastMoveLegal,
+    modifyVar,
+    players,
+    rank,
+    readVar,
+    setVar,
+    winner,
+    _winner,
+  )
 import Game.Bartok.RuleHelpers
+  ( banPhrase,
+    doAfter,
+    doNothing,
+    findInMs,
+    illegal,
+    isTurn,
+    mustSay,
+    nextTurn,
+    onAction,
+    onLegalCard,
+    onPlay,
+    penalty,
+    removeAllN,
+    split,
+    when',
+    with,
+    with',
+  )
+import Utils (applyWhen)
 
 r8 :: Rule
 r8 =
   onLegalCard
-    ( \card event ->
-        if (rank card == Eight) then nextTurn else doNothing
+    ( \card _ ->
+        applyWhen (rank card == Eight) nextTurn
     )
 
 reverseDirection :: Step
-reverseDirection = players %~ (\(c : cs) -> c : reverse cs)
+reverseDirection = players %~ uncurry (++) . second reverse . splitAt 1
 
-rq :: Rule --reverse direction on q
+-- | Reverse direction on q
+rq :: Rule
 rq =
   onPlay
     ( \c act e gs ->
@@ -31,12 +80,15 @@ rq =
 rlast :: Rule
 rlast =
   onLegalCard
-    ( \card e'@(Action p _ m) gs' ->
-        if maybe False ((== 1) . length) (gs' ^. hands . at p) && not ("last card" `findInMs` m)
-          then penalty 1 "failure to declare \"last card\"" p gs'
-          else gs'
+    ( \_ e gs' ->
+        case e of
+          Action p _ m ->
+            if maybe False ((== 1) . length) (gs' ^. hands . at p) && not ("last card" `findInMs` m)
+              then penalty 1 "failure to declare \"last card\"" p gs'
+              else gs'
+          _ -> gs'
     )
-    . banPhrase 1 "False \"last card\" pronouncement" (\(p, a, m) gs -> maybe False ((/= 1) . length) (gs ^. hands . at p) && ("last card" `findInMs` m))
+    . banPhrase 1 "False \"last card\" pronouncement" (\(p, _, m) gs -> maybe False ((/= 1) . length) (gs ^. hands . at p) && ("last card" `findInMs` m))
 
 -- TODO: make it order sensitive (Mao should only be sayable last)
 -- rMao :: Rule
@@ -53,7 +105,7 @@ rlast =
 rMao :: Rule
 rMao =
   onAction
-    ( \(p, a, m) act e gs ->
+    ( \(p, _, m) act e gs ->
         let next = act e gs
             won = next ^. winner == Just p
             saidmao = "mao" `findInMs` m
@@ -72,16 +124,11 @@ rMao =
               _ -> next
     )
 
-(^.^) = liftA2 (.)
-
-(^^.^^) = liftA2 (^.^)
-
 ifSaid :: String -> Game -> Game
-ifSaid s g e@(Action p a m) =
-  if s `findInMs` m
-    then g e
-    else doNothing
-ifSaid s g _ = doNothing
+ifSaid s g =
+  \case
+    e@(Action _ _ m) | s `findInMs` m -> g e
+    _ -> id
 
 getState :: Event -> GameState -> GameState
 getState = flip const
@@ -89,10 +136,10 @@ getState = flip const
 rMao'' :: Rule
 rMao'' =
   onAction
-    ( \(p, a, m) ->
+    ( \(p, _, _) ->
         with
           (,)
-          ( \(e, gs) ->
+          ( const $
               doAfter
                 ( with'
                     (\_ gs -> _winner gs == Just p)
@@ -107,6 +154,13 @@ rMao'' =
                 )
           )
     )
+  where
+    (^^.^^) ::
+      (Applicative f1, Applicative f2) =>
+      f1 (f2 (b -> c)) ->
+      f1 (f2 (a -> b)) ->
+      f1 (f2 (a -> c))
+    (^^.^^) = liftA2 $ liftA2 $ (.)
 
 r7' :: Rule
 r7' =
@@ -139,13 +193,15 @@ r7' =
                 | gs' ^. lastMoveLegal,
                   rank c == Seven ->
                   bePolite (Just bidm) . modifyVar "sevens" (+ 1) $ gs'
-              (Play c)
+              (Play _)
                 | gs' ^. lastMoveLegal,
                   count7 > 0 -> -- rank c /= Seven
                   bePolite (Just thankm) $ illegal 1 ("Failure to draw " ++ show (2 * count7) ++ " cards.") e gs
               _ -> bePolite Nothing gs'
     )
 
+defaultRules :: [Rule]
 defaultRules = [r7', rlast, r8, rq, rMao]
 
+defaultRulesNamed :: [(String, Rule)]
 defaultRulesNamed = [("r7'", r7'), ("rLastCard", rlast), ("r8", r8), ("rq", rq), ("rMao", rMao)]
