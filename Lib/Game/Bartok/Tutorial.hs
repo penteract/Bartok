@@ -209,7 +209,7 @@ instance Enum Rank where
   enumFrom n = map toEnum [fromEnum n .. fromEnum (maxBound :: Rank)]
 
 fullDeck :: [Card]
-fullDeck = [(r,s) | r <- [minBound..], s <- [minBound..]]
+fullDeck = [(r, s) | r <- [minBound ..], s <- [minBound ..]]
 
 next :: (Enum a, Bounded a, Eq a) => a -> a
 next a = if a == maxBound then minBound else succ a

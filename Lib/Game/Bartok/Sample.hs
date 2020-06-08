@@ -224,7 +224,7 @@ gSnap =
                                foldr
                                  (\(c, p) -> Map.insertWith (++) p [c])
                                  hs
-                                 (zip d (cycle (Map.keys hs)))
+                                 (zip d $ cycle $ Map.keys hs)
                              )
                          )
                   )

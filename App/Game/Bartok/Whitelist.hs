@@ -3,9 +3,7 @@ module Game.Bartok.Whitelist (allowed) where
 allowed :: String -> Bool
 allowed =
   ( `elem`
-      [ "doc/doc-index-I.html",
-        "doc/Game-Bartok-BaseGame.html",
-        "doc/bartok.txt",
+      [ "doc/bartok.txt",
         "doc/doc-index-126.html",
         "doc/doc-index-37.html",
         "doc/doc-index-46.html",
@@ -23,6 +21,7 @@ allowed =
         "doc/doc-index-F.html",
         "doc/doc-index-G.html",
         "doc/doc-index-H.html",
+        "doc/doc-index-I.html",
         "doc/doc-index-J.html",
         "doc/doc-index-K.html",
         "doc/doc-index-L.html",
@@ -39,6 +38,7 @@ allowed =
         "doc/doc-index-W.html",
         "doc/doc-index.html",
         "doc/doc-index.json",
+        "doc/Game-Bartok-BaseGame.html",
         "doc/Game-Bartok-DataTypes.html",
         "doc/Game-Bartok-RuleHelpers.html",
         "doc/Game-Bartok-Rules.html",

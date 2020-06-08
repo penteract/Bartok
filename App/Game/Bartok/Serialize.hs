@@ -19,10 +19,7 @@ import Data.Aeson
   ( FromJSON,
     ToJSON,
     decode,
-    defaultOptions,
     encode,
-    genericToEncoding,
-    toEncoding,
     toJSON,
   )
 import qualified Data.ByteString.Lazy as L
@@ -48,22 +45,14 @@ data ActionReq
   | ReqDraw Name Token Int Int String
   | ReqJoin Name Token Int
   | ReqLeave Name Token Int
-  deriving (Show, Eq, Generic)
-
-instance ToJSON ActionReq where toEncoding = genericToEncoding defaultOptions
-
-instance FromJSON ActionReq
+  deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 data NewRuleReq = NewRuleReq
   { imports :: [String],
     ruleType :: String,
     code :: String
   }
-  deriving (Show, Generic)
-
-instance ToJSON NewRuleReq where toEncoding = genericToEncoding defaultOptions
-
-instance FromJSON NewRuleReq
+  deriving (Show, Generic, FromJSON, ToJSON)
 
 readNewRule :: L.ByteString -> Maybe NewRuleReq
 readNewRule = decode
@@ -88,15 +77,3 @@ getCount (ReqLeave _ _ n) = n
 
 unserialize :: L.ByteString -> Maybe ActionReq
 unserialize = decode
-
--- unserialize s = do
---   name <- s ^? key "name" . _String . to T.unpack
---   action <- s ^? key "action" . _String
---   let messages = fromMaybe "" (s ^? key "messages" . _String . to T.unpack)
---   case action of
---     "draw" -> s ^? key "number" . _Integral >>= (\n -> return $ Action name (Draw n) messages)
---     "join" -> return $ PlayerJoin name
---     "play" -> do suit <- join $ s ^? key "card" . key "suit" . _String . to (readMaybe . showText)
---                  rank <- join $ s ^? key "card" . key "rank" . _String . to (readMaybe . showText)
---                  return $ Action name (Play (rank,suit)) messages
---     _ -> Nothing
