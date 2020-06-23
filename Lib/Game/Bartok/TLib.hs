@@ -27,6 +27,8 @@ module Game.Bartok.TLib(
     --  These should help with common patterns
     mkFailMsg,mustSay,unnec,sometimesSay,mustDo,mustSayPenalty,sometimesSayPenalty,unnecPenalty,
     modifyPlayers,modifyMessage,penalty,
+    -- These ones should be used carefully
+    illegal, play,
     -- * From DataTypes:
     Step,Game,Rule,
     GameState,Event(..),Action(..),
@@ -44,7 +46,7 @@ import Game.Bartok.DataTypes
 import Control.Applicative
 import Data.Maybe(isJust)
 import qualified Data.Map as Map
-import Game.Bartok.BaseGame(nextTurn,draw,broadcast,(%),illegal,getHand)
+import Game.Bartok.BaseGame(nextTurn,draw,broadcast,(%),illegal,play,getHand)
 import Game.Bartok.RuleHelpers(findInMs,split,regexProcess,reconstitute)
 import Text.Regex(matchRegexAll,matchRegex, mkRegexWithOpts)
 

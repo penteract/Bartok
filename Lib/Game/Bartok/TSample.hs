@@ -8,7 +8,9 @@ module Game.Bartok.TSample(r7,r8,rq,rSpade)
  where
 import Game.Bartok.TLib
 import Game.Bartok.Views(mapHands)
-import Game.Bartok.DataTypes(_deck, shuffleDeck)
+import Game.Bartok.DataTypes(_deck, shuffleDeck, _pile, _players, _hands)
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as Map
 
 {-
 Note that when submitting a rule, the game server expects an expression.
@@ -55,6 +57,92 @@ rq = when (cardIs ((==Queen) . rank))
 -- 'sometimesSay' means that players will be penalized if they name a spade which is not played.
 rSpade :: Rule
 rSpade inner = foldr ($) inner  [sometimesSay ("{} of Spades"%show r) (cardIs (==(r,Spades)))  | r <- [Ace .. King]]
+
+
+swp a b = mapAllCards (\c -> if (a==c) then b else if (b==c) then a else c)
+
+rAlternate :: Rule
+rAlternate = with (with state (__ . _pile)) s
+  where
+    s (a NE.:| (b : s)) = doBefore (swp a b) . doAfter (swp a b)
+    s _ = id
+
+piList = [3,1,4,1,5,9,2,6,5,3,5,8,9,7,9,3,2,3,8,4,6,2,6,4,3,3,8,3,2,7,9,5,0,2]
+
+-- Consider moving to TLib
+isDraw :: GEGSto Bool
+isDraw = actionIs (\a -> case a of
+  Draw _ -> True
+  _ -> False)
+
+-- Consider moving to TLib
+isActivePlayer :: GEGSto Bool
+isActivePlayer _ (Action p _ _) gs = head (_players gs) == p
+isActivePlayer _ _ _ = False
+
+
+-- Note: This rule uses 'play', and skips the inner ruleset.
+-- It is usually better to modify the gamestate so that inner rules get a chance
+-- (see rAlternate or rAce)
+rPi :: Rule
+rPi = withCard (\c ->
+  with (getVar "piPlace") (\n ->
+    if n==0
+      then when ( isLegal ~&~ __ (rank c == Three)) (doAfter (setVar "piPlace" (n+1)))
+      else
+        let r = fromEnum (rank c)
+            d = piList !! n in
+              if r==d
+                then withPlayer (\ p _ e -> play p e c)   --BaseGame.play
+                  -- could also advance the turn to follow the player, or check that the player is active
+                else doOnly (illegal 1 "Failure to continue pi")
+  ))
+  . when (isDraw ~&~ isActivePlayer) (doAfter (setVar "piPlace" 0))
+
+-- Consider moving to TLib
+mhead :: [a] -> Maybe a
+mhead [] = Nothing
+mhead (c:_) = Just c
+
+-- Consider moving to TLib
+-- | Modify the current player's hand. Do nothing if the event is not an action
+modifyHand :: ([Card]->[Card]) -> Event -> Step
+modifyHand f (Action p _ _) gs = gs{_hands = Map.adjust f p (_hands gs)}
+modifyHand _ _ gs = gs
+
+-- Consider moving to TLib
+setHand = modifyHand . const
+
+rKnight :: Rule
+rKnight = withHand (\hinit ->
+    let (ks, hfree) = takeKnights hinit
+      in doBefore (setHand hfree)
+        . doAfter (modifyHand (addKnights ks))
+  )
+
+type PlaceHolder = (Maybe Card,Card,Maybe Card)
+
+-- | Given a hand, remove all knights from it, with enough Data to reinsert them
+takeKnights :: [Card] -> ([PlaceHolder],[Card])
+takeKnights = takeKnights' Nothing
+
+takeKnights' :: Maybe Card -> [Card] -> ([PlaceHolder],[Card])
+takeKnights' mc [] = ([],[])
+takeKnights' mc (c@(Knight,_):cs) =
+  let (ps,rs) = takeKnights' mc cs in ((mc,c,mhead cs):ps,rs)
+takeKnights' mc (c:cs) =
+  let (ps,rs) = takeKnights' (Just c) cs in (ps,c:rs)
+
+-- | Add a collection of cards back into a hand in approximately the right places
+addKnights :: [PlaceHolder] -> [Card] -> [Card]
+addKnights ps cs  = foldr addKnight cs ps
+
+addKnight :: PlaceHolder -> [Card] -> [Card]
+addKnight (_,k,_) [] = [k]
+addKnight p@(a,k,b) (c:cs)
+  | Just c == a = c:k:cs
+  | Just c == b = k:c:cs
+  | otherwise   = c:addKnight p cs
 
 -- When a 3 is played, treat all cards of that suit as though they were one higher.
 -- This is implemented by internally incrementing everything of that suit once,
