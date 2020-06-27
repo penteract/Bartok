@@ -9,6 +9,7 @@ import Control.Monad (ap,join)
 
 import Game.Bartok.DataTypes
 import Game.Bartok.RuleHelpers
+import Game.Bartok.TSample(rNoHTML)
 
 r8 :: Rule
 r8 = onLegalCard (\card event ->
@@ -112,4 +113,5 @@ r7' =  onAction (\(p,a,m) act e gs ->
              _ -> bePolite Nothing gs' )
 
 defaultRules = [r7',rlast,r8,rq,rMao]
-defaultRulesNamed = [("r7'",r7'),("rLastCard",rlast),("r8",r8),("rq",rq),("rMao",rMao)]
+defaultRulesNamed = [("rNoHTML",rNoHTML),("r7'",r7'),("rLastCard",rlast),
+  ("r8",r8),("rq",rq),("rMao",rMao)]

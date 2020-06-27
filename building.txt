@@ -33,3 +33,8 @@ I would suggest making a compressed tar archive, uploading it, then extracting i
 To reduce average memory usage, I wrote a wrapper in go which forwards all tcp traffic and kills the server if there have been no requests for 5 hours.
 
 Daemons and port proxies also need to be set up, but those are easy and there are other tutorials for that.
+
+Notes for virtualbox on archlinux
+---------------------------------
+https://wiki.archlinux.org/index.php/VirtualBox#Installation_steps_for_Arch_Linux_hosts
+(don't forget kernel-headers)

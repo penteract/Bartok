@@ -76,6 +76,9 @@ tokenCheck p t og = unless (tokenMatches p t og)
 checks :: Name -> Token -> OngoingGame -> MError ()
 checks p t og = nameCheck p og >> tokenCheck p t og
 
+safechar :: Char -> Bool
+safechar c = c `elem` (['A'..'Z'] ++ ['a'..'z'] ++ ['0'..'9'])
+
 handle :: Either ActionReq Event -> OngoingGame -> MError GameState
 handle ar og =
    case ar of
@@ -87,11 +90,14 @@ handle ar og =
       Left (ReqDraw p t c n m) -> do
         checks p t og
         carryOut (Action p (Draw n) m) og
-      Left (ReqJoin n tok c) -> if nameExists n og then return (og^.gameState) -- (throwError $ "Player "++n++" is already a member of this game.")
+      Left (ReqJoin n tok c) -> if not (length n < 10 && all safechar n) then throwError "Invalid name"
+      else if nameExists n og then return (og^.gameState) -- (throwError $ "Player "++n++" is already a member of this game.")
                        else let neighbs = case map fst (og^.seats) of l@(x:xs) -> Just (x,last l); _ -> Nothing in
                             put (Just $ og & seats %~ ((n,tok):)) >> carryOut (PlayerJoin n neighbs) og
-      Left (ReqLeave n tok c) -> if nameExists n og
-                                  then put (Just $ og & seats %~ (filter ((/=n).fst))) >> carryOut (PlayerLeave n) og
+      Left (ReqLeave n tok c) -> do
+        checks n tok og
+        if nameExists n og
+                then put (Just $ og & seats %~ (filter ((/=n).fst))) >> carryOut (PlayerLeave n) og
                                   else return (og^.gameState)
       Right Timeout -> carryOut Timeout og
       Right _ -> error "should only send timeouts"
@@ -122,7 +128,7 @@ allUniques' [] s = True
 allUniques' (x:xs) s = x `Set.notMember` s && allUniques' xs (Set.insert x s)
 
 checkGSokay :: OngoingGame -> Bool
-checkGSokay og =let gs = og ^. gameState in
+checkGSokay og = let gs = og ^. gameState in
               (allUniques (gs^.players)) -- each player appears only once
               -- && (Set.fromList (gs^.players) == Set.fromList (map fst $ og^.seats)) -- players is permutation of seats
               && all (`Map.member` (gs^.hands)) (gs^.players) -- each player has a hand

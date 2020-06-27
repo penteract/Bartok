@@ -63,19 +63,15 @@ type RuleSet = Event -> GameState -> GameState
 type Rule = Game -> Game --this type is named correctly
 
 
+TLib
+------------
+GEGSto is almost a monad - it is a reader monad (but can't be an instance of 'Monad'),
+but 'GEGSto Gamestate == Rule' has some association with the state monad.
 
+TLib tries to make many things have the shape 'GEGSto a' (where a is 'GameState'
+if possible), but this sometimes has the downside of things requiring less general
+types than possible, harming composition e.g. setHand  
 
-JSON
--------------------
-
-TODO(angus): Parse this
-
-{name: "Toby, action :"join"}
-
-{name:"Toby", action: "draw",number:3}
-
-{name:"Toby", action: "play",card:{rank: "Ten", suit: "Diamonds"}}
-
-{name:"Toby", action: "play",card:{rank: "Ten", suit: "Diamonds"}, message: "hello"}
-
-"{\"name\":\"Toby\", \"action\": \"play\",\"card\":{\"rank\": \"Ten\", \"suit\": \"Diamonds\"}, \"message\": \"hello\"}"
+either needs to take
+the name of a player or return a Rule even though it should be able to get the
+ name of the current player from the event.

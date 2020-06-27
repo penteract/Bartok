@@ -4,7 +4,7 @@ Description : Sample rules using Tlib.
 
 Looking at the source code is recommended
 -}
-module Game.Bartok.TSample(r7,r8,rq,rSpade)
+module Game.Bartok.TSample(r7,r8,rq,rSpade,rNoHTML)
  where
 import Game.Bartok.TLib
 import Game.Bartok.Views(mapHands)
