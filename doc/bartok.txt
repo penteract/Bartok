@@ -24,7 +24,7 @@
 --   penalty cards to the original state, then call the inner rule again
 --   before returning.
 @package bartok
-@version 0.1.0.1
+@version 0.1.0.2
 
 
 -- | Datatypes for cards, game state and game view alongside some basic
@@ -423,21 +423,6 @@ win :: Name -> Step
 -- | Move n cards from the deck to a player's hand
 draw :: Int -> Name -> Step
 
-module Game.Bartok.Rules
-r8 :: Rule
-reverseDirection :: Step
-rq :: Rule
-rlast :: Rule
-rMao :: Rule
-(^.^) :: () => (Event -> b -> c) -> (Event -> a -> b) -> Event -> a -> c
-(^^.^^) :: () => (Bool -> Event -> b -> c) -> (Bool -> Event -> a -> b) -> Bool -> Event -> a -> c
-ifSaid :: String -> Game -> Game
-getState :: Event -> GameState -> GameState
-rMao'' :: Rule
-r7' :: Rule
-defaultRules :: [Rule]
-defaultRulesNamed :: [([Char], Rule)]
-
 
 -- | This presents operations with more arguments than strictly necessary
 --   so that they can be used interchangeably
@@ -600,6 +585,13 @@ modifyMessage :: (String -> String) -> Rule
 
 -- | Award a penalty to the acting player without preventing their action.
 penalty :: Int -> String -> Game
+
+-- | Returns a game where the move has not occured and a penalty has been
+--   given. Should be used with <tt>doOnly</tt>
+illegal :: Int -> String -> Game
+
+-- | Play a move and tidy up the game state.
+play :: Name -> Event -> Card -> Step
 
 -- | The type of transformations of game state
 type Step = GameState -> GameState
@@ -983,6 +975,22 @@ r7 :: Rule
 r8 :: Rule
 rq :: Rule
 rSpade :: Rule
+rNoHTML :: Rule
+
+module Game.Bartok.Rules
+r8 :: Rule
+reverseDirection :: Step
+rq :: Rule
+rlast :: Rule
+rMao :: Rule
+(^.^) :: () => (Event -> b -> c) -> (Event -> a -> b) -> Event -> a -> c
+(^^.^^) :: () => (Bool -> Event -> b -> c) -> (Bool -> Event -> a -> b) -> Bool -> Event -> a -> c
+ifSaid :: String -> Game -> Game
+getState :: Event -> GameState -> GameState
+rMao'' :: Rule
+r7' :: Rule
+defaultRules :: [Rule]
+defaultRulesNamed :: [([Char], Rule)]
 
 
 -- | Look at the implementation of these to see examples of how to write
