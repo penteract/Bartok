@@ -15,15 +15,15 @@ function joincards(cs){//TODO: debug
 
 function displayHand(h){
     s = "<div class=hand>"
-    s+=h[0]
-    s+="<p>"+joincards(h[1])+"</p>"
+    s+="<span class=name>" + h[0] + "</span>"
+    s+="<p class=cards>"+joincards(h[1])+"</p>"
     s+="</div>"
     return s
 }
 function displayOwnHand(h){
     s = "<div class=hand>"
-    s+=h[0]+"<br />"
-    s+=h[1].map(tagCard).join(" ")
+    s+="<span class=name>" + h[0]+ "</span><br />"
+    s+="<p class=cards>" + h[1].map(tagCard).join(" ") + "</p>"
     s+="</div>"
     return s
 }
@@ -37,6 +37,7 @@ function tagCard(c,i){
 }
 
 function sendC(card){
+    lastMoveIdx = card
     sendMove("ReqPlay",card)
 }
 
@@ -69,26 +70,108 @@ function display(n){
     if (obj.tag=="NewData" && count==n){
         count = obj.contents[0]
         obj = obj.contents[1]
-        $("#deck").html(joincards(obj._deckV))
-        $("#pile").html(joincards(obj._pileV))
         if(obj._messagesV.length) $("#msg").prepend(obj._messagesV.join("<br />")+"<br />")
-        first=true
-        $("#others").html("")
-        for (h of obj._handsV){
-            if(first){
-              if (!window.lastm || h != lastm._handsV[0])
-                $("#self").html(displayOwnHand(h))
-              name = h[0]
-              first=false
-            }
-            else{
-              $("#others").append(displayHand(h))
-            }
-        }
-        lastm = obj
+        displayCards(obj, function() { lastm = obj })
     }
     else if (obj.tag=="Redirect") location.assign(obj.contents)
 }}
+
+function displayCards(obj, callback) {
+  // TODO: maybe animate penalties too? 
+  for (m of obj._messagesV) {
+    var matches = m.match(/^(.*) draws (\d*) cards?\.?$/)
+    if (matches) {
+      var name = matches[1]
+      var amt = Number(matches[2])
+      if (amt > 0) {
+        var hand = handOf(name)
+        if (hand.length) { // checks whether the hand exists
+
+          var contents = showCard({tag:"CardBack"})
+          var from = $("#deck").offset()
+          var to = hand.children(".cards").offset()
+          if (amt > 1) { contents += amt }
+
+          displayDeckAndPile(obj)
+          animate(contents, from, to, function(){
+            displayHands(obj)
+            callback()
+          })
+          return
+        }
+      }
+    }
+
+    var matches = m.match(/^(.*) plays (..)\.?$/) 
+    if (matches) {
+      var name = matches[1]
+      var card = readCard(matches[2])
+      if (card) {
+        var hand = handOf(name)
+        if (hand.length) {
+ 
+          var contents = showCard(card)
+          var from = hand.children(".cards")
+          if (name === window.name) from = from.children().eq(lastMoveIdx)
+          from = from.offset()
+          var to = $("#pile").offset()
+
+          displayHands(obj)
+          animate(contents, from, to, function(){
+            displayDeckAndPile(obj)
+            callback()
+          })
+          return
+        }
+      }
+    }
+  }
+
+  // if we couldn't find any message explaining what's going on we just display stuff normally
+  displayDeckAndPile(obj)
+  displayHands(obj)
+  callback()
+}
+
+function handOf(name) {
+  return $(".hand").filter(function(i, h) { return $(h).children(".name").html() == name }).first()
+}
+
+function animate(contents, from, to, callback){
+  //console.log("animating" + contents)
+
+  var elt = $("#animation")
+  elt.html(contents)
+  elt.css({top: from.top, left: from.left})
+  elt.show()
+  elt.animate({top: to.top, left: to.left}, 100, function() { 
+      elt.hide()
+      elt.html("")
+      callback() 
+  })
+}
+
+function displayDeckAndPile(obj){
+    $("#deck").html(joincards(obj._deckV))
+    $("#pile").html(joincards(obj._pileV))
+}
+
+function displayHands(obj){
+    var first=true
+    $("#others").html("")
+    for (h of obj._handsV){
+        if(first){
+          if (!window.lastm || h != lastm._handsV[0])
+            $("#self").html(displayOwnHand(h))
+          name = h[0]
+          first=false
+        }
+        else{
+          $("#others").append(displayHand(h))
+        }
+    }
+  
+}
 
 function submitRule(){
     data=JSON.stringify({
@@ -104,7 +187,19 @@ function showCard(c){
     if (c.tag=="CardBack") return String.fromCodePoint(0x1f0a0)
     else if (c.tag=="CardFace") return "<span class="+c.contents[1]+">"+String.fromCodePoint(
         0x1f0a0 + suitNums[c.contents[1]]*16 + rankNums[c.contents[0]])+"</span>"
-    else console.log("unrecognised card")
+    else console.log("unrecognised card", c)
+}
+
+function readCard(c){
+  var cp = c.codePointAt(0)
+  cp -= 0x1f0a0
+  if (cp === 0) return {tag:"CardBack"}
+  var rank = cp % 16
+  var suit = cp >> 4
+  if (0 <= suit && suit <= 3 && 1 <= rank && rank <= 14){
+     return {tag:"CardFace", contents:[ranks[rank], suits[suit]]}
+  }
+  return null
 }
 
 rankNums = {"Ace": 1,
@@ -127,6 +222,10 @@ suitNums = {
     "Hearts" : 1,
     "Diamonds" : 2,
     "Clubs" : 3}
+
+ranks = [null, "Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Jack", "Knight", "Queen", "King"]
+
+suits = ["Spades", "Hearts", "Diamonds", "Clubs"]
 
 //https://stackoverflow.com/a/901144/1779797
 function getParameterByName(name, url) {

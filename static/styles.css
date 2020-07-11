@@ -59,6 +59,14 @@ body{
     display: flex;
     flex-flow: row wrap;
 }
+
+#animation {
+  position: absolute;
+  top:0;
+  left:0;
+  display:none;
+}
+
 .Hearts {
     color: red
 }
