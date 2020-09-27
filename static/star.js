@@ -144,7 +144,7 @@ function animate(contents, from, to, callback){
   elt.html(contents)
   elt.css({top: from.top, left: from.left})
   elt.show()
-  elt.animate({top: to.top, left: to.left}, 100, function() { 
+  elt.animate({top: to.top, left: to.left}, 250, function() { 
       elt.hide()
       elt.html("")
       callback() 
